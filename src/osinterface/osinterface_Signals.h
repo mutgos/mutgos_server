@@ -5,8 +5,6 @@
 #ifndef MUTGOS_OSINTERFACE_SIGNALS_H
 #define MUTGOS_OSINTERFACE_SIGNALS_H
 
-#endif //MUTGOS_OSINTERFACE_SIGNALS_H
-
 namespace mutgos
 {
 namespace osinterface
@@ -32,3 +30,5 @@ namespace osinterface
     };
 }
 }
+
+#endif //MUTGOS_OSINTERFACE_SIGNALS_H
