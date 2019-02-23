@@ -1,0 +1,3 @@
+add_subdirectory(read_dump)
+add_subdirectory(mutgos_server)
+add_subdirectory(test)

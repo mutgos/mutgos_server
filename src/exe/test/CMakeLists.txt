@@ -1,0 +1,2 @@
+add_subdirectory(angelscript_test)
+add_subdirectory(vheap_test)
