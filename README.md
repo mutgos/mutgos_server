@@ -2,6 +2,7 @@ mutgos_server
 =============
 MUTGOS (Multi User Text Game Operating System) is an attempt to provide a more modern, flexible, extensible server for text-based gaming (MUCK, MUD, MOO, MUSH, MU*, etc).  The basic idea is to bring text-based gaming into the modern world, so more can discover, understand easily, create, and enjoy it.
 
+<<<<<<< 57e0f09ab6edf40d2debed40e8dc9d325a3e2afb
 Some of the features MUTGOS plans to offer (or already does) includes, in no particular order:
   * Abstraction in major components, to allow for switching out communication mechanisms, commandline interpreters, database backends, in-game softcode languages, security, etc.  In turn, this should lead to better maintainability, with code that's easier to fix or modify.
   * Better support for handling poor internet connections (cell, public wifi, etc).
@@ -25,4 +26,13 @@ Currently, a working, but extremely basic (not complete enough to run an actual 
 
 Building and Running The Prototype
 ==================================
-Refer to the 'docs' directory for information on how to do this.  Currently this is best suited for semi-experienced C++ developers with Linux experience, but this will get much easier as time goes on.
+Refer to the 'docs' directory for information on how to do build and run mutgos locally.  Currently this is best suited for semi-experienced C++ developers with Linux experience, but this will get much easier as time goes on.
+
+A Dockerfile for mutgos also exists. To build and run it:
+
+```
+docker build -t mutgos .
+docker run -d --name mutgos mutgos
+```
+
+Expect the build command to take some time to complete as it needs to download and compile boost.
