@@ -1,0 +1,96 @@
+This is a very basic how-to guide for compiling and running the prototype version of MUTGOS.  It is not designed for the beginning developer or those new to Linux, yet, but as development progresses it should get easier to compile and run.
+
+As we progress out of being a prototype, this file will eventually disappear and be replaced by something better written, more comprehensive, and hopefully with less manual steps.
+
+
+Dependencies
+------------
+Newer versions may work, but have not yet been tested.
+
+  * Boost 1.67 (https://www.boost.org/doc/libs/1_67_0/more/getting_started/unix-variants.html)
+  * rapidjson 1.1.0 (https://github.com/Tencent/rapidjson/tree/v1.1.0)
+  * sqlite3 (tested with 3.15.2) - may be called sqlite3-dev on your package manager
+    * A slightly older or newer version should be fine.
+    * You should have shared libraries and header files once built or installed.
+  * angelscript 2.32 (https://www.angelcode.com/angelscript/downloads.html)
+
+
+Build each dependency according to their instructions.  To avoid messing up your system files, it is highly suggested you create a separate directory for MUTGOS dependencies, and have MUTGOS link to that directory instead.  You may need to create subdirectories in there such as ./lib, ./include, ./bin, etc.  
+
+Sample build commands that place dependencies in a non-system directory (/path/to/mutgos/depends) are as follows:
+
+
+BOOST:
+sudo apt-get install libbz2-dev
+./bootstrap.sh --prefix=/path/to/mutgos/depends --libdir=/path/to/mutgos/depends/lib --includedir=/path/to/mutgos/depends/include
+./b2 --prefix=/path/to/mutgos/depends --libdir=/path/to/mutgos/depends/lib --includedir=/path/to/mutgos/depends/include --without-python install
+
+
+RAPIDJSON:
+RapidJSON is a header-only C++ library. Just copy the 'include/rapidjson' folder to /path/to/mutgos/depends/include
+
+
+SQLITE3:
+./configure --prefix=/path/to/mutgos/depends --libdir=/path/to/mutgos/depends/lib --includedir=/path/to/mutgos/depends/include --bindir=/path/to/mutgos/depends/bin
+make clean
+make install
+
+
+ANGELSCRIPT:
+cd angel/sdk/angelscript/projects/gnuc
+(Modify Makefile at line 87 to include -g for debugging AngelScript, if desired)
+make PREFIX=/path/to/mutgos/depends clean
+make PREFIX=/path/to/mutgos/depends
+make PREFIX=/path/to/mutgos/depends install
+
+
+
+
+Compiling MUTGOS
+----------------
+Now that all dependencies have been installed, modify the root CMakeLists.txt file (just above src directory) to point to your dependencies.  Change the lines reading "include_directories(BEFORE SYSTEM" and "link_directories" to point to your new include and lib directories, respectively.  Obviously, you do not want to commit this to the repo; this will hopefully be fixed soon to use relative paths or similar.
+
+Now, you can actually compile MUTGOS.  In the same directory as the CMakeLists.txt file was modified, you can use CMake to build it as usual.  Some IDEs will also build it via their UIs.
+  
+  $ cmake .
+  $ make
+  
+Once it completes, you're ready to import the database.
+
+
+Before Running Any Executables
+------------------------------
+You will have to manually tell Linux where your dependency directory (LD_LIBRARY_PATH) is.  One way you can do this is by typing a command similar to the following in the terminal window you'll be running MUTGOS programs:
+
+export LD_LIBRARY_PATH=.:/path/to/mutgos/depends/lib
+
+
+Importing a Database
+--------------------
+Before you can run the server, you need to import a database.  This can be done as follows:
+
+  * Find the readdump executable.  Depending on if you had an IDE build it or not, it may be alongside the source code at src/exe/read_dump, or in a parallel directory such as cmake-build-debug/src/exe/read_dump.
+  * cd to where the readdump executable is.
+  * Run a command like:  ./readdump /path/to/mutgos/data/prototype_db.dump
+  * This will import the given dump file.
+  * A bunch of text will scroll by, and you should catch something about "Parsing completed successfully.".
+  * Once back at the commandline, copy the resulting mutgos.db file (an SQLITE file) to ../mutgos_server
+
+  
+Running the server
+------------------
+After importing the database, above, you can run the server.
+
+  * Find the mutgos_server executable (should be an adjacent directory from readdump).
+  * cd to the found executable
+  * ./mutgos_server
+  * After a second or two, it should print out a few lines and then sit there.  MUTGOS is now running.
+  * ctrl-C should let it shutdown gracefully, or if not send it a SIGQUIT.
+  * If your IDE catches signals, you can add an empty mutgos_shutdown file in the executable directory and it will also shutdown gracefully in a few seconds.
+
+  
+Connecting to the server
+------------------------
+  * Connect to 127.0.0.1, port 7072 (no SSL) using telnet or a MUD client.
+  * Look at the dump file to find usernames and passwords.  Either way, you want to login to site #2.
+  * Try out some of the commands!  The dump file will hint at what's available.

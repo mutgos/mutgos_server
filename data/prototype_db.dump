@@ -1,0 +1,1652 @@
+MUTGOS DUMP VERSION 1
+
+# Dump file for prototype demo.  This will need cleanup
+# and better comments at some point.
+
+# Contains programs and such global to all sites
+mksite global_site
+
+# Room #0, basically
+mkentity region $global_root_region
+  name Root Region
+end entity
+mkentity room $global_root_room
+  name Root Room
+  fields
+    contained_by=$global_root_region
+  end fields  
+end entity
+
+# System and Admin players
+mkentity player $global_system_player
+  name SYSTEM
+  fields
+    password=xyzzy
+    player_display_name=SYSTEM ACCOUNT
+    player_home=$global_root_room
+    contained_by=$global_root_room
+  end fields
+end entity
+
+mkentity player $global_admin_player
+  name root
+  fields
+    password=xyzzy
+    player_display_name=Root
+    player_home=$global_root_room
+    contained_by=$global_root_room
+  end fields
+end entity
+
+# Go back and assign Room #0 to be owned by system
+modentity $global_root_region
+  owner $global_system_player
+end entity
+modentity $global_root_room
+  owner $global_system_player
+end entity
+
+# Make all the capabilities
+mkentity capability $global_cap_admin
+  name ADMIN
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_create_player
+  name CREATE_PLAYER
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_builder
+  name BUILDER
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_send_text_room
+  name SEND_TEXT_ROOM_UNRESTRICTED
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_send_text_entity
+  name SEND_TEXT_ENTITY
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_find_by_name
+  name FIND_BY_NAME_AFAR
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_id_to_name
+  name ANY_ID_TO_NAME
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_connection_check
+  name CONNECTION_CHECK
+  owner $global_system_player
+end entity
+mkentity capability $global_cap_run_as_user
+  name RUN_AS_USER
+  owner $global_system_player
+end entity
+
+mkentity program $hello_prog
+  name hello.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  println("Hello.");
+}
+.end
+  end fields
+end entity
+
+
+
+#### @ps
+mkentity program $ps_prog
+  name ps.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  string psOutput = SystemOps::get_formatted_processes();  
+  mprintln(psOutput);
+}
+.end
+  end fields
+end entity
+modentity $global_cap_admin
+  fields
+    group_ids=$ps_prog
+  end fields
+end entity
+mkentity command $ps_command
+  name @ps
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$ps_prog
+	action_commands=@ps
+  end fields
+end entity
+####
+
+
+#### who
+mkentity program $who_prog
+  name who.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  println("Name                  On For   Idle");
+
+  array<OnlineStatEntry>@ online = SystemOps::get_online_players();
+  
+  for (uint index = 0; index < online.length(); ++index)
+  {
+    OnlineStatEntry@ entry = online[index];
+  
+    if (entry.is_valid())
+    {
+      string line;
+      string entityName = entry.get_entity().get_name(false);
+      
+      line.append(entityName);
+      
+      if (entityName.size() < 20)
+      {
+        line.fill(" ", 20 - entityName.size());
+      }
+      
+      TimeDiff secsOnline = entry.get_time_online_secs();
+      TimeDiff minsOnline = 0;
+      TimeDiff hoursOnline = 0;
+      
+      minsOnline = secsOnline / 60;
+      hoursOnline = minsOnline / 60;
+      minsOnline -= hoursOnline * 60;
+
+      string onFor = "" + hoursOnline + ":" + minsOnline;
+      
+      if (! entry.is_connected())
+      {
+        line += " !";
+      }
+      else
+      {
+        line.fill(" ", 2);
+      }
+      
+      line += onFor;
+      
+      if (onFor.size() < 4)
+      {
+        line.fill(" ", 4 - onFor.size());
+      }
+      
+      line.fill(" ", 5);
+      line.append(entry.get_idle_time_secs());
+      
+      println(line);
+    }
+  }
+  
+  string footer;
+  footer.append(online.length());
+  footer += " players online.";
+  
+  println(footer);
+}
+.end
+  end fields
+end entity
+modentity $global_cap_connection_check
+  fields
+    group_ids=$who_prog
+  end fields
+end entity
+modentity $global_cap_id_to_name
+  fields
+    group_ids=$who_prog
+  end fields
+end entity
+mkentity command $who_command
+  name who
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$who_prog
+	action_commands=who
+  end fields
+end entity
+####
+
+
+
+
+#### examine
+mkentity program $examine_prog
+  name examine.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  if (args.empty())
+  {
+    println("Provide something to examine!");
+    return;
+  }
+
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (entity.is_valid())
+  {
+    // Matched by ID.
+    mprintln(entity.to_string());
+  }
+  else
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+    }
+    else
+    {
+      // Found it!
+      mprintln(entity.to_string());
+    }
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $examine_command
+  name examine
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$examine_prog
+    action_commands=ex
+    action_commands=exam
+	action_commands=examine
+  end fields
+end entity
+####
+
+
+
+#### say
+mkentity program $say_prog
+  name say.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  println("You say, \"" + args + "\"");
+  
+  Entity @myself = SystemOps::get_me();
+  
+  InputOutputOps::emit_to_room(myself.get_location(), " says, \"" + args + "\"", true);
+}
+.end
+  end fields
+end entity
+mkentity command $say_command
+  name say
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$say_prog
+	action_commands=say
+	action_commands="
+  end fields
+end entity
+####
+
+
+
+#### pose
+mkentity program $pose_prog
+  name pose.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  Entity @myself = SystemOps::get_me();
+  string @poseString;
+
+  if (args.empty())
+  {
+    @poseString = "";
+  }
+  else
+  {
+    string @firstChar = args[0];
+  
+    if (! ((firstChar == "'") || (firstChar == ",") || (firstChar == ".") || (firstChar == ":")))
+    {
+      // No possessive.  Add a space.
+      @poseString = " " + args;
+    }
+    else
+    {
+      // Possessive.  Don't add a space.
+      @poseString = string(args);
+    }
+  }
+  
+  println(myself.get_name(false) + poseString);
+  InputOutputOps::emit_to_room(myself.get_location(), poseString, true);
+}
+.end
+  end fields
+end entity
+mkentity command $pose_command
+  name pose
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$pose_prog
+	action_commands=pose
+	action_commands=:
+  end fields
+end entity
+####
+
+
+#### Look
+mkentity program $look_prog
+  name look.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 150
+void main(const string &in args)
+{
+  const string @lookat = args;
+
+  if (args.empty())
+  {
+    @lookat = string("here");
+  }
+
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(lookat);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      lookat,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(lookat + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + lookat);
+      }
+    }
+  }
+  
+  // Confirm we actually have something before looking it up.
+  //
+  if (entity.is_valid())
+  {
+    // Print the main desc
+    //
+    if (entity.is_room())
+    {
+      println(entity.get_name(true));
+    }
+    
+    string@ desc = entity.get_string_prop("/look/shortdesc");
+    println(desc);
+    
+    array<Entity> @contents = entity.get_contents();
+    
+    if (! contents.isEmpty())
+    {
+      // Sort by actions and items
+      //
+      array<Entity> @actions = array<Entity>();
+      array<Entity> @items = array<Entity>();
+      
+      for (uint index = 0; index < contents.length(); ++index)
+      {
+        Entity@ entry = contents[index];
+
+        if (entry.is_action())
+        {
+          actions.insertLast(entry);
+        }
+        else if (entry.is_valid())
+        {
+          items.insertLast(entry);
+        }
+      }
+      
+      // Print each list out.
+      //
+      if (! actions.isEmpty())
+      {
+        string @actionString = string();
+        
+        for (uint index = 0; index < actions.length(); ++index)
+        {
+          actionString.fill(" ", 4);
+          actionString += actions[index].get_name(false);
+        }
+        
+        println("Actions:");
+        println(actionString);
+      }
+      
+      if (! items.isEmpty())
+      {
+        string @itemsString = "Contains:";
+        
+        for (uint index = 0; index < items.length(); ++index)
+        {
+          itemsString.fill(" ", 2);
+          itemsString += items[index].get_name(false);
+          itemsString += ",";
+        }
+        
+        // Remove last comma
+        itemsString.erase(itemsString.size() - 1);
+        
+        println(itemsString);
+      }
+    }
+  }
+}
+.end
+  end fields
+end entity
+modentity $global_cap_id_to_name
+  fields
+    group_ids=$look_prog
+  end fields
+end entity
+mkentity command $look_command
+  name look
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$look_prog
+	action_commands=look
+  end fields
+end entity
+####
+
+
+
+
+#### @desc
+mkentity program $desc_prog
+  name desc.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  StringPos sepIndex = args.find("=");
+  bool clear = false;
+  
+  if (sepIndex > (args.size() - 1))
+  {
+    println("Syntax is <command> entity=Description");
+    println("Example: @desc me=My Description.");
+    return;
+  }
+  
+  if (sepIndex == (args.size() - 1))
+  {
+    clear = true;
+  }
+  
+  string @what = args.substring(0, sepIndex);
+  what.strip();
+
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(what);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      what,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(what + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + what);
+      }
+      
+      return;
+    }
+  }
+  
+  if (clear)
+  {
+	entity.set_prop("/look/shortdesc", "");
+  }
+  else
+  {
+    string @desc = args.substring(sepIndex + 1);
+    entity.set_prop("/look/shortdesc", desc);
+  }
+  
+  println("Description set.");
+}
+.end
+  end fields
+end entity
+mkentity command $desc_command
+  name @description
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$desc_prog
+	action_commands=@description
+	action_commands=@desc
+	action_commands=@setdesc
+	action_commands=@setdescription
+  end fields
+end entity
+####
+
+
+
+#### inventory
+mkentity program $inventory_prog
+  name inventory.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  Entity @myself = SystemOps::get_me();
+  array<Entity> @contents = myself.get_contents();
+
+  println("You are carrying:");
+  
+  if (! contents.isEmpty())
+  {
+    // Sort items only
+    //
+    array<Entity> @items = array<Entity>();
+      
+    for (uint index = 0; index < contents.length(); ++index)
+    {
+      Entity@ entry = contents[index];
+
+      if (entry.is_valid() and (! entry.is_action()))
+      {
+        items.insertLast(entry);
+      }
+    }
+
+    // Print the list out.
+    if (! items.isEmpty())
+    {
+      for (uint index = 0; index < items.length(); ++index)
+      {
+        println(items[index].get_name(true));
+      }
+    }
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $inventory_command
+  name inventory
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$inventory_prog
+	action_commands=i
+	action_commands=inv
+	action_commands=inventory
+  end fields
+end entity
+####
+
+
+
+#### create
+mkentity program $create_prog
+  name create.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  if (args.empty())
+  {
+    println("You must provide a name for the thing!");
+    return;
+  }
+  
+  Entity @createdEntity = DatabaseOps::create_entity(ENTITYTYPE_thing, args);
+  
+  if (createdEntity.is_valid())
+  {
+    println("Created " + createdEntity.get_name(true));
+  }
+  else
+  {
+    println("Unable to create an entity named " + args);
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $create_command
+  name @create
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$create_prog
+	action_commands=@create
+  end fields
+end entity
+####
+
+
+
+
+#### delete
+mkentity program $delete_prog
+  name delete.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{  
+  if (args.empty())
+  {
+    println("You must provide something to delete!");
+    return;
+  }
+  
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+      
+      return;
+    }
+  }
+  
+  entity.delete_entity();  
+  println("Deleted.");
+}
+.end
+  end fields
+end entity
+mkentity command $delete_command
+  name @delete
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$delete_prog
+	action_commands=@delete
+	action_commands=@recycle
+	action_commands=@rec
+  end fields
+end entity
+####
+
+
+
+#### drop
+mkentity program $drop_prog
+  name drop.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{  
+  if (args.empty())
+  {
+    println("You must provide something to drop!");
+    return;
+  }
+  
+  Entity @myself = SystemOps::get_me();
+  
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+      
+      return;
+    }
+  }
+  
+  if (! entity.is_thing())
+  {
+    println("You can't drop non-Things!");
+  }
+  else
+  {
+    if (! (entity.get_location() == myself))
+    {
+      println("You aren't holding that.");
+    }
+    else
+    {
+      MovementOps::move_entity(entity, myself.get_location());
+      InputOutputOps::emit_to_room(myself.get_location(), " dropped " + entity.get_name(false), true);
+      println("Dropped.");
+    }
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $drop_command
+  name drop
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$drop_prog
+	action_commands=drop
+  end fields
+end entity
+####
+
+
+
+#### get
+mkentity program $get_prog
+  name get.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{  
+  if (args.empty())
+  {
+    println("You must provide something to get!");
+    return;
+  }
+  
+  Entity @myself = SystemOps::get_me();
+  
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+      
+      return;
+    }
+  }
+  
+  if (! entity.is_thing())
+  {
+    println("You can't get non-Things!");
+  }
+  else
+  {
+    if (entity.get_location() == myself)
+    {
+      println("You already have that!");
+    }
+    else
+    {
+      MovementOps::move_entity(entity, myself);
+      InputOutputOps::emit_to_room(myself.get_location(), " picked up " + entity.get_name(false), true);
+      println("Picked up.");
+    }
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $get_command
+  name get
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$get_prog
+	action_commands=get
+	action_commands=pickup
+  end fields
+end entity
+####
+
+
+
+#### Page
+mkentity program $page_prog
+  name page.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 150
+void main(const string &in args)
+{
+  StringPos sepIndex = args.find("=");
+  
+  if ((sepIndex >= (args.size() - 1)))
+  {
+    println("Syntax is: page <player>=<message>");
+    println("  ... just like on any MUCK. :)");
+    return;
+  }
+
+  Entity @myself = SystemOps::get_me();
+  string targetStr = args.substring(0, sepIndex);
+  string contentStr = args.substring(sepIndex + 1);
+  bool ambiguous = false;
+  
+  Entity @target = DatabaseOps::match_name_to_entity(
+    targetStr,
+    false,
+    ENTITYTYPE_player,
+    ambiguous);
+
+  if (! target.is_valid())
+  {
+    if (ambiguous)
+    {
+      println(targetStr + " is ambiguous."); 
+    }
+    else
+    {
+      println("Cannot find player " + targetStr);
+    }
+    
+    return;
+  }
+  
+  InputOutputOps::send_to_entity(target, " pages to you, \"" + contentStr + "\"", true);
+  println("You page, \"" + contentStr + "\" to " + target.get_name(false));
+}
+.end
+  end fields
+end entity
+modentity $global_cap_id_to_name
+  fields
+    group_ids=$page_prog
+  end fields
+end entity
+modentity $global_cap_send_text_entity
+  fields
+    group_ids=$page_prog
+  end fields
+end entity
+modentity $global_cap_find_by_name
+  fields
+    group_ids=$page_prog
+  end fields
+end entity
+mkentity command $page_command
+  name page
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$page_prog
+	action_commands=page
+	action_commands=p
+  end fields
+end entity
+####
+
+
+
+#### @security
+mkentity program $security_prog
+  name security.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 500
+void main(const string &in args)
+{
+  // This poorly written program also demonstrates how nicely AngelScript will fail it out
+  //
+  StringPos commandIndex = args.find(" #");
+  
+  if ((commandIndex >= (args.size() - 1)))
+  {
+    println("Syntax is: @security <target> #readwrite/#!readwrite/#admin/#!admin <admin>");
+    println("Example 1: @security me #readwrite");
+    println("Example 2: @security me #admin root");
+    return;
+  }
+  
+  commandIndex++;
+  string @targetStr = args.substring(0, commandIndex);
+  targetStr.strip();
+  
+  bool ambiguous = false;
+
+  // Find the Entity by ID or name
+  Entity @target = DatabaseOps::convert_id_to_entity(targetStr);
+  
+  if (! target.is_valid())
+  {
+    @target = DatabaseOps::match_name_to_entity(
+      targetStr,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+
+    if (! target.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(targetStr + " is ambiguous."); 
+      }
+      else
+      {
+        println("Cannot find target " + targetStr);
+      }
+    
+      return;
+    }
+  }
+  
+  StringPos commandEndIndex = args.find(" ", commandIndex);
+  string @commandStr = args.substring(commandIndex, commandEndIndex - commandIndex);
+  commandStr.strip();
+  
+  if (commandStr.equals_ignore_case("#readwrite"))
+  {
+    // #readwrite command
+    target.set_security_other(true);
+    println("Security on Entity updated (read/write on).");
+    return;
+  }
+  else if (commandStr.equals_ignore_case("#!readwrite"))
+  {
+    // #!readwrite command
+    target.set_security_other(false);
+    println("Security on Entity updated (read/write off).");
+    return;
+  }
+  else
+  {
+    // Must be admin
+    //
+    string @adminStr = args.substring(commandEndIndex);
+    adminStr.strip();
+    
+    Entity @admin = DatabaseOps::convert_id_to_entity(adminStr);
+
+    if (! admin.is_valid())
+    {
+      @admin = DatabaseOps::match_name_to_entity(
+        adminStr,
+        false,
+        ENTITYTYPE_player,
+        ambiguous);
+
+      if (! admin.is_valid())
+      {
+        if (ambiguous)
+        {
+          println(adminStr + " is ambiguous."); 
+        }
+        else
+        {
+          println("Cannot find admin target " + adminStr);
+        }
+        
+        return;
+      }
+    }
+
+    if (commandStr.equals_ignore_case("#admin"))
+    {
+      target.set_security_add_admin(admin);
+      println("Added admin.");
+      return;
+    }
+    else if (commandStr.equals_ignore_case("#!admin"))
+    {
+      target.set_security_remove_admin(admin);
+      println("Removed admin.");
+      return;
+    }
+    else
+    {
+      println("Unknown command.");
+    }
+  }
+}
+.end
+  end fields
+end entity
+modentity $global_cap_find_by_name
+  fields
+    group_ids=$security_prog
+  end fields
+end entity
+mkentity command $security_command
+  name @security
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$security_prog
+	action_commands=@security
+  end fields
+end entity
+####
+
+
+
+#### @looksecurity
+mkentity program $looksecurity_prog
+  name looksecurity.prog
+  owner $global_admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 500
+void main(const string &in args)
+{
+  // This poorly written program also demonstrates how nicely AngelScript will fail it out
+  //
+  string @appName = "look";
+  StringPos commandIndex = args.find(" #");
+  
+  if ((commandIndex >= (args.size() - 1)))
+  {
+    println("Syntax is: @looksecurity <target> #write/#!write/#admin/#!admin <admin>");
+    println("Example 1: @looksecurity me #write");
+    println("Example 2: @looksecurity me #admin root");
+    return;
+  }
+  
+  commandIndex++;
+  string @targetStr = args.substring(0, commandIndex);
+  targetStr.strip();
+  
+  bool ambiguous = false;
+
+  // Find the Entity by ID or name
+  Entity @target = DatabaseOps::convert_id_to_entity(targetStr);
+  
+  if (! target.is_valid())
+  {
+    @target = DatabaseOps::match_name_to_entity(
+      targetStr,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+
+    if (! target.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(targetStr + " is ambiguous."); 
+      }
+      else
+      {
+        println("Cannot find target " + targetStr);
+      }
+    
+      return;
+    }
+  }
+  
+  StringPos commandEndIndex = args.find(" ", commandIndex);
+  string @commandStr = args.substring(commandIndex, commandEndIndex - commandIndex);
+  commandStr.strip();
+  
+  if (commandStr.equals_ignore_case("#write"))
+  {
+    // #write command
+    target.set_application_security_other(appName, true);
+    println("Security on look Application properties updated (write on).");
+    return;
+  }
+  else if (commandStr.equals_ignore_case("#!write"))
+  {
+    // #!write command
+    target.set_application_security_other(appName, false);
+    println("Security on look Application properties updated (write off).");
+    return;
+  }
+  else
+  {
+    // Must be admin
+    //
+    string @adminStr = args.substring(commandEndIndex);
+    adminStr.strip();
+    
+    Entity @admin = DatabaseOps::convert_id_to_entity(adminStr);
+
+    if (! admin.is_valid())
+    {
+      @admin = DatabaseOps::match_name_to_entity(
+        adminStr,
+        false,
+        ENTITYTYPE_player,
+        ambiguous);
+
+      if (! admin.is_valid())
+      {
+        if (ambiguous)
+        {
+          println(adminStr + " is ambiguous."); 
+        }
+        else
+        {
+          println("Cannot find admin target " + adminStr);
+        }
+        
+        return;
+      }
+    }
+
+    if (commandStr.equals_ignore_case("#admin"))
+    {
+      target.set_application_security_add_admin(appName, admin);
+      println("Added admin.");
+      return;
+    }
+    else if (commandStr.equals_ignore_case("#!admin"))
+    {
+      target.set_application_security_remove_admin(appName, admin);
+      println("Removed admin.");
+      return;
+    }
+    else
+    {
+      println("Unknown command.");
+    }
+  }
+}
+.end
+  end fields
+end entity
+modentity $global_cap_find_by_name
+  fields
+    group_ids=$looksecurity_prog
+  end fields
+end entity
+mkentity command $looksecurity_command
+  name @looksecurity
+  owner $global_admin_player
+  fields
+    action_contained_by=$global_root_region
+    action_targets=$looksecurity_prog
+	action_commands=@looksecurity
+  end fields
+end entity
+####
+
+
+end site
+
+
+
+#################### desk site
+
+
+# First actual site
+mksite desk_site
+
+# Room #0, basically
+mkentity region $root_region
+  name Root Region
+  fields
+    contained_by=$global_root_region
+  end fields
+end entity
+mkentity room $root_room
+  name Root Room
+  fields
+    contained_by=$root_region
+  end fields  
+end entity
+
+# System and Admin players
+mkentity player $system_player
+  name SYSTEM
+  fields
+    password=xyzzy
+    player_display_name=SYSTEM ACCOUNT
+    player_home=$root_room
+    contained_by=$root_room
+  end fields
+end entity
+
+mkentity player $admin_player
+  name Root
+  fields
+    password=xyzzy
+    player_display_name=Root
+    player_home=$root_room
+    contained_by=$root_room
+  end fields
+  properties
+    security look $admin_player
+      flag other R
+    end security
+    string /look/shortdesc=The root of all this mess.
+  end properties
+end entity
+
+mkentity program $admin_player_prog
+  name admin_player.prog
+  owner $admin_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  // This will cause an out of memory situation inside the virtual heap
+  array<string> @stuff = array<string>();
+  string @mystring = "";
+  while (true)
+  {
+    stuff.insertLast(string("Wow this is a fancy string"));
+    mystring += "Wow this is a fancy string";
+  }
+}
+.end
+  end fields
+end entity
+mkentity command $admin_player_action
+  name runprog
+  owner $admin_player
+  fields
+    action_contained_by=$admin_player
+    action_targets=$admin_player_prog
+	action_commands=runprog
+  end fields
+end entity
+
+
+# Go back and assign Room #0 to be owned by system
+modentity $root_region
+  owner $system_player
+end entity
+modentity $root_room
+  owner $system_player
+end entity
+
+# Make all the capabilities
+mkentity capability $cap_admin
+  name ADMIN
+  owner $system_player
+end entity
+mkentity capability $cap_create_player
+  name CREATE_PLAYER
+  owner $system_player
+end entity
+mkentity capability $cap_builder
+  name BUILDER
+  owner $system_player
+end entity
+mkentity capability $cap_send_text_room
+  name SEND_TEXT_ROOM_UNRESTRICTED
+  owner $system_player
+end entity
+mkentity capability $cap_send_text_entity
+  name SEND_TEXT_ENTITY
+  owner $system_player
+end entity
+mkentity capability $cap_find_by_name
+  name FIND_BY_NAME_AFAR
+  owner $system_player
+end entity
+mkentity capability $cap_id_to_name
+  name ANY_ID_TO_NAME
+  owner $system_player
+end entity
+mkentity capability $cap_connection_check
+  name CONNECTION_CHECK
+  owner $system_player
+end entity
+mkentity capability $cap_run_as_user
+  name RUN_AS_USER
+  owner $system_player
+end entity
+
+
+# The room most will see
+mkentity room $desktop_room
+  owner $admin_player
+  name Desktop
+  fields
+    contained_by=$root_region
+  end fields
+  properties
+    security look $admin_player
+      flag other R
+    end security
+    string /look/shortdesc=This is a plain desktop, with a light, monitor, and some speakers.
+    document /look/longdesc=lines 2
+The desktop is much big.
+Wow.
+end lines
+    end properties
+end entity
+
+# Northern part of desktop
+mkentity room $north_desktop_room
+  owner $admin_player
+  name North Desktop
+  fields
+    contained_by=$root_region
+  end fields
+  properties
+    security look $admin_player
+      flag other R
+    end security
+    string /look/shortdesc=You're at the edge of the desktop.  The floor stretches out far beneath you.
+    end properties
+end entity
+
+# Exit out of root room
+mkentity exit $room1_exit
+  owner $admin_player
+  name [O]ut
+  fields
+    action_contained_by=$root_room
+    action_targets=$desktop_room
+    action_succ_msg=You head to the light!
+    action_succ_room_msg=heads out to the light.
+    exit_arrive_room_msg=arrives from the root of everything.
+	action_commands=o
+    action_commands=out
+  end fields
+end entity
+
+# First program ever
+mkentity command $run_prog_command
+  owner $admin_player
+  name [H]ello
+  fields
+    action_contained_by=$root_region
+    action_targets=$hello_prog
+	action_commands=h
+    action_commands=hello
+  end fields
+end entity
+
+# Exit to north
+mkentity exit $north_exit
+  owner $admin_player
+  name [N]orth
+  fields
+    action_contained_by=$desktop_room
+    action_targets=$north_desktop_room
+    action_succ_msg=You head north.
+    action_succ_room_msg=heads north.
+    exit_arrive_room_msg=arrives from the southern part of the desktop.
+    action_commands=n
+    action_commands=north
+  end fields
+end entity
+
+# Exit to south
+mkentity exit $south_exit
+  owner $admin_player
+  name [S]outh
+  fields
+    action_contained_by=$north_desktop_room
+    action_targets=$desktop_room
+    action_succ_msg=You head south.
+    action_succ_room_msg=heads south.
+    exit_arrive_room_msg=arrives from the northern part of the desktop.
+    action_commands=s
+    action_commands=south
+  end fields
+end entity
+
+# A normal player
+mkentity player $normal_player
+  name Player
+  fields
+    password=password
+    player_display_name=Normal Player
+    player_home=$desktop_room
+    contained_by=$desktop_room
+  end fields
+  properties
+    security look $normal_player
+      flag other R
+    end security
+    string /look/shortdesc=A standard, average, ordinary player.
+  end properties
+end entity
+
+modentity $cap_builder
+  fields
+    group_ids=$normal_player
+  end fields
+end entity
+
+mkentity program $normal_player_prog
+  name normal_player.prog
+  owner $normal_player
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  println("Hello.");
+}
+.end
+  end fields
+end entity
+mkentity command $normal_player_action
+  name runprog
+  owner $normal_player
+  fields
+    action_contained_by=$normal_player
+    action_targets=$normal_player_prog
+	action_commands=runprog
+  end fields
+end entity
+
+
+
+# An unprivileged player
+mkentity player $bad_player
+  name BadPlayer
+  fields
+    password=password
+    player_display_name=Bad Player
+    player_home=$desktop_room
+    contained_by=$desktop_room
+  end fields
+  properties
+    security look $bad_player
+      flag other R
+    end security
+    string /look/shortdesc=A player with no permissions.
+  end properties
+end entity
+
+end site
+
+
+
+
+
+MUTGOS DUMP END
