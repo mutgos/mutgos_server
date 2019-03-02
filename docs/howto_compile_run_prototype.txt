@@ -93,4 +93,27 @@ Connecting to the server
 ------------------------
   * Connect to 127.0.0.1, port 7072 (no SSL) using telnet or a MUD client.
   * Look at the dump file to find usernames and passwords.  Either way, you want to login to site #2.
-  * Try out some of the commands!  The dump file will hint at what's available.
+  * Try out some of the commands!  The dump file will hint at what's available.  The commands closely mirror the average text game (familiarity with one is highly suggested), and partial matches for Entity names along with the usual 'me', 'here', and #1234 (for Entity DB ID) should work:
+    * @ps  - shows running processes
+    * who  - shows who is online
+    * examine  <entity>  -  Shows detailed information about an Entity, if you have permission.  Example: 'examine me'
+    * say <text>  - Says something to the room.  Example: 'say Hello!'
+    * pose, :  - Poses an action to the room.  Example: ':moves around.'
+    * look [Entity]  - Looks at the room, or at an entity.  Examples: 'look', 'look me'
+    * @description <Entity>=<text>  - Sets the Entity's description to what's provided, if you have permission.  Example: '@desc me=You see a player.'
+    * inventory  -  Shows what you are carrying
+    * @create <name>  - Creates a Thing named <name> in your inventory, if you are a builder.  Example: '@create Teapot'
+    * @delete <name>  -  Deletes the named Entity, if you have permission and are a builder.  Example: '@delete Teapot'
+    * drop <name>  -  Drops the named item from your inventory.  Example: 'drop teapot'
+    * get <name>  - Picks something up from the room and puts it in your inventory.  Example: 'get teapot'
+    * page <player>=<Message>  - Sends a private message to the named player.  Example: 'page root=You are the admin?'
+    * @security  -  A temporary command that sets the read and write permissions on the 'other' security for an Entity, and can also add or remove admins from the Entity's admin list.  Mostly a demo artifact to show how security works.  Type '@security' for help.
+    * @looksecurity  -  A temporary command that adjusts the write permission and admins on the 'other' security for the 'look' properties.  Mostly a demo artifact to show how security works.  This would allow other people to adjust your (or one of your Entity's) description.  Type '@looksecurity' for help.
+    * QUIT - Closes your connection nicely and logs you out.
+    * @listprog <#dbid>  - A temporary C++ command that lets you view a program's source code, if you have permission.  Example: '@listprog #12'
+    * @editprog <#dbid>  - A temporary C++ command that lets you replace a program's source code with new code, if you have permission.  Example: '@editprog #12'
+    * >>  - Redirection modifier.  Allows you to send the output of a program to a Document property on an Entity.  Example: 'look >> me=/look/lookoutput'
+    * Exits listed in the room will take you to other rooms.
+    * !help  -  Accesses help screen when connecting via a socket.  This provides socket-specific commands.
+    * If you close your connection without typing 'QUIT', you can log back in and resume where you left off, and see what you missed.
+    * Some commands accept color in the format (simplified for this document) of ~`colorname`, and ~`` to reset the color to default.  For instance:   say Hello ~`blue`blue text~``!
