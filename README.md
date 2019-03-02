@@ -31,7 +31,7 @@ A Dockerfile for mutgos also exists. To build and run it:
 
 ```
 docker build -t mutgos .
-docker run -d --name mutgos mutgos
+docker run -it -p 7072:7072 --name mutgos mutgos
 ```
 
 Expect the build command to take some time to complete as it needs to download and compile boost.

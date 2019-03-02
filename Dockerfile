@@ -44,13 +44,13 @@ RUN cd /home \
     && rm -rf sdk
 
 # Build mutgos
-ADD . /home/mutgos
+# Copy in only those files that affect the build
+# so tweaking a readme doesn't confuse the Dockerfile
+ADD ./src /home/mutgos/src
+ADD ./CMakeFiles /home/mutgos/CMakeFiles
+ADD ./CMakeLists.txt /home/mutgos/CMakeLists.txt
 RUN cd /home/mutgos \
-    # User might have built locally
-    && rm CMakeCache.txt \
     && cmake . \
-    # Delete any locally-built files.
-    && make clean \
     && make
 
 # Make sure boost libraries can be found.
@@ -60,7 +60,12 @@ ENV LD_LIBRARY_PATH /usr/local/lib
 # TODO(hyena): Come up with a solution that maps ./data
 # from the host so that the user can backup, tweak,
 # etc.
+ADD ./data /home/mutgos/data
 RUN cd /home/mutgos/src/exe/read_dump \
-    && ./readdump /home/mutgos/data/prototype_db.dmp \
+    && ./readdump /home/mutgos/data/prototype_db.dump \
     && cp ./mutgos.db ../mutgos_server
 
+
+EXPOSE 7072
+WORKDIR /home/mutgos/src/exe/mutgos_server
+ENTRYPOINT ["./mutgos_server"]

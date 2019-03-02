@@ -9,9 +9,9 @@ Makefile
 *.so
 
 # Compiled objects
+mutgos.db
 *.so
 **/mutgos_server/mutgos_server
-**/mutgos_server/mutgos.db
 **/read_dump/readdump
 **/angelscript_test/angelscript_td
 **/vheap_test/vheap_td
