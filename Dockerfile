@@ -33,13 +33,13 @@ RUN cd /home \
 
 # Install angelscript 2.32
 RUN cd /home \
-    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.33.0.zip \
-    && unzip angelscript_2.33.0.zip \
-    && rm angelscript_2.33.0.zip \
-    && cd sdk/angelscript/projects/cmake \
-    && cmake . \
-    && make \
-    && make install \
+    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.32.0.zip \
+    && unzip angelscript_2.32.0.zip \
+    && rm angelscript_2.32.0.zip \
+    && cd sdk/angelscript/projects/gnuc \
+    && make PREFIX=/usr/local clean \
+    && CXXFLAGS="-g" make PREFIX=/usr/local \
+    && make PREFIX=/usr/local install \
     && cd /home \
     && rm -rf sdk
 
