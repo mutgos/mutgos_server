@@ -25,4 +25,13 @@ Currently, a working, but extremely basic (not complete enough to run an actual 
 
 Building and Running The Prototype
 ==================================
-Refer to the 'docs' directory for information on how to do this.  Currently this is best suited for semi-experienced C++ developers with Linux experience, but this will get much easier as time goes on.
+Refer to the 'docs' directory for information on how to do build and run mutgos locally.  Currently this is best suited for semi-experienced C++ developers with Linux experience, but this will get much easier as time goes on.
+
+A Dockerfile for mutgos also exists. To build and run it:
+
+```
+docker build -t mutgos .
+docker run -it -p 7072:7072 --name mutgos mutgos
+```
+
+Expect the build command to take some time to complete as it needs to download and compile boost.

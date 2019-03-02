@@ -1,0 +1,5 @@
+# Add additional files/patterns here that shouldn't be copied into images.
+*.md
+.git
+*.o
+mutgos.db
