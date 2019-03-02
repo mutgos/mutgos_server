@@ -2,7 +2,6 @@ mutgos_server
 =============
 MUTGOS (Multi User Text Game Operating System) is an attempt to provide a more modern, flexible, extensible server for text-based gaming (MUCK, MUD, MOO, MUSH, MU*, etc).  The basic idea is to bring text-based gaming into the modern world, so more can discover, understand easily, create, and enjoy it.
 
-<<<<<<< 57e0f09ab6edf40d2debed40e8dc9d325a3e2afb
 Some of the features MUTGOS plans to offer (or already does) includes, in no particular order:
   * Abstraction in major components, to allow for switching out communication mechanisms, commandline interpreters, database backends, in-game softcode languages, security, etc.  In turn, this should lead to better maintainability, with code that's easier to fix or modify.
   * Better support for handling poor internet connections (cell, public wifi, etc).

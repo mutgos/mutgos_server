@@ -8,7 +8,8 @@ RUN apt-get update \
                           wget \
                           g++ \
                           unzip \
-                          sqlite3
+                          sqlite3 \
+                          libsqlite3-dev
 
 # Install Boost
 RUN cd /home && wget http://downloads.sourceforge.net/project/boost/boost/1.67.0/boost_1_67_0.tar.gz \
@@ -24,20 +25,42 @@ RUN cd /home/boost_1_67_0 \
 RUN cd /home \
     && git clone --branch v1.1.0 https://github.com/Tencent/rapidjson.git \
     && cd rapidjson \
-    && cmake . \
+    && cat CMakeLists.txt \
+    && cmake -DCMAKE_CXX_FLAGS=-Wno-implicit-fallthrough . \
     && make install \
     && cd /home \
     && rm -rf rapidjson
 
 # Install angelscript 2.32
 RUN cd /home \
-    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.32.0.zip \
-    && unzip angelscript_2.32.0.zip \
-    && rm angelscript_2.32.0.zip \
+    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.33.0.zip \
+    && unzip angelscript_2.33.0.zip \
+    && rm angelscript_2.33.0.zip \
     && cd sdk/angelscript/projects/cmake \
     && cmake . \
+    && make \
     && make install \
     && cd /home \
     && rm -rf sdk
 
-RUN 
+# Build mutgos
+ADD . /home/mutgos
+RUN cd /home/mutgos \
+    # User might have built locally
+    && rm CMakeCache.txt \
+    && cmake . \
+    # Delete any locally-built files.
+    && make clean \
+    && make
+
+# Make sure boost libraries can be found.
+ENV LD_LIBRARY_PATH /usr/local/lib
+
+# Build the db and put it in the right place.
+# TODO(hyena): Come up with a solution that maps ./data
+# from the host so that the user can backup, tweak,
+# etc.
+RUN cd /home/mutgos/src/exe/read_dump \
+    && ./readdump /home/mutgos/data/prototype_db.dmp \
+    && cp ./mutgos.db ../mutgos_server
+
