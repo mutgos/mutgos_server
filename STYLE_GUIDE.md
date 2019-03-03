@@ -15,6 +15,9 @@ Some specific style and best practices advice is below:
     * The naming convention is innernamespace_ClassName.h/.cpp .  Example:  if the inner namespace is 'comm' and the class is 'CommAccess', the header would be called 'comm_CommAccess.h'
   * Contents of files
     * The outer namespace is always 'mutgos'.  An inner namespace must be specified and is dependent upon the area you're working in.  Creating new inner namespaces is allowed.  There is no need to indent between the outer and inner namespace.
+    * Namespaces are short and in lowercase, one word.
+    * Class names are MixedCase.
+    * Method names, class attributes, and variables use_underscores_like_this.
     * NEVER use the 'using' keyword unless there is a need when integrating with an outside library.  This cuts down on confusion as to which class you are referring to and where it is located.
     * Line length is about 80 characters.  You can go a little beyond this if it makes things more readable now and again.  The optional exception is class attributes (though maybe this should be reconsidered?) which can go beyond 80 characters, with the assumption an IDE of some sort is used to decode the comments as a pop-up.
     * Use spaces, not tabs.
