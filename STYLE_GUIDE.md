@@ -30,8 +30,8 @@ Some specific style and best practices advice is below:
     * Brackets should be on a separate line from other code to make code stand out better.  If you absolutely, positively cannot abide by this for whatever reason, then you may put the opening bracket at the end of a line, providing the code contained within is indented.  The exception is one-liners inline in headers.
     * Methods (definition or use of) that take lots of arguments should have one argument per line, indented, to make it easier to keep track of inputs.
   * C++ version used
-    * Currently, C++11 64bit is selected as the target for maximum compatibility
-    * Code may be written to the C++98 64bit standard as well (the initial prototype was written to this standard due to how long it took to get finished).
+    * The target platform is currently Linux 64bit.  While it is good to keep porting in mind when coding, it will be a while before a port to other platforms takes place.
+    * C++11 64bit has been selected for maximum compatibility (and because certain BOOST libraries utilized require it), however tests have shown some Linux distributions with older GCCs may not work correctly (particularly with BOOST).  It is therefore advisable to utilize C++11 features sparingly, and to instead use the C++98 standard as much as possible.
     * Avoid using platform specific functionality (use BOOST whenever possible).  If it is unavoidable, put it in osinterface so it can be easily reused and modified to support additional platforms.
     * If you can do an implementation without using advanced features of C++, then do not use those features.  The goal is to keep the code readable and maintainable even by those who are not familiar with every bit of C++ functionality.  If it makes sense to use a feature because it will significantly speed up development, performance, etc, then by all means use it.
   * Pointers
