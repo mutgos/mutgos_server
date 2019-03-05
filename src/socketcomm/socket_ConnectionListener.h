@@ -7,10 +7,11 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 
-#include "socket_PlainRawSocketConnection.h"
+#include "socket_SecureRawSocketConnection.h"
 
 namespace mutgos
 {
@@ -53,7 +54,7 @@ namespace socket
 
 
     private:
-        typedef boost::shared_ptr<PlainRawSocketConnection> PlainRawSocketPtr;
+        typedef boost::shared_ptr<SecureRawSocketConnection> SecureRawSocketPtr;
 
         /**
          * Listens for the next connection request.
@@ -65,7 +66,7 @@ namespace socket
          * @param error_code[in] The error code associated with the request.
          */
         void on_accept(
-            PlainRawSocketPtr connection,
+            SecureRawSocketPtr connection,
             boost::system::error_code error_code);
 
 
@@ -76,6 +77,7 @@ namespace socket
         boost::asio::ip::tcp::acceptor socket_acceptor; ///< Listens/accepts socket connections
         boost::asio::io_context &io_context; ///< IO Context for everything
         boost::asio::ip::tcp::socket socket; ///< The socket currently being accepted
+        boost::asio::ssl::context ssl_context; ///< Configured SSL context.
     };
 }
 }

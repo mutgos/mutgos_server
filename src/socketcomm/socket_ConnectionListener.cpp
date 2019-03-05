@@ -5,6 +5,7 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include "logging/log_Logger.h"
 
@@ -26,7 +27,8 @@ namespace socket
         driver_ptr(driver),
         socket_acceptor(context),
         io_context(context),
-        socket(context)
+        socket(context),
+        ssl_context(boost::asio::ssl::context::tlsv12_server)
     {
         if (not driver_ptr)
         {
@@ -35,6 +37,14 @@ namespace socket
         }
 
         boost::system::error_code error_code;
+
+        // Set up the TLS context
+        //
+        // TODO(hyena): This is probably too stringent for most clients
+        ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
+        // TODO(hyena): Support password callbacks for the certificate?
+        ssl_context.use_certificate_chain_file("server.pem");
+        ssl_context.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
 
         // Open the acceptor
         //
@@ -119,9 +129,10 @@ namespace socket
     // ----------   ------------------------------------------------------------
     void ConnectionListener::do_accept(void)
     {
-        PlainRawSocketPtr new_connection(new PlainRawSocketConnection(
+        SecureRawSocketPtr new_connection(new SecureRawSocketConnection(
                 driver_ptr,
-                io_context));
+                io_context,
+                ssl_context));
 
         socket_acceptor.async_accept(
             new_connection->get_socket(),
@@ -134,7 +145,7 @@ namespace socket
 
     // ----------------------------------------------------------------------
     void ConnectionListener::on_accept(
-        PlainRawSocketPtr connection,
+        SecureRawSocketPtr connection,
         boost::system::error_code error_code)
     {
         if (error_code)
