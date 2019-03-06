@@ -64,6 +64,13 @@ namespace socket
     protected:
 
         /**
+         * Called asynchronously after handshake is complete.
+         * @param error_code[in] If set, indicates ASIO had an error
+         * completing the handshake.
+         */
+        void on_handshake_complete(boost::system::error_code error_code);
+
+        /**
          * Called to asynchronously request any waiting data from the socket.
          */
         virtual void do_read(void);

@@ -41,10 +41,28 @@ namespace socket
         // Perform the handshake then let our base class configure 
         // the settings. This means that socket options will only be
         // set after the handshake.
-        // TODO(hyena): Change to async_handshake with a callback.
-        ssl_socket.handshake(boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>::server);
+        ssl_socket.async_handshake(
+            boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>::server,
+            boost::bind(
+                &SecureRawSocketConnection::on_handshake_complete,
+                boost::static_pointer_cast<SecureRawSocketConnection>(shared_from_this()),
+                boost::asio::placeholders::error));
+    }
 
-        PlainRawSocketConnection::start();
+    // ----------------------------------------------------------------------
+    void SecureRawSocketConnection::on_handshake_complete(boost::system::error_code error_code)
+    {
+        if (error_code)
+        {
+            // Handshake failed. Shut it down.
+            LOG(error, "socket", "on_handshake_complete", "Bad handshake from " +
+                get_socket().remote_endpoint().address().to_string() +
+                ": " + error_code.message());
+            raw_disconnect();
+        } else {
+            // Continue setting socket options etc.
+            PlainRawSocketConnection::start();
+        }
     }
 
     // ----------------------------------------------------------------------
