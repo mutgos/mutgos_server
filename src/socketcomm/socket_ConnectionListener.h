@@ -7,11 +7,10 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ssl.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 
-#include "socket_SecureRawSocketConnection.h"
+#include "socket_RawSocketConnection.h"
 
 namespace mutgos
 {
@@ -35,16 +34,25 @@ namespace socket
         : public boost::enable_shared_from_this<ConnectionListener>
     {
     public:
+        typedef std::function<
+            RawSocketConnection*(
+                mutgos::socket::SocketDriver*,
+                boost::asio::io_context&
+            )
+        > RawSocketFactory;
+
         /**
          * Constructor.
          * @param driver[in] Pointer to the SocketDriver in use.
          * @param context[in] The IO Context.
          * @param endpoint[in] What we are listening on.
+         * @param socket_factory[in] Method that will produce PlainRawSocketConnections.
          */
         ConnectionListener(
             SocketDriver *driver,
             boost::asio::io_context &context,
-            boost::asio::ip::tcp::endpoint endpoint);
+            boost::asio::ip::tcp::endpoint endpoint,
+            RawSocketFactory socket_factory);
 
         /**
          * Starts listening for connection requests.
@@ -54,7 +62,7 @@ namespace socket
 
 
     private:
-        typedef boost::shared_ptr<SecureRawSocketConnection> SecureRawSocketPtr;
+        typedef boost::shared_ptr<RawSocketConnection> RawSocketPtr;
 
         /**
          * Listens for the next connection request.
@@ -66,7 +74,7 @@ namespace socket
          * @param error_code[in] The error code associated with the request.
          */
         void on_accept(
-            SecureRawSocketPtr connection,
+            RawSocketPtr connection,
             boost::system::error_code error_code);
 
 
@@ -76,8 +84,7 @@ namespace socket
 
         boost::asio::ip::tcp::acceptor socket_acceptor; ///< Listens/accepts socket connections
         boost::asio::io_context &io_context; ///< IO Context for everything
-        boost::asio::ip::tcp::socket socket; ///< The socket currently being accepted
-        boost::asio::ssl::context ssl_context; ///< Configured SSL context.
+        RawSocketFactory socket_factory; ///< Used to produce new connection objects
     };
 }
 }

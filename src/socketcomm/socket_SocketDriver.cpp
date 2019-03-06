@@ -10,6 +10,7 @@
 #include "comminterface/comm_RouterSessionManager.h"
 #include "comminterface/comm_ClientConnection.h"
 
+#include "socket_SecureRawSocketConnection.h"
 #include "socket_SocketDriver.h"
 #include "socket_SocketClientConnection.h"
 #include "socket_ConnectionListener.h"
@@ -28,6 +29,14 @@ namespace socket
           plain_started(false),
           ssl_started(false)
     {
+        // Set up the TLS context
+        //
+        // This may be too stringent for some clients, in which case we can relax it later.
+        ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
+        // TODO(hyena): Support password callbacks for the certificate?
+        ssl_context.use_certificate_chain_file("server.pem");
+        ssl_context.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
+
         if (not my_router_ptr)
         {
             LOG(fatal, "socket", "SocketDriver", "router is null!");
@@ -63,23 +72,36 @@ namespace socket
         if (not plain_started)
         {
             const unsigned short port = 7072;
+            // Factory method to make PlainRawSocketConnections.
+            const ConnectionListener::RawSocketFactory plain_factory
+                = [](SocketDriver *driver, boost::asio::io_context &io_context) {
+                    return new PlainRawSocketConnection(driver, io_context);
+                };
             plain_started = boost::make_shared<ConnectionListener>(
                 this,
                 io_context,
-                boost::asio::ip::tcp::endpoint(address, port))->start();
+                boost::asio::ip::tcp::endpoint(address, port),
+                plain_factory)->start();
 
             LOG(info, "socket", "start",
                 "Socket Driver started, listening on port "
                 + text::to_string(port));
         }
+
         if (not ssl_started)
         {
             const unsigned short port = 7073;
-
+            // Factory method to make SecureRawSocketConnections.
+            // Captures our ssl_context by reference
+            const ConnectionListener::RawSocketFactory secure_factory
+                = [&](SocketDriver *driver, boost::asio::io_context &io_context) {
+                    return new SecureRawSocketConnection(driver, io_context, ssl_context);
+                };
             ssl_started = boost::make_shared<ConnectionListener>(
                 this,
                 io_context,
-                boost::asio::ip::tcp::endpoint(address, port))->start();
+                boost::asio::ip::tcp::endpoint(address, port),
+                secure_factory)->start();
 
             LOG(info, "socket", "start",
                 "Socket Driver started, listening securely on port "

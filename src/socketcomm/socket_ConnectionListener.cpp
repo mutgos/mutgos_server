@@ -5,12 +5,10 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ssl.hpp>
 
 #include "logging/log_Logger.h"
 
 #include "socket_SocketDriver.h"
-#include "socket_PlainRawSocketConnection.h"
 #include "socket_ConnectionListener.h"
 #include "socket_SocketClientConnection.h"
 
@@ -22,13 +20,13 @@ namespace socket
     ConnectionListener::ConnectionListener(
         mutgos::socket::SocketDriver *driver,
         boost::asio::io_context &context,
-        boost::asio::ip::tcp::endpoint endpoint)
+        boost::asio::ip::tcp::endpoint endpoint,
+        RawSocketFactory socket_factory)
       : initialization_error(false),
         driver_ptr(driver),
         socket_acceptor(context),
         io_context(context),
-        socket(context),
-        ssl_context(boost::asio::ssl::context::tlsv12_server)
+        socket_factory(socket_factory)
     {
         if (not driver_ptr)
         {
@@ -37,14 +35,6 @@ namespace socket
         }
 
         boost::system::error_code error_code;
-
-        // Set up the TLS context
-        //
-        // This may be too stringent for some clients, in which case we can relax it later.
-        ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
-        // TODO(hyena): Support password callbacks for the certificate?
-        ssl_context.use_certificate_chain_file("server.pem");
-        ssl_context.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
 
         // Open the acceptor
         //
@@ -129,10 +119,7 @@ namespace socket
     // ----------   ------------------------------------------------------------
     void ConnectionListener::do_accept(void)
     {
-        SecureRawSocketPtr new_connection(new SecureRawSocketConnection(
-                driver_ptr,
-                io_context,
-                ssl_context));
+        RawSocketPtr new_connection(socket_factory(driver_ptr, io_context));
 
         socket_acceptor.async_accept(
             new_connection->get_socket(),
@@ -145,7 +132,7 @@ namespace socket
 
     // ----------------------------------------------------------------------
     void ConnectionListener::on_accept(
-        SecureRawSocketPtr connection,
+        RawSocketPtr connection,
         boost::system::error_code error_code)
     {
         if (error_code)
