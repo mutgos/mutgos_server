@@ -37,7 +37,7 @@ namespace socket
         /**
          * @return The socket managed by this instance.
          */
-        boost::asio::ip::tcp::socket &get_socket(void)
+        virtual boost::asio::ip::tcp::socket &get_socket(void)
         { return socket; }
 
         /**
