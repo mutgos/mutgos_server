@@ -8,6 +8,7 @@ Dependencies
 Newer versions may work, but have not yet been tested.
 
   * Boost 1.67 (https://www.boost.org/doc/libs/1_67_0/more/getting_started/unix-variants.html)
+  * OpenSSL (tested with 1.1.0g)
   * rapidjson 1.1.0 (https://github.com/Tencent/rapidjson/tree/v1.1.0)
   * sqlite3 (tested with 3.15.2) - may be called sqlite3-dev on your package manager
     * A slightly older or newer version should be fine.
@@ -76,7 +77,20 @@ Before you can run the server, you need to import a database.  This can be done 
   * A bunch of text will scroll by, and you should catch something about "Parsing completed successfully.".
   * Once back at the commandline, copy the resulting mutgos.db file (an SQLITE file) to ../mutgos_server
 
-  
+
+Generating a SSL Certificate
+----------------------------
+If you want to run the server with ssl, you'll need an ssl certificate.  mutgos expects a `server.pem` file in the same directory as its executable.
+A self-signed certificate is included for testing purposes named `identity.pem` and can be installed as follows:
+
+  * Find the mutgos_server executable (should be an adjacent directory from readdump).
+  * cd to the found executable
+  * Run a command to copy the cp /path/to/mutgos/data/identity.pem ./server.pem
+
+Alternatively if you know how to use openssl or certbot to generate a .pem with both certificate and private keys, you may use that.
+[TODO(hyena): Better doc/example of this. Probably blocked on config file.]
+
+
 Running the server
 ------------------
 After importing the database, above, you can run the server.

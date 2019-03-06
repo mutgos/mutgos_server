@@ -34,6 +34,7 @@ namespace socket
         : public boost::enable_shared_from_this<ConnectionListener>
     {
     public:
+        // TODO(hyena): Should this use boost calls instead?
         typedef std::function<
             RawSocketConnection*(
                 mutgos::socket::SocketDriver*,
