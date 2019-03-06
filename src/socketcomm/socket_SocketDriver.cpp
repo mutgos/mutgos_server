@@ -23,7 +23,10 @@ namespace socket
         mutgos::comm::RouterSessionManager *router)
         : my_router_ptr(router),
           io_context{1},
-          started(false)
+          ssl_context(boost::asio::ssl::context::tlsv12_server),
+          started(false),
+          plain_started(false),
+          ssl_started(false)
     {
         if (not my_router_ptr)
         {
@@ -34,7 +37,7 @@ namespace socket
     // ----------------------------------------------------------------------
     SocketDriver::~SocketDriver()
     {
-        if (started)
+        if (plain_started || ssl_started)
         {
             LOG(error, "socket", "~SocketDriver",
                 "Destructed without calling stop()!");
@@ -51,19 +54,16 @@ namespace socket
     bool SocketDriver::start(void)
     {
         // TODO Make config data driven.
-
-        if (not started)
-        {
-            // Taken from 'advanced_server.cpp' in beast examples.
-            // Makes the IO context, and creates and starts the connection
-            // listener.
-            //
-            const boost::asio::ip::address address =
+        // Taken from 'advanced_server.cpp' in beast examples.
+        // Makes the IO context, and creates and starts the connection
+        // listener.
+        //
+        const boost::asio::ip::address address =
                 boost::asio::ip::make_address("0.0.0.0");
+        if (not plain_started)
+        {
             const unsigned short port = 7072;
-
-
-            started = boost::make_shared<ConnectionListener>(
+            plain_started = boost::make_shared<ConnectionListener>(
                 this,
                 io_context,
                 boost::asio::ip::tcp::endpoint(address, port))->start();
@@ -71,6 +71,25 @@ namespace socket
             LOG(info, "socket", "start",
                 "Socket Driver started, listening on port "
                 + text::to_string(port));
+        }
+        if (not ssl_started)
+        {
+            const unsigned short port = 7073;
+
+            ssl_started = boost::make_shared<ConnectionListener>(
+                this,
+                io_context,
+                boost::asio::ip::tcp::endpoint(address, port))->start();
+
+            LOG(info, "socket", "start",
+                "Socket Driver started, listening securely on port "
+                + text::to_string(port));
+        }
+
+        started = plain_started && ssl_started;
+        if (not started)
+        {
+            LOG(error, "socket", "start", "Socket Driver couldn't start listeners.");
         }
 
         return started;

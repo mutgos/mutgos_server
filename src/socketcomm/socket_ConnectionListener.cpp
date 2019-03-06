@@ -40,7 +40,7 @@ namespace socket
 
         // Set up the TLS context
         //
-        // TODO(hyena): This is probably too stringent for most clients
+        // This may be too stringent for some clients, in which case we can relax it later.
         ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
         // TODO(hyena): Support password callbacks for the certificate?
         ssl_context.use_certificate_chain_file("server.pem");

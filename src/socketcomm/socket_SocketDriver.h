@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include "osinterface/osinterface_OsTypes.h"
 
@@ -147,8 +148,11 @@ namespace socket
         comm::RouterSessionManager * const my_router_ptr; ///< Pointer to router.
 
         boost::asio::io_context io_context; ///< The IO Context for the sockets.
+        boost::asio::ssl::context ssl_context; ///< SSL context for the system.
 
-        bool started; ///< True if start() has been called successfully.
+        bool started; ///< True if the whole socket_driver is started
+        bool plain_started; ///< True if the unencrypted connection listener is started
+        bool ssl_started; ///< True if the encrypted connection listener is started.
         PendingActions pending_actions; ///< connections with pending actions.
         PendingDeletes pending_deletes; ///< connections to be deleted (no more references to them).
         ClientConnections client_connections; ///< All the active client connections.
