@@ -8,4 +8,5 @@ target_link_libraries(
         mutgos_logging
         mutgos_osinterface
         mutgos_utilities
-        mutgos_text)
+        mutgos_text
+        ssl)

@@ -9,7 +9,6 @@
 #include "logging/log_Logger.h"
 
 #include "socket_SocketDriver.h"
-#include "socket_PlainRawSocketConnection.h"
 #include "socket_ConnectionListener.h"
 #include "socket_SocketClientConnection.h"
 
@@ -21,12 +20,13 @@ namespace socket
     ConnectionListener::ConnectionListener(
         mutgos::socket::SocketDriver *driver,
         boost::asio::io_context &context,
-        boost::asio::ip::tcp::endpoint endpoint)
+        boost::asio::ip::tcp::endpoint endpoint,
+        RawSocketFactory socket_factory)
       : initialization_error(false),
         driver_ptr(driver),
         socket_acceptor(context),
         io_context(context),
-        socket(context)
+        socket_factory(socket_factory)
     {
         if (not driver_ptr)
         {
@@ -119,9 +119,7 @@ namespace socket
     // ----------   ------------------------------------------------------------
     void ConnectionListener::do_accept(void)
     {
-        PlainRawSocketPtr new_connection(new PlainRawSocketConnection(
-                driver_ptr,
-                io_context));
+        RawSocketPtr new_connection(socket_factory(driver_ptr, io_context));
 
         socket_acceptor.async_accept(
             new_connection->get_socket(),
@@ -134,7 +132,7 @@ namespace socket
 
     // ----------------------------------------------------------------------
     void ConnectionListener::on_accept(
-        PlainRawSocketPtr connection,
+        RawSocketPtr connection,
         boost::system::error_code error_code)
     {
         if (error_code)

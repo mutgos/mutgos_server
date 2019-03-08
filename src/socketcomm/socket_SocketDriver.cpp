@@ -10,6 +10,7 @@
 #include "comminterface/comm_RouterSessionManager.h"
 #include "comminterface/comm_ClientConnection.h"
 
+#include "socket_SecureRawSocketConnection.h"
 #include "socket_SocketDriver.h"
 #include "socket_SocketClientConnection.h"
 #include "socket_ConnectionListener.h"
@@ -23,8 +24,19 @@ namespace socket
         mutgos::comm::RouterSessionManager *router)
         : my_router_ptr(router),
           io_context{1},
-          started(false)
+          ssl_context(boost::asio::ssl::context::tlsv12_server),
+          started(false),
+          plain_started(false),
+          ssl_started(false)
     {
+        // Set up the TLS context
+        //
+        // This may be too stringent for some clients, in which case we can relax it later.
+        ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
+        // TODO(hyena): Support password callbacks for the certificate?
+        ssl_context.use_certificate_chain_file("server.pem");
+        ssl_context.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
+
         if (not my_router_ptr)
         {
             LOG(fatal, "socket", "SocketDriver", "router is null!");
@@ -34,7 +46,7 @@ namespace socket
     // ----------------------------------------------------------------------
     SocketDriver::~SocketDriver()
     {
-        if (started)
+        if (plain_started || ssl_started)
         {
             LOG(error, "socket", "~SocketDriver",
                 "Destructed without calling stop()!");
@@ -51,26 +63,55 @@ namespace socket
     bool SocketDriver::start(void)
     {
         // TODO Make config data driven.
-
-        if (not started)
-        {
-            // Taken from 'advanced_server.cpp' in beast examples.
-            // Makes the IO context, and creates and starts the connection
-            // listener.
-            //
-            const boost::asio::ip::address address =
+        // Taken from 'advanced_server.cpp' in beast examples.
+        // Makes the IO context, and creates and starts the connection
+        // listener.
+        //
+        const boost::asio::ip::address address =
                 boost::asio::ip::make_address("0.0.0.0");
+        if (not plain_started)
+        {
             const unsigned short port = 7072;
-
-
-            started = boost::make_shared<ConnectionListener>(
+            // Factory method to make PlainRawSocketConnections.
+            const ConnectionListener::RawSocketFactory plain_factory
+                = [](SocketDriver *driver, boost::asio::io_context &io_context) {
+                    return new PlainRawSocketConnection(driver, io_context);
+                };
+            plain_started = boost::make_shared<ConnectionListener>(
                 this,
                 io_context,
-                boost::asio::ip::tcp::endpoint(address, port))->start();
+                boost::asio::ip::tcp::endpoint(address, port),
+                plain_factory)->start();
 
             LOG(info, "socket", "start",
                 "Socket Driver started, listening on port "
                 + text::to_string(port));
+        }
+
+        if (not ssl_started)
+        {
+            const unsigned short port = 7073;
+            // Factory method to make SecureRawSocketConnections.
+            // Captures our ssl_context by reference
+            const ConnectionListener::RawSocketFactory secure_factory
+                = [&](SocketDriver *driver, boost::asio::io_context &io_context) {
+                    return new SecureRawSocketConnection(driver, io_context, ssl_context);
+                };
+            ssl_started = boost::make_shared<ConnectionListener>(
+                this,
+                io_context,
+                boost::asio::ip::tcp::endpoint(address, port),
+                secure_factory)->start();
+
+            LOG(info, "socket", "start",
+                "Socket Driver started, listening securely on port "
+                + text::to_string(port));
+        }
+
+        started = plain_started && ssl_started;
+        if (not started)
+        {
+            LOG(error, "socket", "start", "Socket Driver couldn't start listeners.");
         }
 
         return started;
