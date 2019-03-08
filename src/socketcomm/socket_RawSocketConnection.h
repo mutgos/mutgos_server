@@ -31,7 +31,6 @@ namespace socket
      * the socket library.  This supports SSL and non-SSL connections using
      * sub-classes.  Sub-classes are responsible for 'starting' the connection,
      * doing any negotiation, etc.
-     * TODO: Enable accepting SSL at the socket acceptor.
      *
      * Most of the ASIO code is heavily inspired from beast and ASIO examples
      * as much as possible.
@@ -55,6 +54,11 @@ namespace socket
          * Required virtual destructor.
          */
         virtual ~RawSocketConnection();
+
+        /**
+         * @return The socket managed by this instance.
+         */
+        virtual boost::asio::ip::tcp::socket &get_socket() =0;
 
         /**
          * Called to accept the connection and do any negotiation (encryption,

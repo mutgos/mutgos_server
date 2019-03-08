@@ -1,46 +1,39 @@
 /*
- * socket_PlainRawSocketConnection.h
+ * socket_SecureRawSocketConnection.h
  */
 
-#ifndef MUTGOS_SOCKET_PLAINRAWSOCKETCONNECTION_H
-#define MUTGOS_SOCKET_PLAINRAWSOCKETCONNECTION_H
+#ifndef MUTGOS_SOCKET_SECURERAWSOCKETCONNECTION_H
+#define MUTGOS_SOCKET_SECURERAWSOCKETCONNECTION_H
 
-#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 
-#include "socket_RawSocketConnection.h"
+#include "socket_PlainRawSocketConnection.h"
 
 namespace mutgos
 {
 namespace socket
 {
     /**
-     * Concrete implementation of an unencrypted raw socket connection.
+     * Implementation of an encrypted raw socket connection.
      */
-    class PlainRawSocketConnection : public RawSocketConnection
+    class SecureRawSocketConnection : public PlainRawSocketConnection
     {
     public:
         /**
-         * Creates a PlainRawSocketConnection concrete implementation class
+         * Creates a SecureRawSocketConnection concrete implementation class
          * instance.
-         * @param driver[in] Pointer to the socket driver in use.
-         * @param io_context[in] The IO Context.
          */
-        PlainRawSocketConnection(
+        SecureRawSocketConnection(
             SocketDriver *driver,
-            boost::asio::io_context &io_context);
+            boost::asio::io_context &io_context,
+            boost::asio::ssl::context &ssl_context);
 
         /**
          * Required virtual destructor.
          */
-        virtual ~PlainRawSocketConnection();
+        virtual ~SecureRawSocketConnection();
 
-        /**
-         * @return The socket managed by this instance.
-         */
-        virtual boost::asio::ip::tcp::socket &get_socket(void)
-        { return socket; }
-
-        /**
+                /**
          * Called to accept the connection and do any negotiation (encryption,
          * etc).
          */
@@ -52,16 +45,6 @@ namespace socket
          * call.
          */
         virtual void raw_disconnect(void);
-
-        /**
-         * @return The size of the underlying socket send buffer, in bytes.
-         */
-        virtual MG_UnsignedInt get_socket_send_buffer_size(void) const;
-
-        /**
-         * @return The size of the underlying socket receive buffer, in bytes.
-         */
-        virtual MG_UnsignedInt get_socket_recv_buffer_size(void) const;
 
         /**
          * @return True if socket is encrypted.
@@ -81,14 +64,20 @@ namespace socket
     protected:
 
         /**
+         * Called asynchronously after handshake is complete.
+         * @param error_code[in] If set, indicates ASIO had an error
+         * completing the handshake.
+         */
+        void on_handshake_complete(boost::system::error_code error_code);
+
+        /**
          * Called to asynchronously request any waiting data from the socket.
          */
         virtual void do_read(void);
 
     private:
-        boost::asio::ip::tcp::socket socket; ///< The connected socket.
+        boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_socket; ///< The connected socket.
     };
 }
 }
-
-#endif //MUTGOS_SOCKET_PLAINRAWSOCKETCONNECTION_H
+#endif
