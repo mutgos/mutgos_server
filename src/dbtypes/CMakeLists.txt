@@ -4,6 +4,7 @@ add_library(mutgos_dbtypes SHARED ${DBTYPES_SRC})
 
 target_link_libraries(
     mutgos_dbtypes
+        mutgos_bcrypt
         mutgos_utilities
         mutgos_osinterface
         mutgos_concurrency

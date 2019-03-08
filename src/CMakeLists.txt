@@ -1,4 +1,5 @@
 add_subdirectory(concurrency)
+add_subdirectory(bcrypt)
 add_subdirectory(dbtypes)
 add_subdirectory(logging)
 add_subdirectory(osinterface)
