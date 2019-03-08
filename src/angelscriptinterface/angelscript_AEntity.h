@@ -39,9 +39,6 @@ namespace angelscript
     class AEntity : public SimpleGCObject
     {
     public:
-        // TODO malloc/free to have variant to always allocate even if over
-        // TODO After every line, check memory
-        // TODO After X number of items in loops, check memory.
         /**
          * Used by the MUTGOS AngelScript management subsystem to register
          * this class and its methods as an AngelScript class.

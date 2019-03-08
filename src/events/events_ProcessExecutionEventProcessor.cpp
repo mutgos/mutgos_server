@@ -435,7 +435,6 @@ namespace events
                 static_cast<ProcessExecutionSubscriptionParams *>(
                     subscription_info.first);
 
-            // TODO implement
             if (params_ptr->get_process_id())
             {
                 // Watching for specific process ID.
