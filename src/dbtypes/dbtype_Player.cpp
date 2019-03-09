@@ -139,8 +139,6 @@ namespace dbtype
         const std::string &password,
         concurrency::ReaderLockToken &token)
     {
-        std::cout << "Player::check_password(): Add encryption!" << std::endl;
-
         bool success = false;
 
         if (token.has_lock(*this))
