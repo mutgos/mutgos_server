@@ -6,6 +6,7 @@
 
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 #include "text/text_StringConversion.h"
 
 #include "websocket_WebsocketDriver.h"
@@ -49,8 +50,6 @@ namespace websocket
     // This assumes it's being run behind a websocket proxy.
     bool WebsocketDriver::start(void)
     {
-        // TODO Make config data driven.
-
         if (not started)
         {
             // Taken from 'advanced_server.cpp' in beast examples.
@@ -59,7 +58,8 @@ namespace websocket
             //
             const boost::asio::ip::address address =
                 boost::asio::ip::make_address("127.0.0.1");
-            const unsigned short port = 7000;
+            const unsigned short port =
+                (unsigned short) config::comm::ws_port();
 
 
             started = std::make_shared<ConnectionListener>(

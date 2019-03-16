@@ -34,6 +34,8 @@ Some specific style and best practices advice is below:
     * C++11 64bit has been selected for maximum compatibility (and because certain BOOST libraries utilized require it), however tests have shown some Linux distributions with older GCCs may not work correctly (particularly with BOOST).  It is therefore advisable to utilize C++11 features sparingly, and to instead use the C++98 standard as much as possible.
     * Avoid using platform specific functionality (use BOOST whenever possible).  If it is unavoidable, put it in osinterface so it can be easily reused and modified to support additional platforms.
     * If you can do an implementation without using advanced features of C++, then do not use those features.  The goal is to keep the code readable and maintainable even by those who are not familiar with every bit of C++ functionality.  If it makes sense to use a feature because it will significantly speed up development, performance, etc, then by all means use it.
+  * Exceptions
+    * Exceptions are generally not to be used except when interfacing with external libraries.  This is to reduce error and improve readability.
   * Pointers
     * Check for pointer validity in almost all methods.  Remember one bad pointer will crash the whole thing!
     * Document clearly when pointer ownership changes (header documentation, etc).

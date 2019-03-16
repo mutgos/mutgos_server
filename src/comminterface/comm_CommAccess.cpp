@@ -3,6 +3,7 @@
  */
 
 #include "osinterface/osinterface_OsTypes.h"
+#include "utilities/mutgos_config.h"
 
 #include "comm_RouterSessionManager.h"
 #include "comm_SessionStats.h"
@@ -114,8 +115,16 @@ namespace comm
     // ----------------------------------------------------------------------
     bool CommAccess::add_comm_modules(void)
     {
-        router.add_connection_driver(new websocket::WebsocketDriver(&router));
-        router.add_connection_driver(new socket::SocketDriver(&router));
+        if (config::comm::ws_enable_plain())
+        {
+            router.add_connection_driver(
+                new websocket::WebsocketDriver(&router));
+        }
+
+        if (config::comm::so_enable_plain() or config::comm::so_enable_ssl())
+        {
+            router.add_connection_driver(new socket::SocketDriver(&router));
+        }
 
         return true;
     }

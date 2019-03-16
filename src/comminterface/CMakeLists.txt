@@ -7,6 +7,7 @@ target_link_libraries(
             mutgos_dbtypes
             mutgos_channels
             mutgos_logging
+            mutgos_utilities
             mutgos_socketcomm
             mutgos_websocketcomm
             mutgos_osinterface)

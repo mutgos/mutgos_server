@@ -10,6 +10,8 @@
 
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+
+#include "utilities/mutgos_config.h"
 #include "text/text_StringConversion.h"
 
 #include "sqliteinterface_SqliteBackend.h"
@@ -80,8 +82,9 @@ namespace sqliteinterface
         {
             LOG(info, "sqliteinterface", "init", "Mounting database...");
 
-            // TODO Make database name data driven.
-            const int rc = sqlite3_open("mutgos.db", &dbhandle_ptr);
+            const int rc = sqlite3_open(
+                config::db::db_file().c_str(),
+                &dbhandle_ptr);
             success = (rc == SQLITE_OK);
 
             if (success)

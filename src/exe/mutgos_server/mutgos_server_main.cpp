@@ -5,9 +5,12 @@
 #include <unistd.h>
 #include <string>
 #include <iostream>
+#include <boost/program_options.hpp>
 
 #include "logging/log_Logger.h"
 #include "text/text_StringConversion.h"
+
+#include "utilities/mutgos_config.h"
 
 #include "osinterface/osinterface_Signals.h"
 
@@ -24,13 +27,137 @@
 
 #include "useragent/useragent_ConnectionLifecycleManager.h"
 
+#define HELP_ARG "help"
+#define CONFIGFILE_ARG "configfile"
+#define DATADIR_ARG "datadir"
+
+/**
+ * Parses the commandline.
+ * @param options[in] The arguments allowed.
+ * @param args[out] The parsed arguments.
+ * @param argc[in] Argument count from the raw commandline.
+ * @param argv[in] The raw arguments from the raw commandline.
+ * @return True if successfully parsed.
+ */
+bool parse_commandline(
+    boost::program_options::options_description &options,
+    boost::program_options::variables_map &args,
+    int argc,
+    char *argv[])
+{
+    bool success = true;
+
+    try
+    {
+        boost::program_options::store(
+            boost::program_options::parse_command_line(argc, argv, options),
+            args);
+        boost::program_options::notify(args);
+    }
+    catch (boost::program_options::unknown_option &uoex)
+    {
+        success = false;
+
+        std::cout << "ERROR: "
+            << "Unknown argument: " << uoex.get_option_name() << std::endl;
+    }
+    catch (boost::program_options::validation_error &vex)
+    {
+        success = false;
+
+        std::cout << "ERROR: "
+            << "Bad value for argument: " << vex.get_option_name()
+            << std::endl;
+    }
+    catch (boost::program_options::multiple_occurrences &moex)
+    {
+        success = false;
+
+        std::cout << "ERROR: "
+            << "More than one instance of argument: "
+            << moex.get_option_name() << std::endl;
+    }
+    catch (boost::program_options::multiple_values &mvex)
+    {
+        success = false;
+
+        std::cout << "ERROR: "
+            << "More than one value of argument: "
+            << mvex.get_option_name() << std::endl;
+    }
+    catch (boost::program_options::error &eex)
+    {
+        success = false;
+
+        std::cout << "ERROR: "
+            << "Error parsing arguments: "  << eex.what() << std::endl;
+    }
+
+    return success;
+}
+
 int main(int argc, char* argv[])
 {
     bool good_init = true;
 
     mutgos::memory::ThreadVirtualHeapManager::add_thread();
-
     mutgos::log::Logger::init(true);
+
+    boost::program_options::options_description
+        option_desc("MUTGOS Server Options");
+
+    option_desc.add_options()
+        (HELP_ARG, "Show this help screen")
+        (CONFIGFILE_ARG,
+            boost::program_options::value<std::string>(),
+            "The config file to load and use.  Default is mutgos.conf "
+            "in working directory.")
+        (DATADIR_ARG,
+            boost::program_options::value<std::string>(),
+            "Override the data directory specified in the config file.")
+    ;
+
+    boost::program_options::variables_map args;
+    std::string configfile;
+    std::string datadir;
+    good_init = parse_commandline(option_desc, args, argc, argv);
+
+    if (not good_init)
+    {
+        // Error message already printed.
+        return -1;
+    }
+
+    // Extract arguments, print help screen if needed.
+    //
+    if (args.count(CONFIGFILE_ARG))
+    {
+        configfile = args[CONFIGFILE_ARG].as<std::string>();
+    }
+
+    if (args.count(DATADIR_ARG))
+    {
+        datadir = args[DATADIR_ARG].as<std::string>();
+    }
+
+    if (args.count(HELP_ARG))
+    {
+        std::cout << option_desc << std::endl;
+        return 0;
+    }
+
+    // Parse config file, now that we know where it is.
+    //
+    good_init = mutgos::config::parse_config(configfile, datadir);
+
+    if (not good_init)
+    {
+        std::cout << "ERROR: Failed to parse config file." << std::endl;
+        return -1;
+    }
+
+    // Bring up the system.
+    //
 
     /**
      * Order:
@@ -44,49 +171,57 @@ int main(int argc, char* argv[])
      * AngelScriptAccess
      */
 
-    if (not mutgos::dbinterface::DatabaseAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::dbinterface::DatabaseAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init dbinterface" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::executor::ExecutorAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::executor::ExecutorAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init executor" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::events::EventAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::events::EventAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init events" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::comm::CommAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::comm::CommAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init comm" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::security::SecurityAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::security::SecurityAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init security" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::primitives::PrimitivesAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::primitives::PrimitivesAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init primitives" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::softcode::SoftcodeAccess::make_singleton())
+    if (good_init and
+        not mutgos::softcode::SoftcodeAccess::make_singleton())
     {
         std::cout << "Failed to init softcode" << std::endl;
         good_init = false;
     }
 
-    if (not mutgos::angelscript::AngelScriptAccess::make_singleton()->startup())
+    if (good_init and
+        not mutgos::angelscript::AngelScriptAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init angelscript" << std::endl;
         good_init = false;
@@ -150,5 +285,5 @@ int main(int argc, char* argv[])
 
     mutgos::memory::ThreadVirtualHeapManager::delete_thread();
 
-    return 0;
+    return (good_init ? 0 : -1);
 }

@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
 
+### TODO: This is temporarily broken due to the new configfile setup.  It will compile but not run.
+
 # Get g++ for compiling and git and wget for retrieving things
 # and install sqlite3 from a package
 RUN apt-get update \

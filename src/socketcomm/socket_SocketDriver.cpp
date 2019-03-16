@@ -5,6 +5,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 #include "text/text_StringConversion.h"
 
 #include "comminterface/comm_RouterSessionManager.h"
@@ -31,11 +32,18 @@ namespace socket
     {
         // Set up the TLS context
         //
-        // This may be too stringent for some clients, in which case we can relax it later.
-        ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
-        // TODO(hyena): Support password callbacks for the certificate?
-        ssl_context.use_certificate_chain_file("server.pem");
-        ssl_context.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
+        if (config::comm::so_enable_ssl())
+        {
+            // This may be too stringent for some clients, in which case we
+            // can relax it later.
+            ssl_context.set_options(boost::asio::ssl::context::no_tlsv1);
+            // TODO(hyena): Support password callbacks for the certificate?
+            ssl_context.use_certificate_chain_file(
+                config::comm::so_certificate());
+            ssl_context.use_private_key_file(
+                config::comm::so_certificate_private(),
+                boost::asio::ssl::context::pem);
+        }
 
         if (not my_router_ptr)
         {
@@ -62,16 +70,16 @@ namespace socket
     // ----------------------------------------------------------------------
     bool SocketDriver::start(void)
     {
-        // TODO Make config data driven.
         // Taken from 'advanced_server.cpp' in beast examples.
         // Makes the IO context, and creates and starts the connection
         // listener.
         //
         const boost::asio::ip::address address =
                 boost::asio::ip::make_address("0.0.0.0");
-        if (not plain_started)
+
+        if ((not plain_started) and config::comm::so_enable_plain())
         {
-            const unsigned short port = 7072;
+            const unsigned short port = (unsigned short) config::comm::so_port();
             // Factory method to make PlainRawSocketConnections.
             const ConnectionListener::RawSocketFactory plain_factory
                 = [](SocketDriver *driver, boost::asio::io_context &io_context) {
@@ -88,9 +96,9 @@ namespace socket
                 + text::to_string(port));
         }
 
-        if (not ssl_started)
+        if ((not ssl_started) and config::comm::so_enable_ssl())
         {
-            const unsigned short port = 7073;
+            const unsigned short port = (unsigned short) config::comm::so_port_ssl();
             // Factory method to make SecureRawSocketConnections.
             // Captures our ssl_context by reference
             const ConnectionListener::RawSocketFactory secure_factory
@@ -108,7 +116,10 @@ namespace socket
                 + text::to_string(port));
         }
 
-        started = plain_started && ssl_started;
+
+        started = (config::comm::so_enable_plain() ? plain_started : true) and
+            (config::comm::so_enable_ssl() ? ssl_started : true);
+
         if (not started)
         {
             LOG(error, "socket", "start", "Socket Driver couldn't start listeners.");
@@ -120,10 +131,10 @@ namespace socket
     // ----------------------------------------------------------------------
     void SocketDriver::stop(mutgos::comm::RouterSessionManager *router_ptr)
     {
+        LOG(info, "socket", "stop", "Socket Driver stopping...");
+
         if (started)
         {
-            LOG(info, "socket", "stop", "Socket Driver stopping...");
-
             // Stop all connections, call do_work() a few times to let them
             // send out the shutdown packet, then exit.
             //
@@ -144,11 +155,13 @@ namespace socket
                 }
             }
 
-            io_context.stop();
-
             started = false;
-            LOG(info, "socket", "stop", "Socket Driver stopped");
+            plain_started = false;
+            ssl_started = false;
         }
+
+        io_context.stop();
+        LOG(info, "socket", "stop", "Socket Driver stopped");
     }
 
     // ----------------------------------------------------------------------

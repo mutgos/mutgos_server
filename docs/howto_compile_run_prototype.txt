@@ -61,9 +61,12 @@ Once it completes, you're ready to import the database.
 
 Before Running Any Executables
 ------------------------------
-You will have to manually tell Linux where your dependency directory (LD_LIBRARY_PATH) is.  One way you can do this is by typing a command similar to the following in the terminal window you'll be running MUTGOS programs:
+You will have to manually tell Linux where your dependency directory (LD_LIBRARY_PATH) is.  One way you can do this is by typing a command similar to the following in the terminal window you'll be running MUTGOS programs (make it into a short script as needed):
 
-export LD_LIBRARY_PATH=.:/path/to/mutgos/depends/lib
+    export LD_LIBRARY_PATH=.:/path/to/mutgos/depends/lib
+
+
+Next, you need to set up a data directory.  Outside of the source tree, make a directory (say, 'data').  Copy mutgos/data/mutgos.conf into it, and update the data_dir_path in the copied mutgos.conf to point to the newly created data directory.  Modify options to suit (such as adjusting ports, SSL, etc).  You may wish to copy the certificate files (later section) into this directory, however the options allow for absolute paths as needed.
 
 
 Importing a Database
@@ -75,17 +78,12 @@ Before you can run the server, you need to import a database.  This can be done 
   * Run a command like:  ./readdump /path/to/mutgos/data/prototype_db.dump
   * This will import the given dump file.
   * A bunch of text will scroll by, and you should catch something about "Parsing completed successfully.".
-  * Once back at the commandline, copy the resulting mutgos.db file (an SQLITE file) to ../mutgos_server
+  * Once back at the commandline, copy the resulting mutgos.db file (an SQLITE file) to the data directory you created earlier.
 
 
 Generating a SSL Certificate
 ----------------------------
-If you want to run the server with ssl, you'll need an ssl certificate.  mutgos expects a `server.pem` file in the same directory as its executable.
-A self-signed certificate is included for testing purposes named `identity.pem` and can be installed as follows:
-
-  * Find the mutgos_server executable (should be an adjacent directory from readdump).
-  * cd to the found executable
-  * Run a command to copy the cp /path/to/mutgos/data/identity.pem ./server.pem
+If you want to run the server with ssl, you'll need an ssl certificate.  A self-signed certificate is included for testing purposes (in mutgos/data) named `identity.pem` and can be installed by copying to the data directory created earlier.
 
 Alternatively if you know how to use openssl or certbot to generate a .pem with both certificate and private keys, you may use that.
 [TODO(hyena): Better doc/example of this. Probably blocked on config file.]
@@ -96,16 +94,18 @@ Running the server
 After importing the database, above, you can run the server.
 
   * Find the mutgos_server executable (should be an adjacent directory from readdump).
-  * cd to the found executable
-  * ./mutgos_server
+  * cd to the found executable.
+  * Run the executable, pointing it to the config file.  As an example:
+  *    ./mutgos_server --configfile /data/mutgos/run/mutgos.conf
+  * If no arguments are given, it will try and load the configfile from the current directory.  --help gives all options.
   * After a second or two, it should print out a few lines and then sit there.  MUTGOS is now running.
-  * ctrl-C should let it shutdown gracefully, or if not send it a SIGQUIT.
-  * If your IDE catches signals, you can add an empty mutgos_shutdown file in the executable directory and it will also shutdown gracefully in a few seconds.
+  * ctrl-c should let it shutdown gracefully, or if not send it a SIGQUIT.
+  * If your IDE catches signals, you can add an empty mutgos_shutdown file (using touch, etc) in the executable directory and it will also shutdown gracefully in a few seconds.
 
   
 Connecting to the server
 ------------------------
-  * Connect to 127.0.0.1, port 7072 (no SSL) using telnet or a MUD client.
+  * Connect to 127.0.0.1, port 7072 (no SSL) or port 7073 (SSL) using telnet or a MUD client.
   * Look at the dump file to find usernames and passwords.  Either way, you want to login to site #2.
   * Try out some of the commands!  The dump file will hint at what's available.  The commands closely mirror the average text game (familiarity with one is highly suggested), and partial matches for Entity names along with the usual 'me', 'here', and #1234 (for Entity DB ID) should work:
     * @ps  - shows running processes
