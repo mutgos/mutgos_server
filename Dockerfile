@@ -33,11 +33,11 @@ RUN cd /home \
     && cd /home \
     && rm -rf rapidjson
 
-# Install angelscript 2.32
+# Install angelscript 2.33
 RUN cd /home \
-    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.32.0.zip \
-    && unzip angelscript_2.32.0.zip \
-    && rm angelscript_2.32.0.zip \
+    && wget https://www.angelcode.com/angelscript/sdk/files/angelscript_2.33.0.zip \
+    && unzip angelscript_2.33.0.zip \
+    && rm angelscript_2.33.0.zip \
     && cd sdk/angelscript/projects/gnuc \
     && make PREFIX=/usr/local clean \
     && CXXFLAGS="-g" make PREFIX=/usr/local \

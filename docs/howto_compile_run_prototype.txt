@@ -13,7 +13,7 @@ Newer versions may work, but have not yet been tested.
   * sqlite3 (tested with 3.15.2) - may be called sqlite3-dev on your package manager
     * A slightly older or newer version should be fine.
     * You should have shared libraries and header files once built or installed.
-  * angelscript 2.32 (https://www.angelcode.com/angelscript/downloads.html)
+  * angelscript 2.33 (https://www.angelcode.com/angelscript/downloads.html)
 
 
 Build each dependency according to their instructions.  To avoid messing up your system files, it is highly suggested you create a separate directory for MUTGOS dependencies, and have MUTGOS link to that directory instead.  You may need to create subdirectories in there such as ./lib, ./include, ./bin, etc.  
