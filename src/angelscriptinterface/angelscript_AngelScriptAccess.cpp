@@ -6,6 +6,7 @@
 #include <angelscript.h>
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 #include "text/text_StringConversion.h"
 #include "text/text_ExternalText.h"
 #include "text/text_ExternalPlainText.h"
@@ -42,9 +43,6 @@ namespace
 {
     const std::string SCRIPT_TYPE_NAME = "AngelScript";
     const std::string SCRIPT_MODULE_NAME = "mutgos_script";
-
-    // TODO make data driven
-    const size_t ENGINE_POOL_MAX_SIZE = 4;
 }
 
 namespace mutgos
@@ -649,7 +647,7 @@ namespace angelscript
             // Remove from 'in use' and put in 'avail' if pool size is less
             // than max.
             //
-            if (engines_avail.size() > ENGINE_POOL_MAX_SIZE)
+            if (engines_avail.size() > config::angelscript::max_pool_size())
             {
                 // Enough engines are in the pool; free this one and
                 // remove from list.

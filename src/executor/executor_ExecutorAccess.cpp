@@ -1,6 +1,8 @@
 
 #include <boost/thread/thread.hpp>
 
+#include "utilities/mutgos_config.h"
+
 #include "dbtypes/dbtype_Id.h"
 
 #include "executor/executor_Process.h"
@@ -41,14 +43,13 @@ namespace executor
     // ----------------------------------------------------------------------
     bool ExecutorAccess::startup(void)
     {
-        // TODO Make data driven
-        const int THREAD_COUNT = 2;
-
         // Start the threads.
         //
         if (process_executors.empty())
         {
-            for (int count = 0; count < THREAD_COUNT; ++count)
+            for (MG_UnsignedInt count = 0;
+                count < config::executor::thread_count();
+                ++count)
             {
                 ThreadedExecutor *executor_ptr = new ThreadedExecutor(
                     &process_scheduler);

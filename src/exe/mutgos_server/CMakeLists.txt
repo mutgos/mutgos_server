@@ -1,5 +1,6 @@
 add_executable(mutgos_server mutgos_server_main.cpp)
 
+target_link_libraries(mutgos_server mutgos_utilities)
 target_link_libraries(mutgos_server mutgos_dbinterface)
 target_link_libraries(mutgos_server mutgos_executor)
 target_link_libraries(mutgos_server mutgos_events)

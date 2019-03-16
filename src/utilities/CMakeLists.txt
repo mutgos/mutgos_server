@@ -7,4 +7,5 @@ target_link_libraries(
             mutgos_logging
             mutgos_text
             mutgos_osinterface
-            boost_system)
+            boost_system
+            boost_program_options)

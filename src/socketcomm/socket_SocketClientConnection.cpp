@@ -17,6 +17,7 @@
 #include "comminterface/comm_ClientSession.h"
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 #include "dbtypes/dbtype_Id.h"
 
 #include "dbinterface/dbinterface_DatabaseAccess.h"
@@ -32,8 +33,7 @@
 #include "text/text_AnsiConverter.h"
 #include "text/text_ExternalText.h"
 
-#define MAX_CLIENT_LINE_SIZE 8192
-#define MAX_AUTHENTICATION_TIME_SECS 300
+#define TARGET_PENDING_MESSAGE_BYTES 4096
 #define CHANNEL_STACK_INITIAL_SIZE 4
 
 #define INCOMING_LINES_ACK 5
@@ -98,7 +98,7 @@ namespace socket
         }
 
         raw_connection->set_client(this);
-        raw_connection->set_timer(MAX_AUTHENTICATION_TIME_SECS);
+        raw_connection->set_timer(config::comm::auth_time());
 
         channel_input_stack.reserve(CHANNEL_STACK_INITIAL_SIZE);
         channel_output_stack.reserve(CHANNEL_STACK_INITIAL_SIZE);
@@ -717,8 +717,7 @@ namespace socket
         // Determine how many pending mesages we want left after this call
         // (in bytes).
         //
-        // TODO Make this data driven
-        MG_LongUnsignedInt target_size = 1024;
+        MG_LongUnsignedInt target_size = TARGET_PENDING_MESSAGE_BYTES;
 
         if (from_client_input)
         {
@@ -790,7 +789,8 @@ namespace socket
                     // No more full lines left.
                     // Confirm the line is not too long.
                     //
-                    if ((data.size() - line_start_index) > MAX_CLIENT_LINE_SIZE)
+                    if ((data.size() - line_start_index) >
+                        config::comm::so_input_line_length())
                     {
                         LOG(warning, "socket", "process_raw_incoming_data",
                             "Client " + client_source + " sent too long a line."

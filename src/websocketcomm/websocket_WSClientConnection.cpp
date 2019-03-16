@@ -11,6 +11,7 @@
 
 #include "comminterface/comm_ClientSession.h"
 
+#include "utilities/mutgos_config.h"
 #include "logging/log_Logger.h"
 #include "dbtypes/dbtype_Id.h"
 
@@ -33,9 +34,6 @@
 #include "websocket_WebsocketDriver.h"
 #include "websocket_RawWSConnection.h"
 #include "websocket_WSClientConnection.h"
-
-#define MAX_CLIENT_WINDOW_SIZE 8192
-#define MAX_AUTHENTICATION_TIME_SECS 120
 
 // TODO May want to work on ChannelData, ClientTextData to have a 'no copy' mode for performance
 
@@ -87,7 +85,7 @@ namespace websocket
         }
 
         raw_connection->set_client(this);
-        raw_connection->set_timer(MAX_AUTHENTICATION_TIME_SECS);
+        raw_connection->set_timer(config::comm::auth_time());
 
         LOG(debug, "websocket", "WSClientConnection",
             "Got a connection to " + source);
@@ -502,7 +500,7 @@ namespace websocket
             //
             if ((json::array_size(outgoing_json_node) >=
                      client_window_size) or
-                (client_window_size > MAX_CLIENT_WINDOW_SIZE))
+                (client_window_size > config::comm::ws_max_window()))
             {
                 // We shouldn't take any more messages.
                 status = comm::ClientConnection::SEND_OK_BLOCKED;

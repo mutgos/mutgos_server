@@ -10,6 +10,7 @@
 
 #include "osinterface/osinterface_OsTypes.h"
 #include "utilities/memory_MemHeapState.h"
+#include "utilities/mutgos_config.h"
 
 #include "dbinterface/dbinterface_DatabaseAccess.h"
 #include "dbinterface/dbinterface_EntityRef.h"
@@ -43,7 +44,6 @@ namespace mutgos
 namespace angelscript
 {
     // ----------------------------------------------------------------------
-    // TODO Hardcoded values for max heap
     // TODO Will need better logging
     AngelProcess::AngelProcess(
         security::Context * const security_context,
@@ -73,7 +73,7 @@ namespace angelscript
                 "AngelProcess had unexpected null pointers.");
         }
 
-        heap_state.set_max_mem(1024 * 1024); // 1 meg
+        heap_state.set_max_mem(config::angelscript::max_heap() * 1024);
         my_context.set_output_channel(output_channel);
 
         ScriptUtilities::set_my_script_context(engine, &my_context);
@@ -242,7 +242,6 @@ namespace angelscript
     }
 
     // ----------------------------------------------------------------------
-    // TODO Hardcoded values for timeslicing
     void AngelProcess::debug_line_callback(asIScriptContext *ctx, void *dbg)
     {
         ++slice_instructions_executed;
@@ -253,7 +252,8 @@ namespace angelscript
                 memory::ThreadVirtualHeapManager::check_overallocation(false);
         }
 
-        if ((slice_instructions_executed > 50) || overallocated)
+        if ((slice_instructions_executed > config::angelscript::timeslice()) or
+            overallocated)
         {
             // Time to pause temporarily and let someone else execute,
             // or abort if overallocated.

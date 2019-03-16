@@ -16,12 +16,11 @@
 #include "comminterface/comm_ClientConnection.h"
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 
 #include "websocket_WSClientConnection.h"
 #include "websocket_RawWSConnection.h"
 #include "websocket_WebsocketDriver.h"
-
-#define MAX_INCOMING_BUFFER_SIZE 16384
 
 namespace mutgos
 {
@@ -41,7 +40,7 @@ namespace websocket
         timer(
             web_socket.get_executor().context(),
             (std::chrono::steady_clock::time_point::max())),
-        incoming_buffer(MAX_INCOMING_BUFFER_SIZE),
+        incoming_buffer(config::comm::ws_max_incoming_message_size()),
         outgoing_buffer()
     {
         if (not driver_ptr)
@@ -258,7 +257,8 @@ namespace websocket
             // requested.
             handle_disconnect();
         }
-        else if (bytes_transferred == MAX_INCOMING_BUFFER_SIZE)
+        else if (bytes_transferred ==
+            config::comm::ws_max_incoming_message_size())
         {
             LOG(warning, "websocket", "on_read",
                 "Client exceeded incoming buffer.");
@@ -298,7 +298,8 @@ namespace websocket
     {
         outgoing_buffer.consume(outgoing_buffer.size());
 
-        if (outgoing_buffer.capacity() > MAX_INCOMING_BUFFER_SIZE)
+        if (outgoing_buffer.capacity() >
+            config::comm::ws_max_incoming_message_size())
         {
             // Don't want this to stay too big.
             outgoing_buffer.shrink_to_fit();

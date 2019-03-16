@@ -18,7 +18,7 @@
 #include "osinterface/osinterface_ThreadUtils.h"
 
 #include "logging/log_Logger.h"
-
+#include "utilities/mutgos_config.h"
 #include "text/text_ExternalText.h"
 
 #include "comminterface/comm_RouterSessionManager.h"
@@ -38,8 +38,6 @@
 #define DEFAULT_SLEEP_TIME_MICROSEC 250000
 #define DEFAULT_SLEEP_TIME_NANOSEC 250000000
 #define DEFAULT_IDLE_CHECK_SEC 60
-#define DEFAULT_INACTIVITY_SEC 3600
-#define DEFAULT_RECONNECT_INACTIVITY_SEC 300
 
 namespace mutgos
 {
@@ -778,7 +776,7 @@ namespace comm
                             // Still connected, use inactivity timeout.
                             //
                             if (session_ptr->get_session_activity_time().
-                                get_relative_seconds() > DEFAULT_INACTIVITY_SEC)
+                                get_relative_seconds() > config::comm::idle_time())
                             {
                                 // Idle too long.  Disconnect.
                                 ids_to_disconnect.push_back(
@@ -791,7 +789,7 @@ namespace comm
                             //
                             if (session_ptr->get_session_activity_time().
                                 get_relative_seconds() >
-                                    DEFAULT_RECONNECT_INACTIVITY_SEC)
+                                    config::comm::reconnect_wait_time())
                             {
                                 // Idle too long.  Disconnect.
                                 ids_to_disconnect.push_back(
