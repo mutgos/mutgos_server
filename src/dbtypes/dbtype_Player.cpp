@@ -2,8 +2,6 @@
  * Player.cpp
  */
 
-#include <iostream>
-
 #include <string>
 
 #include "dbtype_Player.h"
