@@ -9,3 +9,4 @@ libbcrypt
  * Source: https://github.com/trusch/libbcrypt
  * Version: githash de2370379b918c87557b3f72090234391822d08c
  * Used for password encryption in mutgos
+ * Modifications: `CMakeLists.txt` changed to generate a static library. `.gitignore` made more aggressive.
