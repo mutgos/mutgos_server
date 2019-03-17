@@ -11,6 +11,7 @@
 #include "dbtype_ContainerPropertyEntity.h"
 
 #include "bcrypt/BCrypt.hpp"
+#include "utilities/mutgos_config.h"
 
 #include "concurrency/concurrency_ReaderLockToken.h"
 #include "concurrency/concurrency_WriterLockToken.h"
@@ -20,9 +21,6 @@ namespace mutgos
 {
 namespace dbtype
 {
-    // TODO(hyena): Consider making this a config parameter?
-    const int password_workfactor = 10;
-
     // ----------------------------------------------------------------------
     Player::Player()
         : ContainerPropertyEntity(),
@@ -110,7 +108,9 @@ namespace dbtype
 
         if (token.has_lock(*this))
         {
-            encrypted_password = BCrypt::generateHash(new_password, password_workfactor);
+            encrypted_password = BCrypt::generateHash(
+                new_password,
+                (int) config::db::password_workfactor());
             notify_field_changed(ENTITYFIELD_password);
 
             success = true;
