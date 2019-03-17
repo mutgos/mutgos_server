@@ -14,4 +14,5 @@ include_directories(src)
 
 link_directories(/data/mutgos/cots/lib)
 
+add_subdirectory(third_party)
 add_subdirectory(src)
