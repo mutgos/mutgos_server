@@ -2,8 +2,6 @@
  * Player.cpp
  */
 
-#include <iostream>
-
 #include <string>
 
 #include "dbtype_Player.h"
@@ -11,6 +9,8 @@
 #include "dbtype_Entity.h"
 #include "dbtypes/dbtype_Id.h"
 #include "dbtype_ContainerPropertyEntity.h"
+
+#include "bcrypt/BCrypt.hpp"
 
 #include "concurrency/concurrency_ReaderLockToken.h"
 #include "concurrency/concurrency_WriterLockToken.h"
@@ -20,6 +20,9 @@ namespace mutgos
 {
 namespace dbtype
 {
+    // TODO(hyena): Consider making this a config parameter?
+    const int password_workfactor = 10;
+
     // ----------------------------------------------------------------------
     Player::Player()
         : ContainerPropertyEntity(),
@@ -103,14 +106,11 @@ namespace dbtype
         const std::string &new_password,
         concurrency::WriterLockToken &token)
     {
-        std::cout << "Player::set_password(): Add encryption!" << std::endl;
-
         bool success = false;
 
         if (token.has_lock(*this))
         {
-            // TODO Add encryption for passwords here
-            encrypted_password = new_password;
+            encrypted_password = BCrypt::generateHash(new_password, password_workfactor);
             notify_field_changed(ENTITYFIELD_password);
 
             success = true;
@@ -137,14 +137,11 @@ namespace dbtype
         const std::string &password,
         concurrency::ReaderLockToken &token)
     {
-        std::cout << "Player::check_password(): Add encryption!" << std::endl;
-
         bool success = false;
 
         if (token.has_lock(*this))
         {
-            // TODO Add encryption for passwords here
-            success = (encrypted_password == password);
+            success = BCrypt::validatePassword(password, encrypted_password);
         }
         else
         {
