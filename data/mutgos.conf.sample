@@ -53,10 +53,10 @@ connection.socket.port=7072
 # The port to listen on for SSL (encrypted) socket connections.
 connection.socket.port_ssl=7073
 # If using SSL, this specifies the certificate file, in PEM format.
-connection.certificate_file=identity.pem
+connection.certificate_file=cert.pem
 # If using SSL, this specifies the private key file, in PEM format.
 # This may be the same file as the certificate itself.
-connection.certificate_private_key_file=identity.pem
+connection.certificate_private_key_file=key.pem
 
 # True to enable websocket support.
 connection.websocket.enable=true
@@ -78,7 +78,8 @@ connection.websocket.max_incoming_message_size=16384
 # Specifies the SQLite database file.
 database.db_file=mutgos.db
 # How encrypted (via bcrypt) the Player passwords are.  Higher values will take
-# significantly longer.
+# significantly longer (about a factor of 2x for every +1). This value may be
+# safely changed without invalidating existing passwords.
 database.password_workfactor=10
 
 

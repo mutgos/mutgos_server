@@ -13,6 +13,9 @@ mutgos.db
 mutgos.db-shm
 mutgos.db-wal
 
+# User config files
+mutgos.conf
+
 # Compiled objects
 *.so
 **/mutgos_server/mutgos_server
@@ -20,5 +23,5 @@ mutgos.db-wal
 **/angelscript_test/angelscript_td
 **/vheap_test/vheap_td
 
-# Make sure the user can't check in their certificate
+# Make sure the user can't check in their certificates
 *.pem
