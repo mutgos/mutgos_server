@@ -46,7 +46,6 @@ make PREFIX=/path/to/mutgos/depends install
 
 
 
-
 Compiling MUTGOS
 ----------------
 Now that all dependencies have been installed, modify the root CMakeLists.txt file (just above src directory) to point to your dependencies.  Change the lines reading "include_directories(BEFORE SYSTEM" and "link_directories" to point to your new include and lib directories, respectively.  Obviously, you do not want to commit this to the repo; this will hopefully be fixed soon to use relative paths or similar.
@@ -66,8 +65,8 @@ You will have to manually tell Linux where your dependency directory (LD_LIBRARY
     export LD_LIBRARY_PATH=.:/path/to/mutgos/depends/lib
 
 
-Next, you need to set up a data directory.  Outside of the source tree, make a directory (say, 'data').  Copy mutgos/data/mutgos.conf into it, and update the data_dir_path in the copied mutgos.conf to point to the newly created data directory.  Modify options to suit (such as adjusting ports, SSL, etc).  You may wish to copy the certificate files (later section) into this directory, however the options allow for absolute paths as needed.
-
+Next, you need to set up a data directory.  Outside of the source tree, make a directory (say, 'data').  Copy mutgos_server/data/mutgos.conf.sample into it as `mutgos.conf`, and update the data_dir_path in the copied mutgos.conf to point to the newly created data directory.  Modify options to suit (such as adjusting ports, SSL, etc).  You may wish to copy the certificate files (later section) into this directory, however the options allow for absolute paths as needed.
+[TODO(hyena): I think this ordering of instructions and the 'data' directory in general may be confusing. Restructure this document.]
 
 Importing a Database
 --------------------
@@ -83,10 +82,17 @@ Before you can run the server, you need to import a database.  This can be done 
 
 Generating a SSL Certificate
 ----------------------------
-If you want to run the server with ssl, you'll need an ssl certificate.  A self-signed certificate is included for testing purposes (in mutgos/data) named `identity.pem` and can be installed by copying to the data directory created earlier.
+If you want to run the server with ssl, you'll need an ssl certificate.  For testing purposes you can generate a self-signed key and certificate with openssl as follows:
 
-Alternatively if you know how to use openssl or certbot to generate a .pem with both certificate and private keys, you may use that.
-[TODO(hyena): Better doc/example of this. Probably blocked on config file.]
+  * Navigate to the data directory you created earlier (see Before Running Any Executables above)
+  * Run the following command:
+    openssl req -x509 -subj '/CN=localhost' -newkey rsa:4096 -nodes -keyout key.pem -out cert.pem
+
+In production, you'll want to use a real certificate and key. If you own your domain, we recommend using certbot to generate a Let's Encrypt certificate for this. See https://certbot.eff.org/ for instructions. You'll probably want to select 'Other' for your software and obtain your certificate using `sudo certbot certonly`.
+
+Once you successfully generate the certificate and key copy them over to your data directory. e.g.:
+  cp /etc/letsencrypt/live/www.example.org/fullchain.pem mutgos_server/data/cert.pem
+  cp /etc/letsencrypt/live/www.example.org/privkey.pem mutgos_server/data/key.pem
 
 
 Running the server
@@ -96,7 +102,7 @@ After importing the database, above, you can run the server.
   * Find the mutgos_server executable (should be an adjacent directory from readdump).
   * cd to the found executable.
   * Run the executable, pointing it to the config file.  As an example:
-  *    ./mutgos_server --configfile /data/mutgos/run/mutgos.conf
+  *    ./mutgos_server --configfile ../../../data/mutgos.conf
   * If no arguments are given, it will try and load the configfile from the current directory.  --help gives all options.
   * After a second or two, it should print out a few lines and then sit there.  MUTGOS is now running.
   * ctrl-c should let it shutdown gracefully, or if not send it a SIGQUIT.

@@ -66,9 +66,9 @@ namespace
     const std::string KEY_SO_PORT_SSL = "connection.socket.port_ssl";
     MG_UnsignedInt config_so_port_ssl = 7073;
     const std::string KEY_SO_CERTIFICATE = "connection.certificate_file";
-    std::string config_so_certificate = "server.pem";
+    std::string config_so_certificate = "cert.pem";
     const std::string KEY_SO_CERTIFICATE_PRIVATE = "connection.certificate_private_key_file";
-    std::string config_so_certificate_private = "server.pem";
+    std::string config_so_certificate_private = "key.pem";
 
     const std::string KEY_WS_ENABLE_PLAIN = "connection.websocket.enable";
     bool config_ws_enable_plain = true;
