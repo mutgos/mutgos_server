@@ -93,6 +93,7 @@ In production, you'll want to use a real certificate and key. If you own your do
 Once you successfully generate the certificate and key copy them over to your data directory. e.g.:
   cp /etc/letsencrypt/live/www.example.org/fullchain.pem mutgos_server/data/cert.pem
   cp /etc/letsencrypt/live/www.example.org/privkey.pem mutgos_server/data/key.pem
+Be sure to protect these files! It may be necessary in production to run mutgos_server as its own user with privileged read access to them.
 
 
 Running the server
