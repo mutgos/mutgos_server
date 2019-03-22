@@ -49,3 +49,22 @@ useragent - This is the 'agent' which is launched when a Player logs in.  It pro
 utilities - Misc classes that don't fall anywhere else, such as an interface to a third party JSON parser and global configuration.
 
 websocketcomm - Handles communication between a websocket and the comminterface.  Essentially abstracts away communicating with incoming websockets.
+
+
+---------------------------------------
+
+
+High level data flow from user typing 'say Hello!' to someone else getting the message.
+
+Executing 'say hello' (not all modules shown, just the major ones):
+socketcomm -> comminterface -> useragent -> softcode -> angelscriptinterface -> primitives -> events
+
+Receiving 'Hello':
+events -> useragent -> comminterface -> socketcomm
+
+A narrative follows:
+At the user's client, they type 'say Hello!'.  The bytes travel along a socket, which get picked up by socketcomm.  From there, it's converted into ExternalText.  comminterface will soon query socketcomm and pick up pending data, which would include the ExternalText.  From there, the ExternalText travels along a Channel where the data is sent as a message to the useragent (via executor).
+
+With the message pending, useragent is then given CPU time (process executes) and will process the message.  Using primitives, security, and dbtypes, it will locate the 'say' command.  Then, utilizing softcode and angelscriptinterface, an AngelScript interpreter process will be launched and managed by executor.  The process will run, and in the course of execution send an EmitEvent to events for processing.
+
+On the receiving end, another Player's useragent is subscribed to EmitEvents for the same room.  The events subsystem will match that subscription and send the event to the useragent, via executor.  The useragent will wake up, process the event, and send the contents of the EmitEvent to the user's socket, by sending the ExternalText to comminterface via a Channel.  From there, comminterface sends the text to the user's socket via socketcomm.
