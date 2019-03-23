@@ -78,16 +78,21 @@ namespace angelscript
 
         boost::lock_guard<boost::mutex> guard(mutex);
 
-        const memory::MemHeapState create_engine_heap;
-        memory::ThreadVirtualHeapManager::set_thread_heap_state(
-            create_engine_heap);
+        if (not started)
+        {
+            const memory::MemHeapState create_engine_heap;
+            memory::ThreadVirtualHeapManager::set_thread_heap_state(
+                create_engine_heap);
 
-        asSetGlobalMemoryFunctions(
-            memory::ThreadVirtualHeapManager::mem_alloc_nofail,
-            memory::ThreadVirtualHeapManager::mem_free);
-        asPrepareMultithread();
+            asSetGlobalMemoryFunctions(
+                memory::ThreadVirtualHeapManager::mem_alloc_nofail,
+                memory::ThreadVirtualHeapManager::mem_free);
+            asPrepareMultithread();
 
-        softcode::SoftcodeAccess::instance()->register_language(this);
+            softcode::SoftcodeAccess::instance()->register_language(this);
+
+            started = true;
+        }
 
         return success;
     }
@@ -99,40 +104,44 @@ namespace angelscript
 
         boost::lock_guard<boost::mutex> guard(mutex);
 
-        softcode::SoftcodeAccess::instance()->unregister_language(this);
-
-        // Clean up unused engines. Log error if some are still in use.
-        //
-        const memory::MemHeapState delete_engine_heap;
-        memory::ThreadVirtualHeapManager::set_thread_heap_state(
-            delete_engine_heap);
-
-        for (size_t index = 0; index < engines_avail.size(); ++index)
+        if (started)
         {
-            EngineContextState &engine_state =
-                engines_avail[index];
+            softcode::SoftcodeAccess::instance()->unregister_language(this);
 
-            engine_state.engine_ptr->ReturnContext(engine_state.context_ptr);
-            engine_state.engine_ptr->ShutDownAndRelease();
-            delete engine_state.string_factory_ptr;
+            // Clean up unused engines. Log error if some are still in use.
+            //
+            const memory::MemHeapState delete_engine_heap;
+            memory::ThreadVirtualHeapManager::set_thread_heap_state(
+                delete_engine_heap);
+
+            for (size_t index = 0; index < engines_avail.size(); ++index)
+            {
+                EngineContextState &engine_state =
+                    engines_avail[index];
+
+                engine_state.engine_ptr->ReturnContext(engine_state.context_ptr);
+                engine_state.engine_ptr->ShutDownAndRelease();
+                delete engine_state.string_factory_ptr;
+            }
+
+            engines_avail.clear();
+
+            if (not engines_used.empty())
+            {
+                LOG(fatal, "angelscript", "shutdown",
+                    "There are " + text::to_string(engines_used.size())
+                    + " engines still in use!");
+
+                success = false;
+            }
+
+            // Deinitialize AngelScript
+            //
+            asThreadCleanup();
+            asUnprepareMultithread();
+
+            started = false;
         }
-
-        engines_avail.clear();
-
-        if (not engines_used.empty())
-        {
-            LOG(fatal, "angelscript", "shutdown",
-                "There are " + text::to_string(engines_used.size())
-                + " engines still in use!");
-
-            success = false;
-        }
-
-        // Deinitialize AngelScript
-        //
-        asThreadCleanup();
-        // Causes crash!!
-        // asUnprepareMultithread();
 
         return success;
     }
@@ -528,6 +537,7 @@ namespace angelscript
 
     // ----------------------------------------------------------------------
     AngelScriptAccess::AngelScriptAccess(void)
+      : started(false)
     {
     }
 

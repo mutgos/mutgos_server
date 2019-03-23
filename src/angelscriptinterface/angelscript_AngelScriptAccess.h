@@ -313,6 +313,7 @@ namespace angelscript
         static AngelScriptAccess *singleton_ptr; ///< Singleton pointer
 
         boost::mutex mutex; ///< Enforces single access at a time.
+        bool started; ///< True if startup() successfully called.
         Engines engines_avail; ///< AngelScript engines that are available for use
         Engines engines_used; ///< AngelScript engines that are currently in use
     };

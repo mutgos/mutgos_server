@@ -31,6 +31,9 @@ namespace events
 
 namespace angelscript
 {
+    // Forward declaraction.
+    class AString;
+
     /**
      * Represents an AngelScript execution in the process executor.  It
      * handles setup, timeslicing, memory overflow, and I/O.
@@ -213,6 +216,8 @@ namespace angelscript
 
         std::string process_name; ///< Name of the process, for logging and ps.
         ErrorMessageText error_messages; ///< Any error messages to be returned if process in an error state.
+
+        AString * argument_ptr; ///< Holds the argument for 'main' so that it can be GCed on exit
 
         events::TextChannel * const output_channel_ptr; ///< Pointer to outgoing channel
         events::TextChannel * const input_channel_ptr; ///< Pointer to incoming channel

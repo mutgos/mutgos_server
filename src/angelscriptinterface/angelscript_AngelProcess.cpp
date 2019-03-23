@@ -58,6 +58,7 @@ namespace angelscript
           overallocated(false),
           total_instructions_executed(0),
           slice_instructions_executed(0),
+          argument_ptr(0),
           output_channel_ptr(output_channel),
           input_channel_ptr(input_channel),
           engine_ptr(engine),
@@ -112,6 +113,15 @@ namespace angelscript
         //
         context_ptr->ClearLineCallback();
         context_ptr->Abort();
+
+        if (argument_ptr)
+        {
+            // We had to hold a reference to avoid AS from GCing it.  We're
+            // done executing the script, so release our reference so it'll
+            // get cleaned up.
+            argument_ptr->release_ref();
+        }
+
         context_ptr->Unprepare();
         ScriptUtilities::cleanup_my_script_context(engine_ptr);
         engine_ptr->DiscardModule(SCRIPT_MODULE_NAME.c_str());
@@ -403,11 +413,11 @@ namespace angelscript
                 // Got the function, now convert the argument and prepare
                 // the context.
                 //
-                AString * const arg_astring = new AString(engine_ptr); // Owned by engine
+                argument_ptr = new AString(engine_ptr); // Owned by engine
 
                 try
                 {
-                    arg_astring->import_from_string(arguments);
+                    argument_ptr->import_from_string(arguments);
                 }
                 catch (...)
                 {
@@ -424,7 +434,7 @@ namespace angelscript
                     return status;
                 }
 
-                if (context_ptr->SetArgObject(0, arg_astring) < 0)
+                if (context_ptr->SetArgObject(0, argument_ptr) < 0)
                 {
                     LOG(error, "angelscript", "run_script",
                         "Unable to set argument on main function.");

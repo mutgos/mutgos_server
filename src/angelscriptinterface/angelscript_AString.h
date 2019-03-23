@@ -97,19 +97,6 @@ namespace angelscript
         //        putting things in a strange state.
 
         /**
-         * Constructor that creates a constant string, called only
-         * by the string factory.  This does not register the instance
-         * with the garbage collector.
-         * @param engine[in] The script engine to register with.
-         * @param data[in] The pointer to C style string data.
-         * @param length[in] How many bytes 'data' is.
-         */
-        AString(
-            asIScriptEngine *engine,
-            const char *data,
-            size_t length);
-
-        /**
          * Destructor.
          */
         virtual ~AString();
@@ -161,6 +148,20 @@ namespace angelscript
          * exhausted.
          */
         void import_from_string(const std::string &str);
+
+        /**
+         * Imports the given std::string into an AString.  This is used
+         * primariy by the string factory.
+         * NOTE: This can throw exceptions if the virtual heap memory has
+         * been exhausted.
+         * @param data[in] The pointer to C style string data.
+         * @param length[in] How many bytes 'data' is.
+         * @throws exception An exception if the virtual heap memory is
+         * exhausted.
+         */
+        void import_from_string(
+            const char *data,
+            const size_t length);
 
         /**
          * @return The number of characters in this string.

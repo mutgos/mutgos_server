@@ -28,7 +28,18 @@ namespace angelscript
         const char *data,
         asUINT length)
     {
-        AString * const string = new AString(engine_ptr, data, length);
+        AString * string = new AString(engine_ptr, false);
+
+        try
+        {
+            string->import_from_string(data, length);
+        }
+        catch (...)
+        {
+            // Out of memory
+            delete string;
+            string = 0;
+        }
 
         return string;
     }
