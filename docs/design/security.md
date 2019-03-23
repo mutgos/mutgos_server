@@ -37,6 +37,15 @@ Capabilities are created during site initialization and cannot be created or del
 Refer to the security::OperationsCapabilities header file for a list of operations and their associated Capability.
 
 
+Run As Requester
+----------------
+When running a Program, the capabilities/permissions the Program has can come from two sources:  The Player (or other Entity) running the Program, and the Program itself.
+
+When a program is allowed to 'run as requester' (the 'requester' being whoever launched the Program), the permissions of the Entity and Program are merged together.  If the Entity can do something, so can the program, and the program can act like it's the Entity in some situations (acts like the admin of every object the Entity owns, for instance).
+
+If a Program is not allowed to 'run as requester', only the Program's permissions are used.  It also cannot act like the Entity running it, meaning it will always use the 'Everyone else / other' security settings when accessing the Entity's objects, unless the Program is specifically mentioned in a group or admin list.
+
+
 Modular Security
 ----------------
 
