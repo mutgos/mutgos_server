@@ -27,6 +27,22 @@ namespace
 
 // TODO Retrofit to new exception throwing and handling
 
+
+//
+// Important implementation note:  If you allocate a new AString within a
+// call and plan to return it to AngelScript, you need to check for bad_alloc
+// being thrown when adding string data to it.  If bad_alloc does get
+// thrown, then release a reference and throw the exception.
+//
+// This is because by default all instances have a refcount of 1 (which is
+// required by AngelScript).  But if an exception is thrown, AngelScript
+// does not get the pointer directly returned to it, so it can't hook it in
+// to anything.  By releasing the reference, you allow AngelScript to
+// garbage collect it later, because the pointer does indeed have no references
+// to it.
+//
+
+
 namespace mutgos
 {
 namespace angelscript
@@ -369,18 +385,6 @@ namespace angelscript
     }
 
     // ----------------------------------------------------------------------
-    AString::AString(asIScriptEngine *engine, const char *data, size_t length)
-        : SimpleGCObject(engine, AS_OBJECT_TYPE_NAME, false),
-          string_value(data, length)
-    {
-        // This occurs potentially on a stack, but we are counting it
-        // towards the heap usage.
-        memory::ThreadVirtualHeapManager::external_malloc(
-            sizeof(AString),
-            true);
-    }
-
-    // ----------------------------------------------------------------------
     AString::~AString()
     {
         memory::ThreadVirtualHeapManager::external_free(sizeof(AString));
@@ -420,8 +424,17 @@ namespace angelscript
         if (raw_arg_ptr)
         {
             AString * const string_ptr = new AString(engine);
-            string_ptr->assign(*reinterpret_cast<AString *>(raw_arg_ptr));
-            *(AString **)gen_ptr->GetAddressOfReturnLocation() = string_ptr;
+
+            try
+            {
+                string_ptr->assign(*reinterpret_cast<AString *>(raw_arg_ptr));
+                *(AString **)gen_ptr->GetAddressOfReturnLocation() = string_ptr;
+            }
+            catch (std::bad_alloc &ex)
+            {
+                string_ptr->release_ref();
+                throw;
+            }
         }
     }
 
@@ -460,6 +473,12 @@ namespace angelscript
     void AString::import_from_string(const std::string &str)
     {
         assign(str);
+    }
+
+    // ----------------------------------------------------------------------
+    void AString::import_from_string(const char *data, const size_t length)
+    {
+        string_value.assign(data, length);
     }
 
     // ----------------------------------------------------------------------
@@ -504,8 +523,16 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        result->string_value.assign(string_value);
-        result->string_value += rhs.string_value;
+        try
+        {
+            result->string_value.assign(string_value);
+            result->string_value += rhs.string_value;
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -528,11 +555,19 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        // Intermediate because of different allocators
-        const std::string rhs_string = text::to_string(rhs);
+        try
+        {
+            // Intermediate because of different allocators
+            const std::string rhs_string = text::to_string(rhs);
 
-        result->string_value.assign(string_value);
-        result->string_value.append(rhs_string.c_str(), rhs_string.size());
+            result->string_value.assign(string_value);
+            result->string_value.append(rhs_string.c_str(), rhs_string.size());
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -559,11 +594,19 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        // Intermediate because of different allocators
-        const std::string rhs_string = text::to_string(rhs);
+        try
+        {
+            // Intermediate because of different allocators
+            const std::string rhs_string = text::to_string(rhs);
 
-        result->string_value.assign(string_value);
-        result->string_value.append(rhs_string.c_str(), rhs_string.size());
+            result->string_value.assign(string_value);
+            result->string_value.append(rhs_string.c_str(), rhs_string.size());
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -590,15 +633,27 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        result->string_value.assign(string_value);
+        try
+        {
+            result->string_value.assign(string_value);
 
-        if (rhs)
-        {
-            result->string_value.append(TRUE_VALUE.c_str(), TRUE_VALUE.size());
+            if (rhs)
+            {
+                result->string_value.append(
+                    TRUE_VALUE.c_str(),
+                    TRUE_VALUE.size());
+            }
+            else
+            {
+                result->string_value.append(
+                    FALSE_VALUE.c_str(),
+                    FALSE_VALUE.size());
+            }
         }
-        else
+        catch (std::bad_alloc &ex)
         {
-            result->string_value.append(FALSE_VALUE.c_str(), FALSE_VALUE.size());
+            result->release_ref();
+            throw;
         }
 
         return result;
@@ -744,7 +799,15 @@ namespace angelscript
 
         AString * const result = new AString(engine_ptr);
 
-        result->string_value.assign(string_value.substr(start_pos));
+        try
+        {
+            result->string_value.assign(string_value.substr(start_pos));
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -770,9 +833,18 @@ namespace angelscript
 
         AString * const result = new AString(engine_ptr);
 
-        if (start_pos != std::string::npos)
+        try
         {
-            result->string_value.assign(string_value.substr(start_pos, len));
+            if (start_pos != std::string::npos)
+            {
+                result->string_value.assign(
+                    string_value.substr(start_pos, len));
+            }
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
         }
 
         return result;
@@ -797,7 +869,17 @@ namespace angelscript
 
         AString * const result = new AString(engine_ptr);
 
-        result->string_value = string_value[pos];
+        try
+        {
+            result->string_value = string_value[pos];
+        }
+        catch (std::bad_alloc &ex)
+        {
+            // A single character should never require an allocation, but
+            // this is to be consistent.
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -865,9 +947,17 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        std::string exported_string = export_to_string();
-        text::to_upper(exported_string);
-        result->import_from_string(exported_string);
+        try
+        {
+            std::string exported_string = export_to_string();
+            text::to_upper(exported_string);
+            result->import_from_string(exported_string);
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }
@@ -877,9 +967,17 @@ namespace angelscript
     {
         AString * const result = new AString(engine_ptr);
 
-        std::string exported_string = export_to_string();
-        text::to_lower(exported_string);
-        result->import_from_string(exported_string);
+        try
+        {
+            std::string exported_string = export_to_string();
+            text::to_lower(exported_string);
+            result->import_from_string(exported_string);
+        }
+        catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
 
         return result;
     }

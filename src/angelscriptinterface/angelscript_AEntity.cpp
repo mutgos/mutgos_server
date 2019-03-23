@@ -713,7 +713,14 @@ namespace angelscript
                         iter != contents_vector.end();
                         ++iter)
                     {
-                        result->InsertLast(new AEntity(engine_ptr, *iter));
+                        AEntity * const item_ptr =
+                            new AEntity(engine_ptr, *iter);
+                        result->InsertLast(item_ptr);
+
+                        // Reference count starts out as 1.  Manually adding it
+                        // to the array will make it 2.  Release our reference.
+                        item_ptr->release_ref();
+
                         ++inserts;
 
                         if (not (inserts % 20))
@@ -1302,6 +1309,10 @@ namespace angelscript
                         converted_line->import_from_string(*iter);
 
                         result->InsertLast(converted_line);
+
+                        // Reference count starts out as 1.  Manually adding it
+                        // to the array will make it 2.  Release our reference.
+                        converted_line->release_ref();
 
                         if (not (inserts % 20))
                         {

@@ -129,6 +129,17 @@ namespace angelscript
                 result_ptr->import_from_string(raw_output);
             }
         }
+        catch (std::bad_alloc &ex)
+        {
+            // String ran out of memory
+            if (result_ptr)
+            {
+                result_ptr->release_ref();
+            }
+
+            ScriptUtilities::set_exception_info(engine_ptr, ex);
+            throw;
+        }
         catch (std::exception &ex)
         {
             ScriptUtilities::set_exception_info(engine_ptr, ex);
@@ -200,9 +211,15 @@ namespace angelscript
                          iter != raw_sessions.end();
                          ++iter)
                     {
-                        result_ptr->InsertLast(
-                            new OnlineStatEntry(engine_ptr, *iter));
+                        OnlineStatEntry * const entry_ptr =
+                            new OnlineStatEntry(engine_ptr, *iter);
+
+                        result_ptr->InsertLast(entry_ptr);
                         ++inserts;
+
+                        // Reference count starts out as 1.  Manually adding it
+                        // to the array will make it 2.  Release our reference.
+                        entry_ptr->release_ref();
 
                         if (not (inserts % 20))
                         {
