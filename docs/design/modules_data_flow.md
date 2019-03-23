@@ -48,7 +48,7 @@ Modules (alphabetical order)
 
 **utilities**: Misc classes that don't fall anywhere else, such as an interface to a third party JSON parser and global configuration.
 
-****websocketcomm**: Handles communication between a websocket and the comminterface.  Essentially abstracts away communicating with incoming websockets.
+**websocketcomm**: Handles communication between a websocket and the comminterface.  Essentially abstracts away communicating with incoming websockets.
 
 
 
@@ -56,12 +56,15 @@ High level data flow from user typing 'say Hello!' to someone else getting the m
 --------------------------------------------------------------------------------------
 
 Executing 'say hello' (not all modules shown, just the major ones):
-socketcomm -> comminterface -> useragent -> softcode -> angelscriptinterface -> primitives -> events
+  * socketcomm -> comminterface -> useragent -> softcode -> angelscriptinterface -> primitives -> events
+
 
 Receiving 'Hello':
-events -> useragent -> comminterface -> socketcomm
+  * events -> useragent -> comminterface -> socketcomm
 
-A narrative follows:
+
+#### Narrative
+
 At the user's client, they type 'say Hello!'.  The bytes travel along a socket, which get picked up by socketcomm.  From there, it's converted into ExternalText.  comminterface will soon query socketcomm and pick up pending data, which would include the ExternalText.  From there, the ExternalText travels along a Channel where the data is sent as a message to the useragent (via executor).
 
 With the message pending, useragent is then given CPU time (process executes) and will process the message.  Using primitives, security, and dbtypes, it will locate the 'say' command.  Then, utilizing softcode and angelscriptinterface, an AngelScript interpreter process will be launched and managed by executor.  The process will run, and in the course of execution send an EmitEvent to events for processing.
