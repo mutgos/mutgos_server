@@ -129,6 +129,17 @@ namespace angelscript
                 result_ptr->import_from_string(raw_output);
             }
         }
+        catch (std::bad_alloc &ex)
+        {
+            // String ran out of memory
+            if (result_ptr)
+            {
+                result_ptr->release_ref();
+            }
+
+            ScriptUtilities::set_exception_info(engine_ptr, ex);
+            throw;
+        }
         catch (std::exception &ex)
         {
             ScriptUtilities::set_exception_info(engine_ptr, ex);
