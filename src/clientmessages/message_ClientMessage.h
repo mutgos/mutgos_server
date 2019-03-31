@@ -107,7 +107,6 @@ namespace message
         ClientMessage &operator=(const ClientMessage &rhs);
 
         const ClientMessageType message_type; ///< The type of the subclass
-        // TODO Delete these?  They don't seem useful yet.
         MG_UnsignedInt request_id; ///< Request ID, when a response is needed
         bool response_flag; ///< True if this message is actually a response to a request
     };
