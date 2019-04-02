@@ -458,9 +458,19 @@ void main(const string &in args)
     {
       println(entity.get_name(true));
     }
-    
-    string@ desc = entity.get_string_prop("/look/shortdesc");
-    println(desc);
+    if (entity.is_prop_document("/look/longdesc"))
+    {
+        array<string> @desc = entity.get_document_prop("/look/longdesc/");
+        for (uint index = 0; index < desc.length(); ++index)
+        {
+            println(desc[index]);
+        }
+    }
+    else
+    {
+        string@ desc = entity.get_string_prop("/look/shortdesc");
+        println(desc);
+    }
     
     array<Entity> @contents = entity.get_contents();
     
