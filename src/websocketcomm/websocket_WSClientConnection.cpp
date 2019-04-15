@@ -37,6 +37,11 @@
 
 // TODO May want to work on ChannelData, ClientTextData to have a 'no copy' mode for performance
 
+namespace
+{
+    const std::string KEEPALIVE_STRING = "KeepAlive";
+}
+
 namespace mutgos
 {
 namespace websocket
@@ -376,94 +381,104 @@ namespace websocket
         }
         else
         {
-            LOG(debug, "websocket", "raw_data",
-                "Client sent "
-                + text::to_string(strlen(data_ptr))
-                + " bytes.  Source " + client_source + ", entity "
-                + client_entity_id.to_string(true));
-
-            json::JsonParsedObject *json_ptr = json::parse_json(data_ptr);
-            data_ptr = 0;
-
-            if (not json_ptr)
+            if (strcmp(KEEPALIVE_STRING.c_str(), data_ptr) == 0)
             {
-                LOG(error, "websocket", "raw_data",
-                    "Client sent invalid/incomplete JSON data!  "
-                    "Source " + client_source + ", entity "
-                    + client_entity_id.to_string(true));
-
-                client_error = true;
-                request_service();
+                // For now, ignore keepalives.  They are used by the client
+                // to detect when the connection has been lost, and to keep
+                // firewalls open.
             }
             else
             {
-                // We now have a valid, parsed JSON.  Split it out into
-                // the various messages and parse each one.
-                //
-                if (json::is_map(json_ptr->get()))
+                LOG(debug, "websocket", "raw_data",
+                    "Client sent "
+                    + text::to_string(data_size)
+                    + " bytes.  Source " + client_source + ", entity "
+                    + client_entity_id.to_string(true));
+
+                json::JsonParsedObject *json_ptr = json::parse_json(data_ptr);
+                data_ptr = 0;
+
+                if (not json_ptr)
                 {
-                    // Single message not sent as array.  Process directly.
-                    process_message(restore_message(json_ptr));
+                    LOG(error, "websocket", "raw_data",
+                        "Client sent invalid/incomplete JSON data!  "
+                        "Source " + client_source + ", entity "
+                        + client_entity_id.to_string(true));
+
+                    client_error = true;
+                    request_service();
                 }
-                else if (json::is_array(json_ptr->get()))
+                else
                 {
-                    // One or more messages sent as array.  Process one at a
-                    // time.
+                    // We now have a valid, parsed JSON.  Split it out into
+                    // the various messages and parse each one.
                     //
-                    const MG_UnsignedInt message_count =
-                        json::array_size(json_ptr->get());
-                    char *raw_json_ptr = 0;
-                    size_t raw_json_size = 0;
-                    json::JsonParsedObject *indexed_json_ptr = 0;
-
-                    for (MG_UnsignedInt index = 0; index < message_count; ++index)
+                    if (json::is_map(json_ptr->get()))
                     {
-                        json::array_get_value(
-                            json_ptr->get(),
-                            index,
-                            raw_json_ptr,
-                            raw_json_size);
+                        // Single message not sent as array.  Process directly.
+                        process_message(restore_message(json_ptr));
+                    }
+                    else if (json::is_array(json_ptr->get()))
+                    {
+                        // One or more messages sent as array.  Process one at
+                        // a time.
+                        //
+                        const MG_UnsignedInt message_count =
+                            json::array_size(json_ptr->get());
+                        char *raw_json_ptr = 0;
+                        size_t raw_json_size = 0;
+                        json::JsonParsedObject *indexed_json_ptr = 0;
 
-                        if (not raw_json_ptr)
+                        for (MG_UnsignedInt index = 0; index < message_count;
+                            ++index)
                         {
-                            LOG(error, "websocket", "raw_data",
-                                "Empty JSON found in array, or wrong type.");
-                            client_error = true;
-                            request_service();
-                        }
-                        else
-                        {
-                            indexed_json_ptr = json::parse_json(raw_json_ptr);
+                            json::array_get_value(
+                                json_ptr->get(),
+                                index,
+                                raw_json_ptr,
+                                raw_json_size);
 
-                            if (not indexed_json_ptr)
+                            if (not raw_json_ptr)
                             {
                                 LOG(error, "websocket", "raw_data",
-                                    "Client sent invalid/incomplete JSON data "
-                                    "in array!  Source " + client_source
-                                    + ", entity "
-                                    + client_entity_id.to_string(true));
-
+                                    "Empty JSON found in array, or wrong type.");
                                 client_error = true;
                                 request_service();
                             }
                             else
                             {
-                                process_message(
-                                    restore_message(indexed_json_ptr));
+                                indexed_json_ptr = json::parse_json(raw_json_ptr);
+
+                                if (not indexed_json_ptr)
+                                {
+                                    LOG(error, "websocket", "raw_data",
+                                        "Client sent invalid/incomplete JSON data "
+                                        "in array!  Source " + client_source
+                                        + ", entity "
+                                        + client_entity_id.to_string(true));
+
+                                    client_error = true;
+                                    request_service();
+                                }
+                                else
+                                {
+                                    process_message(
+                                        restore_message(indexed_json_ptr));
+                                }
                             }
                         }
                     }
-                }
-                else
-                {
-                    LOG(error, "websocket", "raw_data",
-                        "Client sent unknown JSON data!  "
-                            "Source " + client_source + ", entity "
-                        + client_entity_id.to_string(true));
+                    else
+                    {
+                        LOG(error, "websocket", "raw_data",
+                            "Client sent unknown JSON data!  "
+                                "Source " + client_source + ", entity "
+                            + client_entity_id.to_string(true));
 
-                    delete json_ptr;
-                    client_error = true;
-                    request_service();
+                        delete json_ptr;
+                        client_error = true;
+                        request_service();
+                    }
                 }
             }
         }

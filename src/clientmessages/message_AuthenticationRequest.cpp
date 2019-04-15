@@ -21,7 +21,7 @@ namespace
             mutgos::message::CLIENTMESSAGE_AUTHENTICATION_REQUEST,
             mutgos::message::AuthenticationRequest::make_instance);
 
-    const static std::string PLAYER_NAME_KEY = "name";
+    const static std::string PLAYER_NAME_KEY = "username";
     const static std::string PLAYER_PASSWORD_KEY = "password";
     const static std::string PLAYER_SITE_ID_KEY = "site";
     const static std::string PLAYER_RECONNECT_KEY = "isReconnect";

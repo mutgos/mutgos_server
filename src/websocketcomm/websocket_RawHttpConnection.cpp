@@ -23,6 +23,8 @@
 #define MAX_INCOMING_BUFFER_SIZE 16384
 #define MAX_NEGOTIATION_TIME_SECS 30
 
+// TODO Will need to add WS subprotocol so we know what version is in use
+
 namespace mutgos
 {
 namespace websocket

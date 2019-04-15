@@ -232,8 +232,8 @@ namespace websocket
          * data from the client to be processed.  This will be one websocket
          * message at a time.
          * @param data_ptr[in] A buffer with all the data for a websocket
-         * message.  Ownership of the pointer transfer to this method,
-         * which is responsible for cleaning it up after.
+         * message, null terminated.  Ownership of the pointer transfer to
+         * this method, which is responsible for cleaning it up after.
          * @param data_size[in] The size of data_ptr.
          */
         void raw_data(char *data_ptr, const size_t data_size);
