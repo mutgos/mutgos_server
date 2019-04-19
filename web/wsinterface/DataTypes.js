@@ -2,12 +2,12 @@
 /**
  * Represents an ID for an Entity.  Generally used for sending, but is a
  * perfect guide to how a received Entity ID will look.
- * @param {number} site Site ID.
- * @Param {number} entity Entity ID.
+ * @param {number} siteId Site ID.
+ * @param {number} entityId Entity ID.
  */
-function EntityId(site, entity) {
-    this.siteId = site;
-    this.entityId = entity;
+function EntityId(siteId, entityId) {
+    this.siteId = siteId;
+    this.entityId = entityId;
 }
 
 /**
@@ -19,7 +19,7 @@ EntityId.prototype.toString = function() {
 };
 
 /**
- * @param {boolean} True to include site ID in output.
+ * @param {boolean} withSite True to include site ID in output.
  * @return {string} The entity ID as a user-readable string.
  */
 EntityId.prototype.asString = function(withSite) {
