@@ -182,7 +182,7 @@ function RawTextgameProtocolClient() {
 
     /**
      * @public
-     * Sets authentication data and sends out an authentication reuqest if
+     * Sets authentication data and sends out an authentication request if
      * connected.
      * This can also be used to change authentication data while connected,
      * however it won't do anything until a reconnect occurs.
@@ -233,6 +233,7 @@ function RawTextgameProtocolClient() {
      * Makes a basic, non-request-response message of the given type.  No
      * attributes are filled in except for what's required for a ClientMessage.
      * @param {string} messageType The type of message to be created.
+     * @return {Object} The created message.
      */
     this.makeClientMessage = function(messageType) {
         return {"messageType" : messageType};
@@ -273,7 +274,7 @@ function RawTextgameProtocolClient() {
      * @public
      * Sends text data over a text Channel.
      * @param {number} channelId The channel ID to send the text data on.
-     * @param {Object} text The ExternalTextLine to send.
+     * @param {Array} text The ExternalTextLine to send.
      */
     this.sendChannelTextData = function(channelId, text) {
         if (channelId && text) {

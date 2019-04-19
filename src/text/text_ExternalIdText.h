@@ -20,6 +20,7 @@ namespace text
         /**
          * Indicates type of Entity referred to by this ExternalIdText.
          * Update ExternalTextConverter if this enum changes.
+         * TODO Add a type that indicates 'thing/player/puppet/vehicle'?
          */
         enum IdType
         {
