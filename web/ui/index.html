@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MUTGOS Demo Web Client</title>
+
+    <script type="text/javascript" src="../third_party/vue.js"></script>
+
+    <script type="text/javascript" src="../wsinterface/RawTextgameProtocolClient.js"></script>
+    <script type="text/javascript" src="../wsinterface/DataTypes.js"></script>
+    <script type="text/javascript" src="../wsinterface/TextgameProtocolClient.js"></script>
+
+    <script type="text/javascript" src="FormattedTextComponent.js"></script>
+</head>
+<body>
+<div id="app">
+    <div id="output-area" >
+    </div>
+    <div>
+    </div>
+    <div id="input-line">
+        <textarea id="input-field" onblur="return lostFocus();" onfocus="return gotFocus();" onKeyPress="return submitenter(this, event)" placeholder="Input Line" rows="1" style="resize: none;"></textarea>
+        <button id="prev-button" onblur="return lostFocus();" onfocus="return gotFocus();" title="See last text sent to server, only when input line is empty" onClick="uparrow();">Prev</button>
+        <button id="submit-button" onblur="return lostFocus();" onfocus="return gotFocus();" onClick="submitText();" title="Sends text to server">Send</button>
+    </div>
+</div>
+
+<script>
+
+    var mutgosClient = new Vue({
+        el: '#app',
+        data: {
+            outputLines : [ ]
+        }
+    })
+
+</script>
+
+</body>
+</html>
