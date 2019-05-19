@@ -51,7 +51,8 @@ function Channel(channelId, channelStatus, channelName, channelType,
      * @return {boolean} True if channel is blocked.
      */
     this.isBlocked = function() {
-        return this.status === ChannelStatusEnum.BLOCK;
+        return (this.status === ChannelStatusEnum.BLOCK) ||
+            (this.status === ChannelStatusEnum.OPEN);
     };
 
     /**
@@ -61,14 +62,20 @@ function Channel(channelId, channelStatus, channelName, channelType,
     this.isOpen = function() {
         return this.status !== ChannelStatusEnum.CLOSE;
     };
+
+    var incoming = false;
 }
 
 // Enumeration of all the states a channel can have.
 //
 Channel.prototype.ChannelStatusEnum = {
+    // Channel was just opened.  It is blocked.
     OPEN : 'open',
+    // Channel is permanently closed.
     CLOSE : 'close',
+    // Channel is blocked.
     BLOCK : 'block',
+    // Channel is unblocked.
     UNBLOCK : 'unblock',
     UNKNOWN : ''
 };
