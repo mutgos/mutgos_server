@@ -8,8 +8,6 @@ namespace mutgos
 {
 namespace message
 {
-    MessageFactory::ClientMessageFactory MessageFactory::client_message_factory;
-
     // ----------------------------------------------------------------------
     bool MessageFactory::register_message(
         const ClientMessageType type,
@@ -21,7 +19,14 @@ namespace message
         }
         else
         {
-            client_message_factory.resize(type + 1, 0);
+            ClientMessageFactory &client_message_factory = registry();
+
+            if (client_message_factory.empty() ||
+                ((client_message_factory.size() - 1) < type))
+            {
+                client_message_factory.resize(type + 1, 0);
+            }
+
             client_message_factory[type] = create_func;
         }
 
@@ -40,7 +45,7 @@ namespace message
         else
         {
             ClientMessageCreateFunc
-                function = client_message_factory[type];
+                function = registry()[type];
 
             if (function)
             {
