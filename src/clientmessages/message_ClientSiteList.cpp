@@ -91,7 +91,7 @@ namespace message
                 site_info,
                 root) and success;
 
-            success = json::array_add_value(site_info, sites_array, root)
+            success = json::array_add_node(site_info, sites_array, root)
                       and success;
         }
 

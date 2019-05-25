@@ -340,7 +340,6 @@ namespace websocket
         DisconnectState client_disconnect_state; ///< What phase of disconnect we're in
         bool requested_service; ///< True if services has been requested on the driver
 
-        MG_UnsignedInt outgoing_size; ///< Estimated bytes of pending outgoing data
         json::JSONRoot outgoing_json_node; ///< Temporary holding spot while building up outgoing data
 
         MG_UnsignedInt auth_attempts; ///< Number of bad attempts to authenticate

@@ -748,7 +748,7 @@ namespace json
      * @param root[in] The document root.
      * @return True if success, or false if not an array or unable to add value.
      */
-    static bool array_add_value(
+    static bool array_add_node(
         JSONNode &value,
         JSONNode &array,
         JSONRoot &root)
@@ -946,7 +946,7 @@ namespace json
      * @return True if an array and the index is within range, and able to
      * retrieve the value.  False otherwise.
      */
-    static bool array_get_value(
+    static bool array_get_node(
         const JSONNode &array,
         const ssize_t index,
         const JSONNode *&value)

@@ -59,7 +59,6 @@ namespace websocket
         client_error(false),
         client_disconnect_state(WSClientConnection::DISCONNECT_STATE_NOT_REQUESTED),
         requested_service(false),
-        outgoing_size(0),
         outgoing_json_node(JSON_MAKE_ARRAY_ROOT()),
         auth_attempts(0),
         client_session_ptr(0),
@@ -513,9 +512,7 @@ namespace websocket
             // Determine if we need to block (too big a message, too
             // many messages, etc).
             //
-            if ((json::array_size(outgoing_json_node) >=
-                     client_window_size) or
-                (client_window_size > config::comm::ws_max_window()))
+            if (json::array_size(outgoing_json_node) >= client_window_size)
             {
                 // We shouldn't take any more messages.
                 status = comm::ClientConnection::SEND_OK_BLOCKED;
@@ -551,15 +548,10 @@ namespace websocket
         }
         else
         {
-            const std::string message_json = json::write_json(
-                message_json_node);
-
-            json::array_add_value(
-                message_json,
+            json::array_add_node(
+                message_json_node,
                 outgoing_json_node,
                 outgoing_json_node);
-
-            client_window_size += message_json.size();
         }
 
         request_service();
@@ -804,6 +796,12 @@ namespace websocket
             comm::ClientSession *session_ptr = 0;
 
             client_window_size = request.get_window_size();
+
+            if (client_window_size > config::comm::ws_max_window())
+            {
+                client_window_size = config::comm::ws_max_window();
+            }
+
             client_entity_id = dbtype::Id(request.get_player_site_id(), 0);
 
             if (auth_attempts <= 6)

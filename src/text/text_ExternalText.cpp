@@ -142,7 +142,7 @@ namespace text
         {
             JSON_MAKE_NODE(text_node);
             success = (*line_iter)->save(root, text_node) and success;
-            success = json::array_add_value(text_node, text_line_array, root)
+            success = json::array_add_node(text_node, text_line_array, root)
                       and success;
         }
 
@@ -183,7 +183,7 @@ namespace text
                 // construct the subclass, restore it, and add it to the line.
                 //
                 const json::JSONNode *text_node_ptr = 0;
-                success = json::array_get_value(
+                success = json::array_get_node(
                     *text_array_ptr,
                     index,
                     text_node_ptr) and success;

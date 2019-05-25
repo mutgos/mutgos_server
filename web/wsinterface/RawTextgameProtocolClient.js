@@ -664,19 +664,21 @@ function RawTextgameProtocolClient() {
      * @param rawLine {String} The raw data.
      */
     this.processWebsocketData = function(rawLine) {
-        var message = JSON.parse(rawLine);
+        var parsedLine = JSON.parse(rawLine);
         var messageArray;
 
-        if (Array.isArray(message)) {
-            messageArray = message;
+        if (Array.isArray(parsedLine)) {
+            messageArray = parsedLine;
         } else {
-            messageArray = [message];
+            messageArray = [parsedLine];
         }
 
         // The parsed message is the equivalent of a ClientMessage in C++;
         // look at the type to determine how to process it.
         //
         for (var index = 0; index < messageArray.length; ++index) {
+            var message = messageArray[index];
+
             if (message.messageType) {
                 switch (message.messageType) {
                     // Site list
