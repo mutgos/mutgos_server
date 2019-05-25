@@ -158,8 +158,8 @@
             <span class="close" v-on:click="closeDescription">&times;</span>
             <formatted-text-line
                     v-for="descLine in descriptionData.description"
-                    v-bind:externalText="descLine",
-                    addNewLine="true">
+                    v-bind:external-text="descLine",
+                    add-new-line="true">
             </formatted-text-line>
         </div>
     </div>
@@ -167,8 +167,8 @@
     <div id="output-area" style="background-color: black;">
         <formatted-text-line
                 v-for="outputLine in outputLines"
-                v-bind:externalText="outputLine",
-                addNewLine="true"
+                v-bind:external-text="outputLine",
+                add-new-line="true"
                 class="muckRecvText">
         </formatted-text-line>
     </div>
@@ -503,7 +503,7 @@
                 };
 
                 inputStack.splice(0, 0, channel);
-                channel.onStatusChange(statusListener);
+                channel.onStatusChange = statusListener;
 
                 if (channel.isBlocked()) {
                     connectionState.blocked = true;
@@ -550,6 +550,10 @@
     // Vue application code
     //
 
+    // Register components.
+    //
+    mutgos_registerFormattedTextComponent();
+
     var mutgosClient = new Vue({
         el: "#app",
         data: {
@@ -572,10 +576,11 @@
         },
         methods: {
             submitAuthentication: function() {
-                if ((! connectionState.authenticated) &&
-                  (! connectionState.authenticationInProgress)) {
-                    connectionState.authenticationInProgress = true;
-                    connectionState.authenticationMessage = "Authenticating...";
+                if ((! this.connectionState.authenticated) &&
+                  (! this.connectionState.authenticationInProgress)) {
+                    this.connectionState.authenticationInProgress = true;
+                    this.connectionState.authenticationMessage =
+                        "Authenticating...";
 
                     // Once connected, it will automatically send the credentials
                     protocol.connect(connectionUrl);
@@ -586,19 +591,19 @@
             // It can go back several lines.
             //
             goPreviousInput: function() {
-                if (inputLine.length && prevLineIndex <= 0) {
+                if (this.inputLine.length && this.prevLineIndex <= 0) {
                     // Don't allow going back (probably accidentally) if user
                     // is in the middle of typing.
                     return;
                 }
 
-                if (prevLineIndex >= 0) {
-                    if (prevLineIndex >= prevInputLines.length) {
-                        prevLineIndex = 0;
+                if (this.prevLineIndex >= 0) {
+                    if (this.prevLineIndex >= this.prevInputLines.length) {
+                        this.prevLineIndex = 0;
                     }
 
-                    inputLine = prevInputLines[prevLineIndex];
-                    ++prevLineIndex;
+                    this.inputLine = this.prevInputLines[this.prevLineIndex];
+                    ++this.prevLineIndex;
                 }
             },
 
@@ -606,15 +611,15 @@
             // focus, different browser tab, etc).
             //
             lostFocus: function() {
-                displayState.hasFocus = false;
-                displayState.textAdded = false;
+                this.displayState.hasFocus = false;
+                this.displayState.textAdded = false;
             },
 
             // Called to let us know we have focus again.
             //
             gotFocus: function() {
-                displayState.hasFocus = true;
-                displayState.textAdded = false;
+                this.displayState.hasFocus = true;
+                this.displayState.textAdded = false;
                 document.title = origTitle;
             },
 
@@ -623,19 +628,19 @@
             // input.
             //
             submitText: function() {
-                if (inputStack.length > 0) {
+                if (this.inputStack.length > 0) {
                     // TODO Support color input
-                    var textAsExternal = new ExternalPlainText(inputLine);
-                    inputStack[0].sendText(textAsExternal);
+                    var textAsExternal = new ExternalPlainText(this.inputLine);
+                    this.inputStack[0].sendText(textAsExternal);
 
-                    prevLineIndex = 0;
-                    prevInputLines.splice(0, 0, inputLine);
+                    this.prevLineIndex = 0;
+                    this.prevInputLines.splice(0, 0, inputLine);
 
-                    if (prevInputLines.length > 10) {
-                        prevInputLines.pop();
+                    if (this.prevInputLines.length > 10) {
+                        this.prevInputLines.pop();
                     }
 
-                    inputLine = "";
+                    this.inputLine = "";
                 }
             },
 
@@ -654,13 +659,13 @@
                 if (keycode == 13)
                 {
                     // Enter pressed
-                    this.submitText();
                     e.preventDefault();
+                    this.submitText();
                     return false;
                 } else if (keycode == 38) {
                     // Up arrow pressed
-                    this.goPreviousInput();
                     e.preventDefault();
+                    this.goPreviousInput();
                     return true;
                 }
                 else {
@@ -672,9 +677,9 @@
             // This submits the request to the server, to get the description.
             //
             submitLookRequest : function(event) {
-                if (entityDescription.lookId) {
+                if (this.descriptionData.lookId) {
                     var lookRequest = protocol.makeClientMessage("ExecuteEntity");
-                    lookRequest.entityId = entityDescription.lookId;
+                    lookRequest.entityId = this.descriptionData.lookId;
                     lookRequest.programArguments =
                         "#" + event.currentTarget.entitySite + "-"
                           + event.currentTarget.entityId;
@@ -689,11 +694,11 @@
             // Called to close the description dialog
             //
             closeDescription : function() {
-                entityDescription.descriptionChannel = null;
-                entityDescription.descriptionReceived = false;
-                entityDescription.description.splice(
+                this.descriptionData.descriptionChannel = null;
+                this.descriptionData.descriptionReceived = false;
+                this.descriptionData.description.splice(
                     0,
-                    entityDescription.description.length);
+                    this.descriptionData.description.length);
             },
 
             // Called when an exit is clicked.

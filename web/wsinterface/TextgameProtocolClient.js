@@ -51,8 +51,8 @@ function Channel(channelId, channelStatus, channelName, channelType,
      * @return {boolean} True if channel is blocked.
      */
     this.isBlocked = function() {
-        return (this.status === ChannelStatusEnum.BLOCK) ||
-            (this.status === ChannelStatusEnum.OPEN);
+        return (this.status === this.ChannelStatusEnum.BLOCK) ||
+            (this.status === this.ChannelStatusEnum.OPEN);
     };
 
     /**
@@ -60,7 +60,7 @@ function Channel(channelId, channelStatus, channelName, channelType,
      * @return {boolean} True if channel is open (may be blocked).
      */
     this.isOpen = function() {
-        return this.status !== ChannelStatusEnum.CLOSE;
+        return this.status !== this.ChannelStatusEnum.CLOSE;
     };
 
     var incoming = false;
@@ -95,8 +95,10 @@ Channel.prototype.ChannelTypeEnum = {
  */
 Channel.prototype.convertChannelStatus = function(status) {
     for (var val in this.ChannelStatusEnum) {
-        if (this.ChannelStatusEnum[val] === status) {
-            return val;
+        var enumVal = this.ChannelStatusEnum[val];
+
+        if (enumVal === status) {
+            return enumVal;
         }
     }
 
@@ -125,8 +127,10 @@ Channel.prototype.updateChannelStatus = function(status) {
  */
 Channel.prototype.convertChannelType = function(type) {
     for (var val in this.ChannelTypeEnum) {
-        if (this.ChannelTypeEnum[val] === type) {
-            return val;
+        var enumVal = this.ChannelTypeEnum[val];
+
+        if (enumVal === type) {
+            return enumVal;
         }
     }
 
@@ -166,6 +170,33 @@ function SendChannel(channelId, channelStatus, channelName, channelType,
     // See below
 }
 
+
+// --------------------------------------------------------------------------
+function ReceiveChannel(channelId, channelStatus, channelName, channelType,
+                        channelSubtype, clientRef) {
+    // Used to initialize parent
+    Channel.call(this, channelId, channelStatus, channelName, channelType,
+        channelSubtype, clientRef);
+
+    // Called when non-text data has been received on the Channel.
+    // The ID and the data will be provided:  onReceiveData(ID, data);
+    //
+    this.onReceiveData = null;
+
+    // Called when external text data has been received on the Channel.
+    // The ID and the text data will be provided:
+    // onReceiveTextData(ID, text);
+    //
+    this.onReceiveTextData = null;
+}
+
+
+// Inheritance
+//
+SendChannel.prototype = Object.create(Channel.prototype);
+ReceiveChannel.prototype = Object.create(Channel.prototype);
+
+
 /**
  * @public
  * Sends a non-text message (ClientMessage) on the channel.
@@ -203,24 +234,6 @@ SendChannel.prototype.sendText = function(text) {
     return true;
 };
 
-// --------------------------------------------------------------------------
-function ReceiveChannel(channelId, channelStatus, channelName, channelType,
-                        channelSubtype, clientRef) {
-    // Used to initialize parent
-    Channel.call(this, channelId, channelStatus, channelName, channelType,
-        channelSubtype, clientRef);
-
-    // Called when non-text data has been received on the Channel.
-    // The ID and the data will be provided:  onReceiveData(ID, data);
-    //
-    this.onReceiveData = null;
-
-    // Called when external text data has been received on the Channel.
-    // The ID and the text data will be provided:
-    // onReceiveTextData(ID, text);
-    //
-    this.onReceiveTextData = null;
-}
 
 /**
  * @package
@@ -245,12 +258,6 @@ ReceiveChannel.prototype.callReceiveTextData = function(text) {
         this.onReceiveTextData(this.id, text);
     }
 };
-
-
-// Inheritance
-//
-SendChannel.prototype = Object.create(Channel.prototype);
-ReceiveChannel.prototype = Object.create(Channel.prototype);
 
 
 /**

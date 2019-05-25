@@ -252,20 +252,21 @@ var renderExternalTextElement = function(createElement, externalText) {
 Vue.component(
     'formatted-text-line',
     {
-        props: ['externalText', 'addNewLine'],
+        // TODO Props external-text is broken.  Need to instead pass an index into a shared array that it can read the parsed JSON from
+        props: ['external-text', 'add-new-line'],
         render: function(createElement) {
             // Iterate through JSON and call renderExternalTextElement() on
             // each element
             //
             var renderedElements = [];
 
-            for (var index = 0; index < externalText.length; ++index) {
+            for (var index = 0; index < this.externalText.length; ++index) {
                 renderedElements.push(renderExternalTextElement(
                     createElement,
-                    externalText[index]));
+                    this.externalText[index]));
             }
 
-            if (addNewLine) {
+            if (this.addNewLine) {
                 renderedElements.push(createElement('p'));
             }
 
