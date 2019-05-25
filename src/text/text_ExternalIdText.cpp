@@ -28,7 +28,7 @@ namespace text
 
         if (success)
         {
-            JSON_MAKE_NODE(id_node);
+            JSON_MAKE_MAP_NODE(id_node);
 
             success = db_id.save(root, id_node);
 

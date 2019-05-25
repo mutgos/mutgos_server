@@ -140,7 +140,7 @@ namespace text
             line_iter != line.end();
             ++line_iter)
         {
-            JSON_MAKE_NODE(text_node);
+            JSON_MAKE_MAP_NODE(text_node);
             success = (*line_iter)->save(root, text_node) and success;
             success = json::array_add_node(text_node, text_line_array, root)
                       and success;

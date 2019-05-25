@@ -200,7 +200,7 @@ namespace json
         if (success)
         {
             rapidjson::Value val;
-            val.SetString(value.c_str(), value.size());
+            val.SetString(value.c_str(), value.size(), root.GetAllocator());
 
             json.AddMember(
                 rapidjson::StringRef(key.c_str(), key.size()),
