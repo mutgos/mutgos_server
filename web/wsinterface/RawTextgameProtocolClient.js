@@ -130,9 +130,12 @@ function RawTextgameProtocolClient() {
 
         if (currentState !== StateEnum.DISCONNECTED) {
             if (currentState === StateEnum.CONNECTED) {
-                outgoingControls.push(
-                    this.makeClientMessage("Disconnect"));
-                this.timerSendPendingData();
+                // TODO Need to figure out clean disconnect
+                //
+
+                // outgoingControls.push(
+                //    this.makeClientMessage("Disconnect"));
+                // this.timerSendPendingData();
             }
 
             currentState = StateEnum.DISCONNECTED;
@@ -586,7 +589,7 @@ function RawTextgameProtocolClient() {
                 authMessage.windowSize = outgoingWindow;
 
                 // Send it out as a control message
-                outgoingControls.push(JSON.stringify(authMessage));
+                outgoingControls.push(authMessage);
                 this.timerSendPendingData();
             }
         }
@@ -1019,7 +1022,12 @@ function RawTextgameProtocolClient() {
                 return function() {
                     for (var index = 0; index < pendingCallbacks.length;
                          ++index) {
-                        pendingCallbacks[index]();
+                        try
+                        {
+                            pendingCallbacks[index]();
+                        } catch (e) {
+                            // Don't let one exception stop the whole thing
+                        }
                     }
 
                     pendingCallbacks = [];

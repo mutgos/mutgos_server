@@ -124,10 +124,9 @@
     <div v-if="! connectionState.authenticated" id="loginDialog" class="modal">
         <!-- Modal content -->
         <div class="modal-content">
-            <!-- Cannot close auth dialog <span class="close">&times;</span> -->
             <select id = "siteList" v-model="connectionState.site">
                 <option value="-1">Select a site</option>
-                <option v-for="site in siteList" v-bind:value="id">
+                <option v-for="site in siteList" v-bind:value="site.id">
                     {{ site.id }} - {{ site.name }} ({{ site.description }})
                     {{ site.onlineCount }} online
                 </option>
@@ -412,7 +411,7 @@
     };
 
     protocol.onDisconnection = function() {
-        displayState.sendButtonName = "DISCONNECTED";
+        displayState.sendButtonName = "Disconnected";
         connectionState.established = false;
 
         if (connectionState.authenticated) {

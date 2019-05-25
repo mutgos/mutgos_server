@@ -426,7 +426,7 @@ function TextgameProtocolClient() {
      * @param {number} site The site ID being connected to.
      */
     this.authenticate = function(username, password, site) {
-        return rawClient.requestAuthentication(username, password, site);
+        rawClient.requestAuthentication(username, password, site);
     };
 
     /**
@@ -454,6 +454,10 @@ function TextgameProtocolClient() {
     //
     var rawClient = new RawTextgameProtocolClient();
 
+    // Used for callback methods so they have correct this
+    //
+    var myInstance = this;
+
     /** PRIVATE FUNCTIONS **/
 
     /**
@@ -477,7 +481,7 @@ function TextgameProtocolClient() {
                     status.channelName,
                     status.channelType,
                     status.channelSubtype,
-                    this);
+                    myInstance);
             } else {
                 newChannel = new SendChannel(
                     status.channelId,
@@ -485,14 +489,14 @@ function TextgameProtocolClient() {
                     status.channelName,
                     status.channelType,
                     status.channelSubtype,
-                    this);
+                    myInstance);
             }
 
             channelMap[status.channelId.toString()] = newChannel;
 
-            if ((this.onChannelOpen !== null) &&
-                (typeof(this.onChannelOpen) === "function")) {
-                this.onChannelOpen(newChannel);
+            if ((myInstance.onChannelOpen !== null) &&
+                (typeof(myInstance.onChannelOpen) === "function")) {
+                myInstance.onChannelOpen(newChannel);
             }
         } else if (status.channelStatus === "close") {
             // Channel is closing.  Update status on Channel, call listener,
@@ -521,12 +525,12 @@ function TextgameProtocolClient() {
      * stuff here after calling the listener.
      */
     this.processDisconnection = function() {
-        if ((this.onDisconnection !== null) &&
-            (typeof(this.onDisconnection) === "function")) {
-            this.onDisconnection();
+        if ((myInstance.onDisconnection !== null) &&
+            (typeof(myInstance.onDisconnection) === "function")) {
+            myInstance.onDisconnection();
         }
 
-        this.closeAllChannels();
+        myInstance.closeAllChannels();
         connectCalled = false;
     };
 
