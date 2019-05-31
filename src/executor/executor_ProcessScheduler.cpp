@@ -30,6 +30,8 @@ namespace mutgos
 {
 namespace executor
 {
+    typedef std::vector<ProcessResource *> ArrayOfResources;
+
     // ----------------------------------------------------------------------
     ProcessScheduler::ProcessScheduler(void)
       : shutting_down(false),
@@ -1134,6 +1136,7 @@ namespace executor
         {
             case ProcessInfo::PROCESS_STATE_SUSPENDED:
             case ProcessInfo::PROCESS_STATE_KILLED:
+            case ProcessInfo::PROCESS_STATE_COMPLETED:
             {
                 good = false;
                 break;
@@ -1199,35 +1202,58 @@ namespace executor
         process_ptr->process_finished(pid);
 
         // Cleanup all resources the process may still have.
+        // Only keep the lock token long enough to remove data from
+        // ProcessInfo.  Everything needs to be unlocked while calling
+        // the resource to avoid deadlocks, since the resource can do
+        // anything it wants - including call the executor.
+        //
+        ArrayOfRIDs rids_to_clear;
+        ArrayOfResources resources;
+
         // This is a scope for token.
         {
             concurrency::WriterLockToken token(*process_info_ptr);
 
-            const ArrayOfRIDs rids_to_clear =
-                process_info_ptr->get_resource_ids(token);
+            rids_to_clear = process_info_ptr->get_resource_ids(token);
+            resources.reserve(rids_to_clear.size());
 
             for (ArrayOfRIDs::const_iterator rid_iter = rids_to_clear.begin();
                 rid_iter != rids_to_clear.end();
                 ++rid_iter)
             {
-                ProcessResource *resource_ptr =
-                    process_info_ptr->remove_resource(*rid_iter, token);
+                resources.push_back(
+                    process_info_ptr->remove_resource(*rid_iter, token));
+            }
+        }
 
-                if (resource_ptr)
-                {
-                    resource_ptr->resource_removed_from_process(
-                        pid,
-                        *rid_iter,
-                        true);
-                }
+        // We now have two parallel arrays.  Go through them and let the
+        // resource know it has been removed, now that no locks are active.
+        //
+        for (size_t index = 0; index < resources.size(); ++index)
+        {
+            ProcessResource * const resource_ptr = resources[index];
 
-                release_rid_internal(pid, *rid_iter);
+            if (resource_ptr)
+            {
+                resource_ptr->resource_removed_from_process(
+                    pid,
+                    rids_to_clear[index],
+                    true);
             }
         }
 
         if (not lock())
         {
             LOG(fatal, "executor", "cleanup_process", "Could not lock!");
+        }
+
+        // Now release the RID IDs for reuse
+        //
+        for (ArrayOfRIDs::const_iterator rid_iter = rids_to_clear.begin();
+             rid_iter != rids_to_clear.end();
+             ++rid_iter)
+        {
+            release_rid_internal(pid, *rid_iter);
         }
 
         // Delete process from our data structures.  It will never be present

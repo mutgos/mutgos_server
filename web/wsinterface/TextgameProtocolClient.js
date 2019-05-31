@@ -206,7 +206,7 @@ ReceiveChannel.prototype = Object.create(Channel.prototype);
  */
 SendChannel.prototype.sendData = function(data) {
     if ((this.type !== this.ChannelTypeEnum.DATA) ||
-        (this.status !== this.ChannelStatusEnum.OPEN)) {
+        (this.status !== this.ChannelStatusEnum.UNBLOCK)) {
         // Cannot send on a blocked or closed channel, or one that is
         // not for data.
         return false;
@@ -225,7 +225,7 @@ SendChannel.prototype.sendData = function(data) {
  */
 SendChannel.prototype.sendText = function(text) {
     if ((this.type !== this.ChannelTypeEnum.TEXT) ||
-        (this.status !== this.ChannelStatusEnum.OPEN)) {
+        (this.status !== this.ChannelStatusEnum.UNBLOCK)) {
         // Cannot send on a blocked or closed channel.
         return false;
     }

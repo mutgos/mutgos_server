@@ -37,7 +37,7 @@ var convertColor = function(externalFormattedText) {
     var color;
 
     switch (externalFormattedText.color) {
-        case externalFormattedText.ColorEnum.CUSTOM:
+        case ExternalFormattedText.prototype.ColorEnum.CUSTOM:
             // Convert RGB values to web
             //
             color = '#';
@@ -46,8 +46,8 @@ var convertColor = function(externalFormattedText) {
             color += toHexColor(externalFormattedText.blue);
             break;
 
-        case externalFormattedText.ColorEnum.DEFAULT:
-        case externalFormattedText.ColorEnum.UNKNOWN:
+        case ExternalFormattedText.prototype.ColorEnum.DEFAULT:
+        case ExternalFormattedText.prototype.ColorEnum.UNKNOWN:
             // Default color
             color = '';
             break;
@@ -70,8 +70,8 @@ var convertColor = function(externalFormattedText) {
  */
 var renderPlainText = function(createElement, externalPlainText) {
     return createElement(
-        'div',
-        externalPlainText.text);
+        'span',
+        externalPlainText.plainText);
 };
 
 /**
@@ -83,7 +83,7 @@ var renderPlainText = function(createElement, externalPlainText) {
  * @return {Object} The Vue element.
  */
 var renderFormattedText = function(createElement, externalFormattedText) {
-    var textElement = createElement('div', externalFormattedText.text);
+    var textElement = createElement('span', externalFormattedText.plainText);
 
     if (externalFormattedText.bold) {
         textElement = createElement('strong', [textElement]);
@@ -102,7 +102,7 @@ var renderFormattedText = function(createElement, externalFormattedText) {
     if (externalFormattedText.inverse) {
         // Inspired from https://stackoverflow.com/a/42586457
         textElement = createElement(
-            'div',
+            'span',
             {
                 style: {
                     color: 'black',
@@ -112,7 +112,7 @@ var renderFormattedText = function(createElement, externalFormattedText) {
             [ textElement ]);
     } else {
         textElement = createElement(
-            'div',
+            'span',
             {
                 style: {
                     color: color
@@ -155,8 +155,8 @@ var renderIdText = function(createElement, externalIdText) {
     var idElement;
 
     switch (externalIdText.type) {
-        case externalIdText.IdTypeEnum.ACTION:
-        case externalIdText.IdTypeEnum.EXIT:
+        case ExternalIdText.prototype.IdTypeEnum.ACTION:
+        case ExternalIdText.prototype.IdTypeEnum.EXIT:
             idElement = createElement(
                 'a',
                 {
@@ -177,7 +177,7 @@ var renderIdText = function(createElement, externalIdText) {
             );
             break;
 
-        case externalIdText.IdTypeEnum.ENTITY:
+        case ExternalIdText.prototype.IdTypeEnum.ENTITY:
             idElement = createElement(
                 'a',
                 {
@@ -201,7 +201,7 @@ var renderIdText = function(createElement, externalIdText) {
         default:
             // Unknown type
             idElement = createElement(
-                'div',
+                'span',
                 externalIdText.name);
             break;
     }
@@ -222,19 +222,19 @@ var renderExternalTextElement = function(createElement, externalText) {
     var result;
 
     switch (externalText.textType) {
-        case externalText.TextTypeEnum.PLAIN:
+        case ExternalText.prototype.TextTypeEnum.PLAIN:
             result = renderPlainText(createElement, externalText);
             break;
 
-        case externalText.TextTypeEnum.FORMATTED:
+        case ExternalText.prototype.TextTypeEnum.FORMATTED:
             result = renderFormattedText(createElement, externalText);
             break;
 
-        case externalText.TextTypeEnum.ID:
+        case ExternalText.prototype.TextTypeEnum.ID:
             result = renderIdText(createElement, externalText);
             break;
 
-        case externalText.TextTypeEnum.URL:
+        case ExternalText.prototype.TextTypeEnum.URL:
             result = renderUrlText(createElement, externalText);
             break;
 
@@ -252,23 +252,22 @@ var renderExternalTextElement = function(createElement, externalText) {
 Vue.component(
     'formatted-text-line',
     {
-        // TODO Props external-text is broken.  Need to instead pass an index into a shared array that it can read the parsed JSON from
-        props: ['external-text', 'add-new-line'],
+        props: ['external-text-topic', 'external-text-id'],
         render: function(createElement) {
             // Iterate through JSON and call renderExternalTextElement() on
             // each element
             //
             var renderedElements = [];
+            var externalText =  outputTextStore[this.externalTextTopic]
+                [Number(this.externalTextId)].textLine;
 
-            for (var index = 0; index < this.externalText.length; ++index) {
+            for (var index = 0; index < externalText.length; ++index) {
                 renderedElements.push(renderExternalTextElement(
                     createElement,
-                    this.externalText[index]));
+                    externalText[index]));
             }
 
-            if (this.addNewLine) {
-                renderedElements.push(createElement('p'));
-            }
+            // renderedElements.push(createElement('br'));
 
             // Now we have an array of rendered parts of the line.  Wrap it
             // together and return.

@@ -109,6 +109,8 @@ namespace comm
             router_ptr->release_connection(client_ptr);
             client_ptr = 0;
         }
+
+        client_is_connected = false;
     }
 
     // ----------------------------------------------------------------------

@@ -50,7 +50,6 @@
     }
 
     .muckRecvText {
-        white-space: pre;
         word-wrap: break-word;
         white-space: pre-wrap;       /* css-3 */
     }
@@ -117,7 +116,7 @@
 
     <script type="text/javascript" src="FormattedTextComponent.js"></script>
 </head>
-<body>
+<body style="background-color: black;">
 <div id="app">
 
     <!-- The login modal dialog -->
@@ -157,18 +156,19 @@
         <div class="modal-content-black">
             <span class="close" v-on:click="closeDescription">&times;</span>
             <formatted-text-line
-                    v-for="descLine in descriptionData.description"
-                    v-bind:external-text="descLine",
-                    add-new-line="true">
+                    v-for="descId in descriptionData.descriptionIds"
+                    v-bind:external-text-id="descId",
+                    external-text-topic="descOutput"
+                    class="muckRecvText">
             </formatted-text-line>
         </div>
     </div>
 
     <div id="output-area" style="background-color: black;">
         <formatted-text-line
-                v-for="outputLine in outputLines"
-                v-bind:external-text="outputLine",
-                add-new-line="true"
+                v-for="outputId in outputIds"
+                v-bind:external-text-id="outputId"
+                external-text-topic="mainOutput"
                 class="muckRecvText">
         </formatted-text-line>
     </div>
@@ -206,6 +206,13 @@
 
 <script>
 
+    // This global is used by FormattedTextComponent to access
+    // ExternalText for lines output from the server.  At the top level, it is
+    // separated by topic, such as the main screen, description popup,
+    // etc.  From there, it's a map (discontinuous array) of numeric ID to an
+    // array of external text that represents a line.
+    outputTextStore = {};
+
     //
     // Shared variables between Vue application and the protocol interface
     //
@@ -214,8 +221,17 @@
     var descriptionChannelSubtype = "DESCRIPTION";
     var clientDataChannelSubtype = "ClientData";
 
-    // Index 0 is top of the screen.
-    var output = [];
+    // Used with outputTextStore as the ID for a line of ExternalText.
+    var nextOutputId = 1;
+
+    // Index 0 is top of the screen.  This is composed of IDs (that link into
+    // outputTextStore) that can be pushed on and removed to trigger Vue to
+    // update the screen.  The order the IDs appear here will determine the
+    // order they appear on the screen.
+    // See outputTextStore.mainOutput for the actual text.
+    var outputIds = [];
+    // Number of actual entries in outputIds.
+    var outputLines = 0;
     var siteList = [];
     var connectionState =
         {
@@ -232,7 +248,10 @@
         {
             descriptionChannel : null,
             descriptionReceived : false,
-            description : [],
+            // Like outputIds, this has just the IDs, to indicate the order
+            // ExternalText should appear.
+            // See outputTextStore.descOutput for the actual text.
+            descriptionIds : [],
             // ID of the look program
             lookId : null
         };
@@ -249,17 +268,29 @@
             /** {ReceiveChannel} */
             receive : null
         };
+    // The initial title of this HTML Document
     var origTitle = document.title;
     // Frontmost item (index 0) is where user input goes to.
     var inputStack = [];
     var protocol = new TextgameProtocolClient();
 
+    // Put the two output streams in the store so FormattedTextComponent
+    // can access them.
+    outputTextStore.mainOutput = [];
+    outputTextStore.descOutput = [];
 
 
+    /**
+     * Identifiers do eventually wrap.
+     * @return {number} The next identifier to map a line of ExternalText.
+     */
+    var getNextId = function() {
+        if (nextOutputId >= (Number.MAX_VALUE - 1)) {
+            nextOutputId = 1;
+        }
 
-
-
-
+        return nextOutputId++;
+    };
 
 
     //
@@ -272,7 +303,21 @@
      * @param {ExternalText} formattedText The line of formatted to add.
      */
     var addIncomingText = function(id, formattedText) {
-        output.push(formattedText);
+        var newId = getNextId();
+
+        // Add new line
+        //
+        outputIds.push(newId);
+        outputTextStore.mainOutput[newId] = formattedText;
+        ++outputLines;
+
+        // Remove an old line if we've hit our limit.
+        //
+        if (outputLines > 3000) {
+            var removedId = outputIds.shift();
+            delete outputTextStore.mainOutput[removedId];
+            --outputLines;
+        }
     };
 
     /**
@@ -280,11 +325,11 @@
      * @param {string} alertText The text to add.
      */
     var addAlert = function(alertText) {
-        var formatted = new ExternalFormattedText(alertText);
+        var formatted = new ExternalFormattedText("---" + alertText);
         formatted.color = formatted.ColorEnum.RED;
         formatted.bold = true;
 
-        output.push("--- " + formatted);
+        addIncomingText(-1, formatted);
     };
 
     /**
@@ -293,7 +338,9 @@
      * @param {ExternalText} formattedText The line of formatted to add.
      */
     var addIncomingDescText = function(id, formattedText) {
-        entityDescription.description.push(formattedText);
+        var newId = getNextId();
+        entityDescription.descriptionIds.push(newId);
+        outputTextStore.descOutput[newId] = formattedText;
     };
 
     /**
@@ -525,9 +572,14 @@
                     // already in progress, otherwise ignore.
                     if (entityDescription.descriptionChannel === null) {
                         entityDescription.descriptionChannel = channel;
-                        entityDescription.description.splice(
+
+                        entityDescription.descriptionIds.splice(
                             0,
-                            entityDescription.description.length);
+                            entityDescription.descriptionIds.length);
+                        outputTextStore.descOutput.splice(
+                            0,
+                            outputTextStore.descOutput.length);
+
                         entityDescription.descriptionReceived = false;
                         channel.onStatusChange = processDescChannelStatus;
                         channel.onReceiveTextData = addIncomingDescText;
@@ -559,7 +611,7 @@
         data: {
             // Input and output lines
             //
-            outputLines : output,
+            outputIds : outputIds,
             inputLine : "",
             prevInputLines : [],
             prevLineIndex : -1,
@@ -630,11 +682,12 @@
             submitText: function() {
                 if (this.inputStack.length > 0) {
                     // TODO Support color input
-                    var textAsExternal = new ExternalPlainText(this.inputLine);
+                    var textAsExternal =
+                        [new ExternalPlainText(this.inputLine)];
                     this.inputStack[0].sendText(textAsExternal);
 
                     this.prevLineIndex = 0;
-                    this.prevInputLines.splice(0, 0, inputLine);
+                    this.prevInputLines.splice(0, 0, this.inputLine);
 
                     if (this.prevInputLines.length > 10) {
                         this.prevInputLines.pop();
@@ -696,9 +749,6 @@
             closeDescription : function() {
                 this.descriptionData.descriptionChannel = null;
                 this.descriptionData.descriptionReceived = false;
-                this.descriptionData.description.splice(
-                    0,
-                    this.descriptionData.description.length);
             },
 
             // Called when an exit is clicked.

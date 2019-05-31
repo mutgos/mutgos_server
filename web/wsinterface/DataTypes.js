@@ -10,30 +10,6 @@ function EntityId(siteId, entityId) {
     this.entityId = entityId;
 }
 
-/**
- * Outputs a more compact form of the Entity ID.
- * @return {string} The Entity ID as a string
- */
-EntityId.prototype.toString = function() {
-    return "#" + this.siteId + "-" + this.entityId;
-};
-
-/**
- * @param {boolean} withSite True to include site ID in output.
- * @return {string} The entity ID as a user-readable string.
- */
-EntityId.prototype.asString = function(withSite) {
-    var id = "#";
-
-    if (withSite) {
-        id += this.siteId + "-";
-    }
-
-    id += this.entityId;
-
-    return id;
-};
-
 // --------------------------------------------------------------------------
 /**
  * Base prototype for all external text.  Generally used for sending,
@@ -45,32 +21,6 @@ function ExternalText(type) {
     // The type of external text this is.
     this.textType = this.convertTextType(type);
 }
-
-// Enumerates all the different text types.
-//
-ExternalText.prototype.TextTypeEnum = {
-    PLAIN : 'plain',
-    FORMATTED : 'formatted',
-    URL : 'url',
-    ID : 'id',
-    UNKNOWN : ''
-};
-
-/**
- * @public
- * @param {string} type The text type as a string.
- * @return {TextTypeEnum} Text type as an enum.
- */
-ExternalText.prototype.convertTextType = function(type) {
-    for (var val in this.TextTypeEnum) {
-        if (this.TextTypeEnum[val] === type) {
-            return val;
-        }
-    }
-
-    return this.TextTypeEnum.UNKNOWN;
-};
-
 
 // --------------------------------------------------------------------------
 /**
@@ -85,7 +35,7 @@ function ExternalPlainText(text) {
 
     // The unformatted text.
     //
-    this.text = text;
+    this.plainText = text;
 }
 
 // --------------------------------------------------------------------------
@@ -136,39 +86,6 @@ function ExternalFormattedText(text) {
     this.inverse = false;
 }
 
-// Enumerates all the different text colors.  Default is client's default
-// color, and custom allows the RGB values to be manually set.
-//
-ExternalFormattedText.prototype.ColorEnum = {
-    DEFAULT : 'default',
-    CUSTOM : 'custom',
-    BLACK : 'black',
-    RED : 'red',
-    YELLOW : 'yellow',
-    GREEN : 'green',
-    CYAN : 'cyan',
-    BLUE : 'blue',
-    MAGENTA : 'magenta',
-    WHITE : 'white',
-    UNKNOWN : ''
-};
-
-/**
- * @public
- * @param {string} color The color (as a string) to convert.
- * @return {ColorEnum} Color as an enum.
- */
-ExternalFormattedText.prototype.convertColor = function(color) {
-    for (var val in this.ColorEnum) {
-        if (this.ColorEnum[val] === color) {
-            return val;
-        }
-    }
-
-    return this.ColorEnum.UNKNOWN;
-};
-
-
 // --------------------------------------------------------------------------
 /**
  * Represents an external text that has an Entity 'link' in it.
@@ -192,31 +109,6 @@ function ExternalIdText(id, name, type) {
     //
     this.type = type;
 }
-
-// Enumerates all the Entity types that can be represented by ExternalIdText.
-//
-ExternalIdText.prototype.IdTypeEnum = {
-    ENTITY : 'entity',
-    ACTION : 'action',
-    EXIT : 'exit',
-    UNKNOWN : ''
-};
-
-/**
- * @public
- * @param {string} idType The ID type as a string.
- * @return {IdTypeEnum} idType as an enum.
- */
-ExternalIdText.prototype.convertIdType = function(idType) {
-    for (var val in this.IdTypeEnum) {
-        if (this.IdTypeEnum[val] === idType) {
-            return val;
-        }
-    }
-
-    return this.IdTypeEnum.UNKNOWN;
-};
-
 
 // --------------------------------------------------------------------------
 /**
@@ -242,6 +134,129 @@ function ExternalUrlText(url, name, type) {
     this.type = type;
 }
 
+
+
+// --------------------------------------------------------------------------
+// Inheritance
+//
+ExternalPlainText.prototype = Object.create(ExternalText.prototype);
+ExternalFormattedText.prototype = Object.create(ExternalPlainText.prototype);
+ExternalIdText.prototype = Object.create(ExternalText.prototype);
+ExternalUrlText.prototype = Object.create(ExternalText.prototype);
+
+
+
+/**
+ * Outputs a more compact form of the Entity ID.
+ * @return {string} The Entity ID as a string
+ */
+EntityId.prototype.toString = function() {
+    return "#" + this.siteId + "-" + this.entityId;
+};
+
+/**
+ * @param {boolean} withSite True to include site ID in output.
+ * @return {string} The entity ID as a user-readable string.
+ */
+EntityId.prototype.asString = function(withSite) {
+    var id = "#";
+
+    if (withSite) {
+        id += this.siteId + "-";
+    }
+
+    id += this.entityId;
+
+    return id;
+};
+
+// Enumerates all the different text types.
+//
+ExternalText.prototype.TextTypeEnum = {
+    PLAIN : 'plain',
+    FORMATTED : 'formatted',
+    URL : 'url',
+    ID : 'id',
+    UNKNOWN : ''
+};
+
+/**
+ * @public
+ * @param {string} type The text type as a string.
+ * @return {TextTypeEnum} Text type as an enum.
+ */
+ExternalText.prototype.convertTextType = function(type) {
+    for (var val in this.TextTypeEnum) {
+        var enumVal = this.TextTypeEnum[val];
+
+        if (enumVal === type) {
+            return enumVal;
+        }
+    }
+
+    return this.TextTypeEnum.UNKNOWN;
+};
+
+// Enumerates all the different text colors.  Default is client's default
+// color, and custom allows the RGB values to be manually set.
+//
+ExternalFormattedText.prototype.ColorEnum = {
+    DEFAULT : 'default',
+    CUSTOM : 'custom',
+    BLACK : 'black',
+    RED : 'red',
+    YELLOW : 'yellow',
+    GREEN : 'green',
+    CYAN : 'cyan',
+    BLUE : 'blue',
+    MAGENTA : 'magenta',
+    WHITE : 'white',
+    UNKNOWN : ''
+};
+
+/**
+ * @public
+ * @param {string} color The color (as a string) to convert.
+ * @return {ColorEnum} Color as an enum.
+ */
+ExternalFormattedText.prototype.convertColor = function(color) {
+    for (var val in this.ColorEnum) {
+        var enumVal = this.ColorEnum[val];
+
+        if (enumVal === color) {
+            return enumVal;
+        }
+    }
+
+    return this.ColorEnum.UNKNOWN;
+};
+
+// Enumerates all the Entity types that can be represented by ExternalIdText.
+//
+ExternalIdText.prototype.IdTypeEnum = {
+    ENTITY : 'entity',
+    ACTION : 'action',
+    EXIT : 'exit',
+    UNKNOWN : ''
+};
+
+/**
+ * @public
+ * @param {string} idType The ID type as a string.
+ * @return {IdTypeEnum} idType as an enum.
+ */
+ExternalIdText.prototype.convertIdType = function(idType) {
+    for (var val in this.IdTypeEnum) {
+        var enumVal = this.IdTypeEnum[val];
+
+        if (enumVal === idType) {
+            return enumVal;
+        }
+    }
+
+    return this.IdTypeEnum.UNKNOWN;
+};
+
 // Represents the type of URL, to aid in knowing how to render it.
 //
 ExternalUrlText.prototype.UrlTypeEnum = {
@@ -258,18 +273,12 @@ ExternalUrlText.prototype.UrlTypeEnum = {
  */
 ExternalUrlText.prototype.convertUrlType = function(urlType) {
     for (var val in this.UrlTypeEnum) {
-        if (this.UrlTypeEnum[val] === urlType) {
-            return val;
+        var enumVal = this.UrlTypeEnum[val];
+
+        if (enumVal === urlType) {
+            return enumVal;
         }
     }
 
     return this.UrlTypeEnum.UNKNOWN;
 };
-
-// --------------------------------------------------------------------------
-// Inheritance
-//
-ExternalPlainText.prototype = Object.create(ExternalText.prototype);
-ExternalFormattedText.prototype = Object.create(ExternalPlainText.prototype);
-ExternalIdText.prototype = Object.create(ExternalText.prototype);
-ExternalUrlText.prototype = Object.create(ExternalText.prototype);

@@ -282,7 +282,9 @@ function RawTextgameProtocolClient() {
     this.sendChannelTextData = function(channelId, text) {
         if (channelId && text) {
             var textMessage = this.makeClientMessage("TextData");
-            textMessage.textData = text;
+            textMessage.textData = {};
+            textMessage.textData.textLine = text;
+            // textMessage.textData = text;
             this.sendChannelData(channelId, textMessage);
         }
     };
