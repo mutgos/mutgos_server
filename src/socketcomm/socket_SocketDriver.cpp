@@ -28,7 +28,8 @@ namespace socket
           ssl_context(boost::asio::ssl::context::tlsv12_server),
           started(false),
           plain_started(false),
-          ssl_started(false)
+          ssl_started(false),
+          inside_do_work(false)
     {
         // Set up the TLS context
         //
@@ -172,6 +173,8 @@ namespace socket
 
         if (router_ptr)
         {
+            inside_do_work = true;
+
             // First, run the IO Context to service anything.
             done = not io_context.poll();
 
@@ -194,6 +197,23 @@ namespace socket
             }
 
             pending_deletes.clear();
+
+            inside_do_work = false;
+
+            // Add in any deferred requests for pending actions
+            //
+            if (! pending_actions_deferred.empty())
+            {
+                for (PendingActions::iterator actions_iter =
+                        pending_actions_deferred.begin();
+                     actions_iter != pending_actions_deferred.end();
+                     ++actions_iter)
+                {
+                    connection_has_pending_actions(*actions_iter);
+                }
+
+                pending_actions_deferred.clear();
+            }
         }
 
         return done;
@@ -242,7 +262,16 @@ namespace socket
     {
         if (connection_ptr)
         {
-            pending_actions.push_back(connection_ptr);
+            if (inside_do_work)
+            {
+                // To avoid iterating through a vector while it is being
+                // modified.
+                pending_actions_deferred.push_back(connection_ptr);
+            }
+            else
+            {
+                pending_actions.push_back(connection_ptr);
+            }
         }
     }
 }

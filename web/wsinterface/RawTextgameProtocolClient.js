@@ -738,6 +738,8 @@ function RawTextgameProtocolClient() {
                                     this.callAuthenticationSuccess();
                                     this.timerSendKeepalive();
                                 }
+
+                                currentState = StateEnum.CONNECTED_AUTH;
                             } else {
                                 if (clientAuthenticated) {
                                     // Client changed password.  We cannot

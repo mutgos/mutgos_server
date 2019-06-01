@@ -153,7 +153,9 @@ namespace socket
         bool started; ///< True if the whole socket_driver is started
         bool plain_started; ///< True if the unencrypted connection listener is started
         bool ssl_started; ///< True if the encrypted connection listener is started.
+        bool inside_do_work; ///< True if in do_work(), to defer any requests for service
         PendingActions pending_actions; ///< connections with pending actions.
+        PendingActions pending_actions_deferred; ///< connections requesting pending actions while inside do_work().
         PendingDeletes pending_deletes; ///< connections to be deleted (no more references to them).
         ClientConnections client_connections; ///< All the active client connections.
     };

@@ -217,7 +217,7 @@
     // Shared variables between Vue application and the protocol interface
     //
 
-    var connectionUrl = "ws://127.0.0.1:7000/localhost/127.0.0.1";
+    var connectionUrl = "ws://" + window.location.hostname + ":7000/localhost/127.0.0.1";
     var descriptionChannelSubtype = "DESCRIPTION";
     var clientDataChannelSubtype = "ClientData";
 
@@ -318,6 +318,15 @@
             delete outputTextStore.mainOutput[removedId];
             --outputLines;
         }
+
+        if ((! displayState.hasFocus) && (! displayState.textAdded)) {
+            displayState.textAdded = true;
+            document.title = "[! ACTIVITY DETECTED !] " + origTitle;
+        }
+
+        setTimeout(function() {
+            window.scrollBy(0,10000);
+        }, 25);
     };
 
     /**
@@ -329,7 +338,7 @@
         formatted.color = formatted.ColorEnum.RED;
         formatted.bold = true;
 
-        addIncomingText(-1, formatted);
+        addIncomingText(-1, {textLine: [formatted]});
     };
 
     /**
@@ -433,6 +442,11 @@
         displayState.sendButtonName = "Send";
         connectionState.established = true;
 
+        // Prompt if they are sure they want to leave
+        window.onbeforeunload = function() {
+            return true;
+        };
+
         // If we haven't authenticated yet, request the site list or initiate
         // authentication.
         //
@@ -464,6 +478,8 @@
         if (connectionState.authenticated) {
             addAlert("Disconnected from server");
         }
+
+        window.onbeforeunload = null;
     };
 
     protocol.onError = function(errorText) {
@@ -657,6 +673,9 @@
                     this.inputLine = this.prevInputLines[this.prevLineIndex];
                     ++this.prevLineIndex;
                 }
+
+                var inputText = document.getElementById("input-field");
+                inputText.focus();
             },
 
             // Called to let us know we no longer have focus (window has no
@@ -695,6 +714,9 @@
 
                     this.inputLine = "";
                 }
+
+                var inputText = document.getElementById("input-field");
+                inputText.focus();
             },
 
             // Called when a key is pressed, this will submit the text if

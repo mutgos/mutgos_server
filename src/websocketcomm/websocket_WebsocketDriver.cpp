@@ -22,7 +22,8 @@ namespace websocket
         mutgos::comm::RouterSessionManager *router)
       : my_router_ptr(router),
         io_context{1},
-        started(false)
+        started(false),
+        inside_do_work(false)
     {
         if (not my_router_ptr)
         {
@@ -57,7 +58,7 @@ namespace websocket
             // listener.
             //
             const boost::asio::ip::address address =
-                boost::asio::ip::make_address("127.0.0.1");
+                boost::asio::ip::make_address("0.0.0.0");
             const unsigned short port =
                 (unsigned short) config::comm::ws_port();
 
@@ -117,6 +118,8 @@ namespace websocket
 
         if (router_ptr)
         {
+            inside_do_work = true;
+
             // First, run the IO Context to service anything.
             done = not io_context.poll();
 
@@ -139,6 +142,23 @@ namespace websocket
             }
 
             pending_deletes.clear();
+
+            inside_do_work = false;
+
+            // Add in any deferred requests for pending actions
+            //
+            if (! pending_actions_deferred.empty())
+            {
+                for (PendingActions::iterator actions_iter =
+                        pending_actions_deferred.begin();
+                     actions_iter != pending_actions_deferred.end();
+                     ++actions_iter)
+                {
+                    connection_has_pending_actions(*actions_iter);
+                }
+
+                pending_actions_deferred.clear();
+            }
         }
 
         return done;
@@ -187,7 +207,16 @@ namespace websocket
     {
         if (connection_ptr)
         {
-            pending_actions.push_back(connection_ptr);
+            if (inside_do_work)
+            {
+                // To avoid iterating through a vector while it is being
+                // modified.
+                pending_actions_deferred.push_back(connection_ptr);
+            }
+            else
+            {
+                pending_actions.push_back(connection_ptr);
+            }
         }
     }
 }
