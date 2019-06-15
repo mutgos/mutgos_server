@@ -5,7 +5,7 @@
     <title>MUTGOS Demo Web Client</title>
 
     <!-- Open all links in new tabs. -->
-    <base target="_blank" />
+    <!-- <base target="_blank" /> -->
 
 <style type="text/css">
 
@@ -26,7 +26,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        z-index: 1000;
+    /*    z-index: 1000; */
     }
 
     #input-field {
@@ -49,7 +49,7 @@
         padding: 0 0 0 0;
     }
 
-    .muckRecvText {
+    .mutgosRecvText {
         word-wrap: break-word;
         white-space: pre-wrap;       /* css-3 */
     }
@@ -85,6 +85,7 @@
 /* Modal Content for white text */
 .modal-content-black {
     background-color: #000000;
+    color: white;
     margin: auto;
     padding: 20px;
     border: 1px solid #FFFFFF;
@@ -93,7 +94,7 @@
 
 /* The Close Button */
 .close {
-    color: #aaaaaa;
+    color: #cccccc;
     float: right;
     font-size: 28px;
     font-weight: bold;
@@ -116,7 +117,7 @@
 
     <script type="text/javascript" src="FormattedTextComponent.js"></script>
 </head>
-<body style="background-color: black;">
+<body style="background-color: black;" link="#eeee00" vlink="#eeee00" alink="#ffff00">
 <div id="app">
 
     <!-- The login modal dialog -->
@@ -157,9 +158,9 @@
             <span class="close" v-on:click="closeDescription">&times;</span>
             <formatted-text-line
                     v-for="descId in descriptionData.descriptionIds"
-                    v-bind:external-text-id="descId",
+                    v-bind:external-text-id="descId"
                     external-text-topic="descOutput"
-                    class="muckRecvText">
+                    class="mutgosRecvText">
             </formatted-text-line>
         </div>
     </div>
@@ -169,7 +170,7 @@
                 v-for="outputId in outputIds"
                 v-bind:external-text-id="outputId"
                 external-text-topic="mainOutput"
-                class="muckRecvText">
+                class="mutgosRecvText">
         </formatted-text-line>
     </div>
     <div>
@@ -394,7 +395,6 @@
             // the 'look' command if we haven't already.
             //
             var findLook = protocol.makeClientMessage("MatchNameRequest");
-            findLook.requestMessageId = 0;
             findLook.searchString = "look";
             findLook.exactMatch = true;
             findLook.entityType = "action";
@@ -756,8 +756,11 @@
                     var lookRequest = protocol.makeClientMessage("ExecuteEntity");
                     lookRequest.entityId = this.descriptionData.lookId;
                     lookRequest.programArguments =
-                        "#" + event.currentTarget.entitySite + "-"
-                          + event.currentTarget.entityId;
+                      [
+                        "#" + event.target.attributes["entitysite"].nodeValue
+                          + "-"
+                          + event.target.attributes["entityid"].nodeValue
+                      ];
                     lookRequest.channelSubtype = descriptionChannelSubtype;
 
                     if (controlChannel.send) {
@@ -779,8 +782,8 @@
             useExit : function(event) {
                 var useExitRequest = protocol.makeClientMessage("ExecuteEntity");
                 useExitRequest.entityId = new EntityId(
-                    event.currentTarget.entitySite,
-                    event.currentTarget.entityId);
+                    Number(event.target.attributes["entitysite"].nodeValue),
+                    Number(event.target.attributes["entityid"].nodeValue));
 
                 if (controlChannel.send) {
                     controlChannel.send.sendData(useExitRequest);

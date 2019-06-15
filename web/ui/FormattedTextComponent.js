@@ -148,10 +148,11 @@ var renderUrlText = function(createElement, externalUrlText) {
  * @private
  * Returns a Vue element suitable for rendering ID text.
  * @param {function} createElement A Vue-provided function to create an element.
+ * @param {Object} component The component reference.
  * @param {ExternalIdText} externalIdText The ExternalIdText to render.
  * @return {Object} The Vue element.
  */
-var renderIdText = function(createElement, externalIdText) {
+var renderIdText = function(createElement, component, externalIdText) {
     var idElement;
 
     switch (externalIdText.type) {
@@ -162,15 +163,15 @@ var renderIdText = function(createElement, externalIdText) {
                 {
                     on: {
                         // From https://stackoverflow.com/a/36968187
-                        click: "submitLookRequest($event)"
+                        click: component.useExit
                     },
                     attrs: {
                         // Not the best way to handle this.  Anyone know
                         // of something cleaner?
                         href: 'javascript:void(0);',
 
-                        entitySite: externalIdText.entityId.siteId,
-                        entityId: externalIdText.entityId.entityId
+                        entitySite: externalIdText.id.siteId,
+                        entityId: externalIdText.id.entityId
                     }
                 },
                 externalIdText.name
@@ -183,15 +184,15 @@ var renderIdText = function(createElement, externalIdText) {
                 {
                     on: {
                         // From https://stackoverflow.com/a/36968187
-                        click: "useExit($event)"
+                        click: component.submitLookRequest
                     },
                     attrs: {
                         // Not the best way to handle this.  Anyone know
                         // of something cleaner?
                         href: 'javascript:void(0);',
 
-                        entitySite: externalIdText.entityId.siteId,
-                        entityId: externalIdText.entityId.entityId
+                        entitySite: externalIdText.id.siteId,
+                        entityId: externalIdText.id.entityId
                     }
                 },
                 externalIdText.name
@@ -215,10 +216,11 @@ var renderIdText = function(createElement, externalIdText) {
  * This is basically a helper class that calls the right translator method
  * based on the text type.
  * @param {function} createElement A Vue-provided function to create an element.
+ * @param {Object} component The component reference.
  * @param {ExternalText} externalText An ExternalText or subclass to render.
  * @return {Object} The Vue element.
  */
-var renderExternalTextElement = function(createElement, externalText) {
+var renderExternalTextElement = function(createElement, component, externalText) {
     var result;
 
     switch (externalText.textType) {
@@ -231,7 +233,7 @@ var renderExternalTextElement = function(createElement, externalText) {
             break;
 
         case ExternalText.prototype.TextTypeEnum.ID:
-            result = renderIdText(createElement, externalText);
+            result = renderIdText(createElement, component, externalText);
             break;
 
         case ExternalText.prototype.TextTypeEnum.URL:
@@ -264,6 +266,7 @@ Vue.component(
             for (var index = 0; index < externalText.length; ++index) {
                 renderedElements.push(renderExternalTextElement(
                     createElement,
+                    this,
                     externalText[index]));
             }
 
@@ -273,6 +276,18 @@ Vue.component(
             // together and return.
 
             return createElement('div', renderedElements);
+        },
+        methods: {
+            submitLookRequest : function(event) {
+                // Simply call parent component version, since it will know
+                // what to do.
+                this.$parent.submitLookRequest(event);
+            },
+            useExit : function(event) {
+                // Simply call parent component version, since it will know
+                // what to do.
+                this.$parent.useExit(event);
+            }
         }
     });
 };

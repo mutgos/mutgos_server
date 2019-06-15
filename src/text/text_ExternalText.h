@@ -86,10 +86,28 @@ namespace text
         static std::string to_string(const ExternalTextLine &line);
 
         /**
+         * Determines an estimate of how much memory an ExternalTextLine
+         * is using.  Extra capacity in the ExternalTextLine is ignored, but
+         * the active element pointers are considered.
+         * @param line[in] The ExternalTextLine to get the memory usage for.
+         * @return The total estimated size that the ExternalTextLine is
+         * using.
+         */
+        static size_t total_mem_used(const ExternalTextLine &line);
+
+        /**
          * Destructor.
          */
         virtual ~ExternalText()
         { }
+
+        /**
+         * @return How much memory this ExternalText instance uses.
+         */
+        virtual size_t mem_used(void) const
+        {
+            return sizeof(*this);
+        }
 
         /**
          * Creates a copy of this ExternalText.

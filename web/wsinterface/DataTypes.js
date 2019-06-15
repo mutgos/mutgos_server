@@ -99,7 +99,7 @@ function ExternalIdText(id, name, type) {
 
     // The Entity ID associated with this text.
     //
-    this.entityId = id;
+    this.id = id;
 
     // The name to be displayed for the Entity.
     //

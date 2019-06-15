@@ -91,6 +91,21 @@ namespace text
     }
 
     // ----------------------------------------------------------------------
+    size_t ExternalText::total_mem_used(const ExternalTextLine &line)
+    {
+        size_t total_size = line.size() * sizeof(ExternalText *);
+
+        for (ExternalTextLine::const_iterator iter = line.begin();
+             iter != line.end();
+             ++iter)
+        {
+            total_size += (*iter)->mem_used();
+        }
+
+        return total_size;
+    }
+
+    // ----------------------------------------------------------------------
     // Note: This is used directly by the comm subsystem and parses data
     // provided by a client.
     //

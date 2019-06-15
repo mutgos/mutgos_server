@@ -92,7 +92,9 @@ namespace message
             ++iter)
         {
             JSON_MAKE_MAP_NODE(id_node);
-            success = iter->save(root, id_node) and success;
+            success = iter->save(root, id_node) and
+                      json::array_add_node(id_node, matching_array, root) and
+                      success;
         }
 
         success = json::add_static_key_value(

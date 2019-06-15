@@ -10,6 +10,7 @@
 
 #include "angelscript_AEntity.h"
 #include "angelscript_AString.h"
+#include "angelscript_AFormattedText.h"
 
 namespace mutgos
 {
@@ -42,6 +43,20 @@ namespace angelscript
 
         /**
          * Using generic interface to get needed engine pointer.
+         * This will use the provided external text, prepend
+         * the requester (if asked), and send to everyone in the given room
+         * except for the requester (if present).
+         *
+         * Actual method signature:
+         * void emit_to_room(AEntity *room, AFormattedText *text, bool prepend_self);
+         * @param gen_ptr[in] Generic interface to get and set arguments and
+         * return value.
+         * @see primitives::EventPrims::send_text_to_room() for documentation.
+         */
+        static void femit_to_room(asIScriptGeneric *gen_ptr);
+
+        /**
+         * Using generic interface to get needed engine pointer.
          * This will convert the given string into external text, prepend
          * the requester (if asked), and send to everyone in the given room
          * including the requester (if present).
@@ -56,6 +71,23 @@ namespace angelscript
          * @see primitives::EventPrims::send_text_to_room() for documentation.
          */
         static void broadcast_to_room(asIScriptGeneric *gen_ptr);
+
+        /**
+         * Using generic interface to get needed engine pointer.
+         * This will use the provided external text, prepend
+         * the requester (if asked), and send to everyone in the given room
+         * including the requester (if present).
+         *
+         * Actual method signature:
+         * void broadcast_to_room(
+         *     AEntity *room,
+         *     AFormattedText *text,
+         *     bool prepend_self);
+         * @param gen_ptr[in] Generic interface to get and set arguments and
+         * return value.
+         * @see primitives::EventPrims::send_text_to_room() for documentation.
+         */
+        static void fbroadcast_to_room(asIScriptGeneric *gen_ptr);
 
         /**
          * Using generic interface to get needed engine pointer.
@@ -76,7 +108,7 @@ namespace angelscript
         /**
          * Using generic interface to get needed engine pointer.
          * This will convert the given string into external text and send it
-         * on the output channel.
+         * on the output channel, with a newline at the end.
          *
          * Actual method signature:
          * void println(AString *text);
@@ -84,6 +116,19 @@ namespace angelscript
          * return value.
          */
         static void println(asIScriptGeneric *gen_ptr);
+
+        /**
+         * Using generic interface to get needed engine pointer.
+         * This will send the external formatted text object on the output
+         * channel as is, with a newline at the end.  The text object
+         * will be empty when this completes.
+         *
+         * Actual method signature:
+         * void fprintln(AFormattedText *text);
+         * @param gen_ptr[in] Generic interface to get and set arguments and
+         * return value.
+         */
+        static void fprintln(asIScriptGeneric *gen_ptr);
 
         /**
          * Using generic interface to get needed engine pointer.
@@ -126,6 +171,35 @@ namespace angelscript
             AEntity &entity,
             const bool entity_is_room,
             AString &raw_text,
+            const bool prepend_self,
+            const bool exclude_requester = true);
+
+        /**
+         * Sends an ExternalText event to an Entity.
+         * If the Entity is a room, it will broadcast it to
+         * everyone in the room; other types will get a direct event.
+         * @param engine_ptr[in] The AngelScript engine executing the code.
+         * @param method[in] The AngelScript method signature which called
+         * this method; used for logging and errors.
+         * @param entity[in] The Entity to send the text event to.
+         * @param entity_is_room[in] True if Entity is a room (to do a
+         * broadcast), false otherwise.
+         * @param text[in] The text to send.  Ownership of the pointers will
+         * pass to this method.
+         * @param prepend_self[in] True to prepend self (the requester) in
+         * front of the formatted text.
+         * @param exclude_requester[in] If sending to a room, true to not
+         * also send the text to the requester.  When not sending to a room,
+         * this parameter does nothing.
+         * @throws exception Throws any exceptions caught by it, after setting
+         * the exception info.
+         */
+        static void send_event(
+            asIScriptEngine * const engine_ptr,
+            const std::string &method,
+            AEntity &entity,
+            const bool entity_is_room,
+            text::ExternalTextLine &text,
             const bool prepend_self,
             const bool exclude_requester = true);
 

@@ -386,7 +386,7 @@ namespace text
         const ExternalIdText::IdType id_type)
     {
         if ((id_type >= ExternalIdText::ID_TYPE_END_INVALID) or
-            (id_type <= ExternalIdText::ID_TYPE_ENTITY))
+            (id_type < ExternalIdText::ID_TYPE_ENTITY))
         {
             return ID_TYPE_AS_STRING[ExternalIdText::ID_TYPE_END_INVALID];
         }
@@ -420,7 +420,7 @@ namespace text
         const ExternalUrlText::UrlType url_type)
     {
         if ((url_type >= ExternalUrlText::URL_TYPE_END_INVALID) or
-            (url_type <= ExternalUrlText::URL_TYPE_PAGE))
+            (url_type < ExternalUrlText::URL_TYPE_PAGE))
         {
             return URL_TYPE_AS_STRING[ExternalUrlText::URL_TYPE_END_INVALID];
         }
@@ -455,7 +455,7 @@ namespace text
         const ExternalFormattedText::Color color)
     {
         if ((color >= ExternalFormattedText::COLOR_END_INVALID) or
-            (color <= ExternalFormattedText::COLOR_DEFAULT))
+            (color < ExternalFormattedText::COLOR_DEFAULT))
         {
             return COLOR_AS_STRING[ExternalFormattedText::COLOR_END_INVALID];
         }

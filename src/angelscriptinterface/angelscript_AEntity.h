@@ -154,6 +154,14 @@ namespace angelscript
         AString *get_name(const bool append_id);
 
         /**
+         * Variant of get_name() for use internally (not within AngelScript).
+         * @param append_id[in] True to append the ID at the end of the Entity
+         * name.
+         * @return The name of this Entity with the ID optionally added.
+         */
+        std::string get_name_raw(const bool append_id) const;
+
+        /**
          * Deletes this Entity.
          */
         void delete_entity(void);
