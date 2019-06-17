@@ -380,11 +380,13 @@ namespace websocket
         }
         else
         {
-            if (strcmp(KEEPALIVE_STRING.c_str(), data_ptr) == 0)
+            if ((data_size == KEEPALIVE_STRING.size()) and
+                (strncmp(KEEPALIVE_STRING.c_str(), data_ptr, data_size) == 0))
             {
                 // For now, ignore keepalives.  They are used by the client
                 // to detect when the connection has been lost, and to keep
                 // firewalls open.
+                delete[] data_ptr;
             }
             else
             {
@@ -446,6 +448,7 @@ namespace websocket
                             }
                             else
                             {
+                                // TODO Need to make it so this is already parsed, just index into it.  May need to change JS side too
                                 indexed_json_ptr = json::parse_json(raw_json_ptr);
 
                                 if (not indexed_json_ptr)
@@ -877,6 +880,8 @@ namespace websocket
                     channel_data.get_serial_id(),
                     static_cast<message::ClientTextData *>(content_ptr)->
                         transfer_text_line());
+                // We took the text, just need to delete the container for it.
+                delete content_ptr;
             }
             else
             {
