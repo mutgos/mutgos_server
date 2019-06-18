@@ -76,6 +76,15 @@ namespace text
           { }
 
         /**
+         * @return How much memory this ExternalText instance uses.
+         */
+        virtual size_t mem_used(void) const
+        {
+            return ExternalText::mem_used() + url_text.size()
+                   + sizeof(url_text) + url_name.size() + sizeof(url_name);
+        }
+
+        /**
          * Creates a copy of this ExternalText.
          * @return A cloned copy.  Caller must manage the pointer.
          */

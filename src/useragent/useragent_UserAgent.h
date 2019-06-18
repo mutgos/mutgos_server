@@ -16,6 +16,9 @@
 
 #include "events/events_EventAccess.h"
 
+#include "clientmessages/message_ClientExecuteEntity.h"
+#include "clientmessages/message_ClientMatchNameRequest.h"
+
 #include "security/security_Context.h"
 
 namespace mutgos
@@ -25,6 +28,7 @@ namespace events
     // Forward declarations
     //
     class TextChannel;
+    class ClientDataChannel;
     class EmitEvent;
     class MovementEvent;
     class ChannelFlowMessage;
@@ -244,12 +248,33 @@ namespace useragent
          * context requester through an exit or run a program (optionally with
          * redirection).
          * @param action_id[in] The ID of the action to execute.
+         * @param channel_subtype[in] The output and input channels subtype,
+         * if the action results in running a program that has output.  Used
+         * primarily by enhanced clients to identify that a newly opened
+         * Channel is the result of a prior request.
          * @param arguments[in,out] Arguments to the action.  May be modified
          * to remove redirect info.
          */
         void process_action(
             const dbtype::Id &action_id,
+            const std::string &channel_subtype,
             std::string &arguments);
+
+        /**
+         * Given a ClientExecuteEntity message, process it and execute
+         * the entity if authorized.
+         * @param message[in] Details of what to execute.
+         */
+        void process_execute_entity(
+            const message::ClientExecuteEntity &message);
+
+        /**
+         * Given a ClientMatchNameRequest message, process it and
+         * send back the resulting matches.
+         * @param message[in] Details of what to search for.
+         */
+        void process_match_name(
+            const message::ClientMatchNameRequest &message);
 
         /**
          * If it has permission, list the program source code and send
@@ -316,6 +341,11 @@ namespace useragent
         executor::RID output_rid; ///< Output channel RID
         events::TextChannel *input_channel_ptr; ///< Pointer to incoming channel
         executor::RID input_rid; ///< Output channel RID
+
+        events::ClientDataChannel *data_output_channel_ptr; ///< Pointer to outgoing data channel, if enhanced
+        executor::RID data_output_rid; ///< Data input channel RID
+        events::ClientDataChannel *data_input_channel_ptr; ///< Pointer to incoming data channel, if enhanced
+        executor::RID data_input_rid; ///< Data input channel RID
     };
 }
 }

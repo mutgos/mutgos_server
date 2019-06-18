@@ -40,6 +40,10 @@ namespace message
         CLIENTMESSAGE_TEXT_DATA,
         /** ClientExecuteEntity class */
         CLIENTMESSAGE_EXECUTE_ENTITY,
+        /** ClientMatchNameRequest class */
+        CLIENTMESSAGE_MATCH_NAME_REQUEST,
+        /** ClientMatchNameResult class */
+        CLIENTMESSAGE_MATCH_NAME_RESULT,
         /** Invalid type, do not directly use */
         CLIENTMESSAGE_END_INVALID
     };

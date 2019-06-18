@@ -270,11 +270,12 @@ namespace websocket
         {
             // Copy the data to a mutable char *, then pass it to the client.
             //
-            char * const raw_data_ptr = new char[bytes_transferred];
+            char * const raw_data_ptr = new char[bytes_transferred + 1];
             memcpy(
                 raw_data_ptr,
                 incoming_buffer.data().data(),
                 bytes_transferred);
+            raw_data_ptr[bytes_transferred] = '\0';
 
             client_ptr->raw_data(raw_data_ptr, bytes_transferred);
             incoming_buffer.consume(bytes_transferred);

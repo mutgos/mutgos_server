@@ -17,8 +17,8 @@ namespace message
      * ClientMessages being sent through a channel.
      *
      * This also contains the message serial number, since all data that must
-     * be ACKed has to come through a channel (control messages aren't
-     * ACKed).
+     * be ACKed has to come through a channel (non-channel control messages
+     * aren't ACKed, such as ClientDataAcknowledge messages).
      *
      * Only the minimal methods needed are implemented, but more can be added
      * later.

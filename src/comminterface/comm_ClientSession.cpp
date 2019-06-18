@@ -109,6 +109,8 @@ namespace comm
             router_ptr->release_connection(client_ptr);
             client_ptr = 0;
         }
+
+        client_is_connected = false;
     }
 
     // ----------------------------------------------------------------------
@@ -926,19 +928,26 @@ namespace comm
             }
 
             // Determine if channel is currently blocked.
+            // Channels going TO the client are always considered unblocked
+            // from a client standpoint - clients are not allowed to block
+            // channels at this time.
             //
-            if (channel_ptr->channel_is_blocked())
+            message::ChannelStatus new_channel_status =
+                message::CHANNEL_STATUS_unblock;
+
+            if ((not to_client) and channel_ptr->channel_is_blocked())
             {
                 channel_info.blocked = true;
-
-                RouterEvent block_event(make_channel_status_change(
-                    channel_info,
-                    message::CHANNEL_STATUS_block),
-                    get_next_message_id());
-
-                outgoing_events.push_back(RouterEvent());
-                outgoing_events.back().transfer(block_event);
+                new_channel_status = message::CHANNEL_STATUS_block;
             }
+
+            RouterEvent block_status_event(make_channel_status_change(
+                    channel_info,
+                    new_channel_status),
+                get_next_message_id());
+
+            outgoing_events.push_back(RouterEvent());
+            outgoing_events.back().transfer(block_status_event);
 
             // Ensures channel is not destructed until we are 100% done with it.
             channel_ptr->channel_register_pointer_holder(this);

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MUTGOS Demo Web Client</title>
+
+    <!-- Open all links in new tabs. -->
+    <!-- <base target="_blank" /> -->
+
+<style type="text/css">
+
+    #output-area {
+        overflow: auto;
+        font-family: "Lucida Console", Monaco, monospace;
+        font-size: medium;
+        background-color: black;
+        color: white;
+    }
+
+    #input-line {
+        width: 100%;
+        background-color: DarkSlateBlue;
+        border-top: 5px solid black;
+        /*  position: fixed; */
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    /*    z-index: 1000; */
+    }
+
+    #input-field {
+        background: transparent;
+        color: White;
+        border-style: none;
+        width: 84%;
+        font-family: "Lucida Console", Monaco, monospace;
+        font-size: medium;
+    }
+
+    #submit-button {
+        width: 9%;
+        min-width: 2%;
+    }
+
+    #prev-button {
+        width: 5%;
+        min-width: 1%;
+        padding: 0 0 0 0;
+    }
+
+    .mutgosRecvText {
+        word-wrap: break-word;
+        white-space: pre-wrap;       /* css-3 */
+    }
+
+
+
+/** Modal stuff adapted from https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_modal */
+
+    /* The Modal (background) */
+.modal {
+    display: block;
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+}
+
+/* Modal Content for white text */
+.modal-content-black {
+    background-color: #000000;
+    color: white;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #FFFFFF;
+    width: 80%;
+}
+
+/* The Close Button */
+.close {
+    color: #cccccc;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+</style>
+
+    <script type="text/javascript" src="../third_party/vue.js"></script>
+
+    <script type="text/javascript" src="../wsinterface/RawTextgameProtocolClient.js"></script>
+    <script type="text/javascript" src="../wsinterface/DataTypes.js"></script>
+    <script type="text/javascript" src="../wsinterface/TextgameProtocolClient.js"></script>
+
+    <script type="text/javascript" src="FormattedTextComponent.js"></script>
+</head>
+<body style="background-color: black;" link="#eeee00" vlink="#eeee00" alink="#ffff00">
+<div id="app">
+
+    <!-- The login modal dialog -->
+    <div v-if="! connectionState.authenticated" id="loginDialog" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content">
+            <select id = "siteList" v-model="connectionState.site">
+                <option value="-1">Select a site</option>
+                <option v-for="site in siteList" v-bind:value="site.id">
+                    {{ site.id }} - {{ site.name }} ({{ site.description }})
+                    {{ site.onlineCount }} online
+                </option>
+            </select>
+            <p/>
+            <input v-model="connectionState.username"
+                   placeholder="Username">
+
+            <input type="password" v-model="connectionState.password"
+                   placeholder="Password">
+            <p/>
+            <div style="color: red">
+                {{ connectionState.authenticationMessage }}
+            </div>
+            <p/>
+            <button v-on:click="submitAuthentication"
+                    v-bind:disabled="connectionState.authenticationInProgress">
+                Login
+            </button>
+        </div>
+    </div>
+
+    <!-- The description modal dialog -->
+    <div v-if="descriptionData.descriptionReceived"
+         id="descriptionDialog"
+         class="modal">
+        <!-- Modal content -->
+        <div class="modal-content-black">
+            <span class="close" v-on:click="closeDescription">&times;</span>
+            <formatted-text-line
+                    v-for="descId in descriptionData.descriptionIds"
+                    v-bind:external-text-id="descId"
+                    external-text-topic="descOutput"
+                    class="mutgosRecvText">
+            </formatted-text-line>
+        </div>
+    </div>
+
+    <div id="output-area" style="background-color: black;">
+        <formatted-text-line
+                v-for="outputId in outputIds"
+                v-bind:external-text-id="outputId"
+                external-text-topic="mainOutput"
+                class="mutgosRecvText">
+        </formatted-text-line>
+    </div>
+    <div>
+    </div>
+    <div id="input-line">
+        <textarea id="input-field"
+                  v-model="inputLine"
+                  v-on:blur="lostFocus"
+                  v-on:focus="gotFocus"
+                  v-bind:disabled="(! connectionState.established) || connectionState.blocked"
+                  @keydown="submitEnter"
+                  placeholder="Input Line"
+                  rows="1"
+                  style="resize: none;"></textarea>
+        <button id="prev-button"
+                v-on:blur="lostFocus"
+                v-on:focus="gotFocus"
+                v-bind:disabled="(! connectionState.established) || connectionState.blocked"
+                title="See last text sent to server, only when input line is empty"
+                v-on:click="goPreviousInput">Prev</button>
+        <button id="submit-button"
+                v-on:blur="lostFocus"
+                v-on:focus="gotFocus"
+                v-bind:disabled="(! connectionState.established) || connectionState.blocked"
+                v-on:click="submitText"
+                title="Sends text to server">{{displayState.sendButtonName}}</button>
+    </div>
+</div>
+
+
+
+
+
+
+<script>
+
+    // This global is used by FormattedTextComponent to access
+    // ExternalText for lines output from the server.  At the top level, it is
+    // separated by topic, such as the main screen, description popup,
+    // etc.  From there, it's a map (discontinuous array) of numeric ID to an
+    // array of external text that represents a line.
+    outputTextStore = {};
+
+    //
+    // Shared variables between Vue application and the protocol interface
+    //
+
+    var connectionUrl = "ws://" + window.location.hostname + ":7000/localhost/127.0.0.1";
+    var descriptionChannelSubtype = "DESCRIPTION";
+    var clientDataChannelSubtype = "ClientData";
+
+    // Used with outputTextStore as the ID for a line of ExternalText.
+    var nextOutputId = 1;
+
+    // Index 0 is top of the screen.  This is composed of IDs (that link into
+    // outputTextStore) that can be pushed on and removed to trigger Vue to
+    // update the screen.  The order the IDs appear here will determine the
+    // order they appear on the screen.
+    // See outputTextStore.mainOutput for the actual text.
+    var outputIds = [];
+    // Number of actual entries in outputIds.
+    var outputLines = 0;
+    var siteList = [];
+    var connectionState =
+        {
+            established : false,
+            authenticated : false,
+            blocked : true,
+            authenticationInProgress : false,
+            authenticationMessage : '',
+            username : '',
+            password : '',
+            site : -1
+        };
+    var entityDescription =
+        {
+            descriptionChannel : null,
+            descriptionReceived : false,
+            // Like outputIds, this has just the IDs, to indicate the order
+            // ExternalText should appear.
+            // See outputTextStore.descOutput for the actual text.
+            descriptionIds : [],
+            // ID of the look program
+            lookId : null
+        };
+    var displayState =
+        {
+            hasFocus : false,
+            textAdded : false,
+            sendButtonName: "Send"
+        };
+    var controlChannel =
+        {
+            /** {SendChannel} */
+            send : null,
+            /** {ReceiveChannel} */
+            receive : null
+        };
+    // The initial title of this HTML Document
+    var origTitle = document.title;
+    // Frontmost item (index 0) is where user input goes to.
+    var inputStack = [];
+    var protocol = new TextgameProtocolClient();
+
+    // Put the two output streams in the store so FormattedTextComponent
+    // can access them.
+    outputTextStore.mainOutput = [];
+    outputTextStore.descOutput = [];
+
+
+    /**
+     * Identifiers do eventually wrap.
+     * @return {number} The next identifier to map a line of ExternalText.
+     */
+    var getNextId = function() {
+        if (nextOutputId >= (Number.MAX_VALUE - 1)) {
+            nextOutputId = 1;
+        }
+
+        return nextOutputId++;
+    };
+
+
+    //
+    // Protocol interface methods and initial setup.
+    //
+
+    /**
+     * Adds text from an incoming channel to the main output.
+     * @param {number} id The ID of the channel sending the text
+     * @param {ExternalText} formattedText The line of formatted to add.
+     */
+    var addIncomingText = function(id, formattedText) {
+        var newId = getNextId();
+
+        // Add new line
+        //
+        outputIds.push(newId);
+        outputTextStore.mainOutput[newId] = formattedText;
+        ++outputLines;
+
+        // Remove an old line if we've hit our limit.
+        //
+        if (outputLines > 3000) {
+            var removedId = outputIds.shift();
+            delete outputTextStore.mainOutput[removedId];
+            --outputLines;
+        }
+
+        if ((! displayState.hasFocus) && (! displayState.textAdded)) {
+            displayState.textAdded = true;
+            document.title = "[! ACTIVITY DETECTED !] " + origTitle;
+        }
+
+        setTimeout(function() {
+            window.scrollBy(0,10000);
+        }, 25);
+    };
+
+    /**
+     * Adds alert text to the output portion of the screen.
+     * @param {string} alertText The text to add.
+     */
+    var addAlert = function(alertText) {
+        var formatted = new ExternalFormattedText("---" + alertText);
+        formatted.color = formatted.ColorEnum.RED;
+        formatted.bold = true;
+
+        addIncomingText(-1, {textLine: [formatted]});
+    };
+
+    /**
+     * Adds text for a description.
+     * @param {number} id The ID of the channel sending the text
+     * @param {ExternalText} formattedText The line of formatted to add.
+     */
+    var addIncomingDescText = function(id, formattedText) {
+        var newId = getNextId();
+        entityDescription.descriptionIds.push(newId);
+        outputTextStore.descOutput[newId] = formattedText;
+    };
+
+    /**
+     * Called when the description channel's status has changed.  Used
+     * to indicate the description can be displayed to the user.
+     * @param {number} id The ID of the channel.
+     * @param {string} status The new Channel status.
+     */
+    var processDescChannelStatus = function(id, status) {
+        if (status === entityDescription.descriptionChannel.ChannelStatusEnum.CLOSE) {
+            // Full description received.  Let UI know.
+            //
+            entityDescription.descriptionReceived = true;
+            entityDescription.descriptionChannel = null;
+        }
+    };
+
+    /**
+     * Called when either client data channel status changes; this lets us
+     * know when it is safe to send a request.
+     * @param {number} id The ID of the channel.
+     * @param {string} status The new Channel status.
+     */
+    var processClientDataChannelStatus = function(id, status) {
+        var bothChannelsGood = true;
+
+        if ((controlChannel.receive === null) || (controlChannel.send === null)) {
+            bothChannelsGood = false;
+        }
+
+        if (bothChannelsGood) {
+            if (! (controlChannel.receive.isOpen() &&
+               (! controlChannel.receive.isBlocked()) &&
+               controlChannel.send.isOpen() &&
+               (! controlChannel.send.isBlocked()))) {
+                bothChannelsGood = false;
+            }
+        }
+
+        if ((entityDescription.lookId === null) && bothChannelsGood) {
+            // We have both channels and they are open.  Send the request for
+            // the 'look' command if we haven't already.
+            //
+            var findLook = protocol.makeClientMessage("MatchNameRequest");
+            findLook.searchString = "look";
+            findLook.exactMatch = true;
+            findLook.entityType = "action";
+
+            controlChannel.send.sendData(findLook);
+        }
+    };
+
+    /**
+     * Called when client data is recieved.
+     * For the demo, this simply processes the result for finding the 'look'
+     * action.
+     * @param {number} id The ID of the channel.
+     * @param {Object} data The client data.
+     */
+    var receiveClientData = function(id, data) {
+        // We only support match result right now
+        //
+        if (data.messageType === "MatchNameResult") {
+            if (data.securityViolation) {
+                addAlert("Unable to get look command info due to security violation.");
+            } else if (data.ambiguous) {
+                addAlert("Unable to get look command info due ambiguous lookup.");
+            } else if (data.matchingIds) {
+                if (data.matchingIds.length <= 0) {
+                    addAlert("Did not return any matching IDs for look");
+                } else {
+                    if (data.matchingIds.length > 1) {
+                        addAlert("More than one action ID returned for look.");
+                    }
+
+                    entityDescription.lookId = data.matchingIds[0];
+                }
+            } else {
+                addAlert("Did not return result for look");
+            }
+        }
+    };
+
+    /**
+     * Called when the connection has been established, it will also request
+     * the site list and authenticate, as needed.
+     */
+    var connectionGood = function(){
+        displayState.sendButtonName = "Send";
+        connectionState.established = true;
+
+        // Prompt if they are sure they want to leave
+        window.onbeforeunload = function() {
+            return true;
+        };
+
+        // If we haven't authenticated yet, request the site list or initiate
+        // authentication.
+        //
+        if (! connectionState.authenticated) {
+            if (siteList.length <= 0) {
+                protocol.requestSiteList();
+            } else if (connectionState.authenticationInProgress) {
+                // Send authentication
+                protocol.authenticate(
+                    connectionState.username,
+                    connectionState.password,
+                    connectionState.site);
+            }
+        }
+    };
+
+    protocol.onConnectionEstablished = connectionGood;
+    protocol.onReconnected = connectionGood;
+
+    protocol.onLostConnection = function() {
+        displayState.sendButtonName = "RECONNECTING";
+        connectionState.established = false;
+    };
+
+    protocol.onDisconnection = function() {
+        displayState.sendButtonName = "Disconnected";
+        connectionState.established = false;
+
+        if (connectionState.authenticated) {
+            addAlert("Disconnected from server");
+        }
+
+        window.onbeforeunload = null;
+    };
+
+    protocol.onError = function(errorText) {
+        addAlert(errorText);
+    };
+
+    protocol.onAuthenticationSuccess = function() {
+        connectionState.authenticated = true;
+        connectionState.authenticationInProgress = false;
+        connectionState.authenticationMessage = "";
+        connectionState.username = "";
+        connectionState.password = "";
+    };
+
+    protocol.onAuthenticationFail = function() {
+        connectionState.authenticated = false;
+        connectionState.authenticationInProgress = false;
+        connectionState.password = "";
+        connectionState.authenticationMessage =
+            "Failed to login.  Check your site, username, and password.";
+
+        protocol.disconnect();
+    };
+
+    protocol.onSiteList = function(sites) {
+        if (siteList.length > 0) {
+            siteList.splice(0, siteList.length);
+        }
+
+        for (var index = 0; index < sites.length; ++index) {
+            siteList.push(sites[index]);
+        }
+
+        // Disconnect immediately, since it will likely be a few moments
+        // for the user to pick a site and type in credentials.
+        // This simplifies things as the server will disconnect us soon anyway.
+        //
+        protocol.disconnect();
+    };
+
+    /**
+     * Handles channels when they get open, and puts them in the right place
+     * to send/receive data.
+     * @param {Channel} channel The channel being opened.
+     */
+    protocol.onChannelOpen = function(channel) {
+        if (channel instanceof SendChannel) {
+            // Send channels just get added to the stack, except the client
+            // data channel.
+            //
+            if (channel.name === clientDataChannelSubtype) {
+                controlChannel.send = channel;
+                channel.onStatusChange = processClientDataChannelStatus;
+            } else {
+                // This will listen and interpret Channel status, changing
+                // blocked status or removing it from the inputStack as needed.
+                //
+                var statusListener = function(id, status) {
+                    if ((status === channel.ChannelStatusEnum.BLOCK) &&
+                      (inputStack.length > 0) && (inputStack[0] === channel)) {
+                        // We're blocked and the top channel.  Disable input
+                        connectionState.blocked = true;
+                    } else if ((status === channel.ChannelStatusEnum.UNBLOCK) &&
+                      (inputStack.length > 0) && (inputStack[0] === channel)) {
+                        // We're not blocked and the top channel.  Enable input
+                        connectionState.blocked = false;
+                    } else if (status === channel.ChannelStatusEnum.CLOSE) {
+                        // Channel has closed.  Remove from stack and update
+                        // blocked status as needed.
+                        //
+                        var foundIndex = inputStack.indexOf(channel);
+
+                        if (foundIndex >= 0) {
+                            inputStack.splice(foundIndex, 1);
+                        }
+
+                        if (inputStack.length > 0) {
+                            connectionState.blocked = inputStack[0].isBlocked();
+                        } else {
+                            // No channels left, for the moment.  Block.
+                            connectionState.blocked = true;
+                        }
+                    }
+                };
+
+                inputStack.splice(0, 0, channel);
+                channel.onStatusChange = statusListener;
+
+                if (channel.isBlocked()) {
+                    connectionState.blocked = true;
+                }
+            }
+        } else {
+            // Receive channels get listeners added so they appear on the main
+            // screen.  Unless it's a description channel, then it gets routed
+            // to the description popup.  ... Or a client data channel.
+            //
+            if (channel.name === clientDataChannelSubtype) {
+                controlChannel.receive = channel;
+                channel.onStatusChange = processClientDataChannelStatus;
+                channel.onReceiveData = receiveClientData;
+            } else {
+                // Check subtype.  If desc, link up to desc stuff
+                if (channel.subtype === descriptionChannelSubtype) {
+                    // Only add and prepare for display if a description is not
+                    // already in progress, otherwise ignore.
+                    if (entityDescription.descriptionChannel === null) {
+                        entityDescription.descriptionChannel = channel;
+
+                        entityDescription.descriptionIds.splice(
+                            0,
+                            entityDescription.descriptionIds.length);
+                        outputTextStore.descOutput.splice(
+                            0,
+                            outputTextStore.descOutput.length);
+
+                        entityDescription.descriptionReceived = false;
+                        channel.onStatusChange = processDescChannelStatus;
+                        channel.onReceiveTextData = addIncomingDescText;
+                    }
+                } else {
+                    channel.onReceiveTextData = addIncomingText;
+                }
+            }
+        }
+    };
+
+
+
+
+
+
+
+
+    //
+    // Vue application code
+    //
+
+    // Register components.
+    //
+    mutgos_registerFormattedTextComponent();
+
+    var mutgosClient = new Vue({
+        el: "#app",
+        data: {
+            // Input and output lines
+            //
+            outputIds : outputIds,
+            inputLine : "",
+            prevInputLines : [],
+            prevLineIndex : -1,
+            displayState : displayState,
+            inputStack : inputStack,
+
+            // Authentication flags and related data
+            //
+            connectionState : connectionState,
+            siteList : siteList,
+
+            // Display of Entity description data
+            descriptionData : entityDescription
+        },
+        methods: {
+            submitAuthentication: function() {
+                if ((! this.connectionState.authenticated) &&
+                  (! this.connectionState.authenticationInProgress)) {
+                    this.connectionState.authenticationInProgress = true;
+                    this.connectionState.authenticationMessage =
+                        "Authenticating...";
+
+                    // Once connected, it will automatically send the credentials
+                    protocol.connect(connectionUrl);
+                }
+            },
+
+            // Populates the input field with the previously submitted entry.
+            // It can go back several lines.
+            //
+            goPreviousInput: function() {
+                if (this.inputLine.length && this.prevLineIndex <= 0) {
+                    // Don't allow going back (probably accidentally) if user
+                    // is in the middle of typing.
+                    return;
+                }
+
+                if (this.prevLineIndex >= 0) {
+                    if (this.prevLineIndex >= this.prevInputLines.length) {
+                        this.prevLineIndex = 0;
+                    }
+
+                    this.inputLine = this.prevInputLines[this.prevLineIndex];
+                    ++this.prevLineIndex;
+                }
+
+                var inputText = document.getElementById("input-field");
+                inputText.focus();
+            },
+
+            // Called to let us know we no longer have focus (window has no
+            // focus, different browser tab, etc).
+            //
+            lostFocus: function() {
+                this.displayState.hasFocus = false;
+                this.displayState.textAdded = false;
+            },
+
+            // Called to let us know we have focus again.
+            //
+            gotFocus: function() {
+                this.displayState.hasFocus = true;
+                this.displayState.textAdded = false;
+                document.title = origTitle;
+            },
+
+            // Called to send the input text to the server, put the text in
+            // the previous sent lines, and clear the input line for the next
+            // input.
+            //
+            submitText: function() {
+                if (this.inputStack.length > 0) {
+                    // TODO Support color input
+                    var textAsExternal =
+                        [new ExternalPlainText(this.inputLine)];
+                    this.inputStack[0].sendText(textAsExternal);
+
+                    this.prevLineIndex = 0;
+                    this.prevInputLines.splice(0, 0, this.inputLine);
+
+                    if (this.prevInputLines.length > 10) {
+                        this.prevInputLines.pop();
+                    }
+
+                    this.inputLine = "";
+                }
+
+                var inputText = document.getElementById("input-field");
+                inputText.focus();
+            },
+
+            // Called when a key is pressed, this will submit the text if
+            // they actually pushed enter instead.
+            //
+            submitEnter : function(e) {
+                var keycode;
+
+                if (e) {
+                    keycode = e.keyCode;
+                } else {
+                    return true;
+                }
+
+                if (keycode == 13)
+                {
+                    // Enter pressed
+                    e.preventDefault();
+                    this.submitText();
+                    return false;
+                } else if (keycode == 38) {
+                    // Up arrow pressed
+                    e.preventDefault();
+                    this.goPreviousInput();
+                    return true;
+                }
+                else {
+                    return true;
+                }
+            },
+
+            // Called when an Entity is clicked.
+            // This submits the request to the server, to get the description.
+            //
+            submitLookRequest : function(event) {
+                if (this.descriptionData.lookId) {
+                    var lookRequest = protocol.makeClientMessage("ExecuteEntity");
+                    lookRequest.entityId = this.descriptionData.lookId;
+                    lookRequest.programArguments =
+                      [
+                        "#" + event.target.attributes["entitysite"].nodeValue
+                          + "-"
+                          + event.target.attributes["entityid"].nodeValue
+                      ];
+                    lookRequest.channelSubtype = descriptionChannelSubtype;
+
+                    if (controlChannel.send) {
+                        controlChannel.send.sendData(lookRequest);
+                    }
+                }
+            },
+
+            // Called to close the description dialog
+            //
+            closeDescription : function() {
+                this.descriptionData.descriptionChannel = null;
+                this.descriptionData.descriptionReceived = false;
+            },
+
+            // Called when an exit is clicked.
+            // This submits the request to the server, to use the exit.
+            //
+            useExit : function(event) {
+                var useExitRequest = protocol.makeClientMessage("ExecuteEntity");
+                useExitRequest.entityId = new EntityId(
+                    Number(event.target.attributes["entitysite"].nodeValue),
+                    Number(event.target.attributes["entityid"].nodeValue));
+
+                if (controlChannel.send) {
+                    controlChannel.send.sendData(useExitRequest);
+                }
+            }
+        }
+    });
+
+
+    // Everything has been set up and configured.
+    // This connection will trigger populating the site list.
+    protocol.connect(connectionUrl);
+
+</script>
+
+</body>
+</html>

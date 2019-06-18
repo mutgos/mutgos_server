@@ -16,6 +16,8 @@
 
 #include "angelscript_AngelException.h"
 #include "angelscript_AEntity.h"
+#include "angelscript_AString.h"
+#include "angelscript_AFormattedText.h"
 
 #include "angelscript_ScriptContext.h"
 #include "angelscript_ScriptUtilities.h"
@@ -27,12 +29,18 @@ namespace
     const std::string AS_OBJECT_TYPE_NAME = "InputOutputOps";
     const std::string EMIT_TO_ROOM_METHOD_SIG =
         "emit_to_room(Entity, string, bool)";
+    const std::string FEMIT_TO_ROOM_METHOD_SIG =
+        "femit_to_room(Entity, FormattedText, bool)";
     const std::string BROADCAST_TO_ROOM_METHOD_SIG =
         "broadcast_to_room(Entity, string, bool)";
+    const std::string FBROADCAST_TO_ROOM_METHOD_SIG =
+        "broadcast_to_room(Entity, FormattedText, bool)";
     const std::string SEND_TO_ENTITY_METHOD_SIG =
         "send_to_entity(Entity, string, bool)";
     const std::string PRINTLN_METHOD_SIG =
         "println(string)";
+    const std::string FPRINTLN_METHOD_SIG =
+        "fprintln(FormattedText)";
     const std::string MPRINTLN_METHOD_SIG =
         "mprintln(string)";
 }
@@ -58,8 +66,20 @@ namespace angelscript
         check_register_rc(rc, __LINE__, result);
 
         rc = engine.RegisterGlobalFunction(
+            "void femit_to_room(Entity &in room, const FormattedText &in text, const bool prepend_self)",
+            asFUNCTION(femit_to_room),
+            asCALL_GENERIC);
+        check_register_rc(rc, __LINE__, result);
+
+        rc = engine.RegisterGlobalFunction(
             "void broadcast_to_room(Entity &in room, const string &in text, const bool prepend_self)",
             asFUNCTION(broadcast_to_room),
+            asCALL_GENERIC);
+        check_register_rc(rc, __LINE__, result);
+
+        rc = engine.RegisterGlobalFunction(
+            "void fbroadcast_to_room(Entity &in room, const FormattedText &in text, const bool prepend_self)",
+            asFUNCTION(fbroadcast_to_room),
             asCALL_GENERIC);
         check_register_rc(rc, __LINE__, result);
 
@@ -74,6 +94,12 @@ namespace angelscript
         rc = engine.RegisterGlobalFunction(
             "void println(const string &in text)",
             asFUNCTION(println),
+            asCALL_GENERIC);
+        check_register_rc(rc, __LINE__, result);
+
+        rc = engine.RegisterGlobalFunction(
+            "void fprintln(const FormattedText &in text)",
+            asFUNCTION(fprintln),
             asCALL_GENERIC);
         check_register_rc(rc, __LINE__, result);
 
@@ -122,6 +148,44 @@ namespace angelscript
     }
 
     // ----------------------------------------------------------------------
+    void InputOutputOps::femit_to_room(asIScriptGeneric *gen_ptr)
+    {
+        if (not gen_ptr)
+        {
+            LOG(fatal, "angelscript", "femit_to_room", "gen_ptr is null");
+            return;
+        }
+
+        asIScriptEngine * const engine_ptr = gen_ptr->GetEngine();
+
+        AEntity * const room_entity = reinterpret_cast<AEntity *>(
+            gen_ptr->GetArgObject(0));
+        AFormattedText * const ftext = reinterpret_cast<AFormattedText *>(
+            gen_ptr->GetArgObject(1));
+        const bool prepend_self = *(bool*)gen_ptr->GetAddressOfArg(2);
+
+        if ((not room_entity) or (not ftext))
+        {
+            throw AngelException(
+                "AngelScript passed null pointers to us",
+                AS_OBJECT_TYPE_NAME,
+                FEMIT_TO_ROOM_METHOD_SIG);
+        }
+
+        text::ExternalTextLine text;
+        ftext->transfer(text);
+
+        send_event(
+            engine_ptr,
+            FEMIT_TO_ROOM_METHOD_SIG,
+            *room_entity,
+            true,
+            text,
+            prepend_self,
+            true);
+    }
+
+    // ----------------------------------------------------------------------
     void InputOutputOps::broadcast_to_room(asIScriptGeneric *gen_ptr)
     {
         if (not gen_ptr)
@@ -152,6 +216,44 @@ namespace angelscript
             *room_entity,
             true,
             *raw_text,
+            prepend_self,
+            false);
+    }
+
+    // ----------------------------------------------------------------------
+    void InputOutputOps::fbroadcast_to_room(asIScriptGeneric *gen_ptr)
+    {
+        if (not gen_ptr)
+        {
+            LOG(fatal, "angelscript", "fbroadcast_to_room", "gen_ptr is null");
+            return;
+        }
+
+        asIScriptEngine * const engine_ptr = gen_ptr->GetEngine();
+
+        AEntity * const room_entity = reinterpret_cast<AEntity *>(
+            gen_ptr->GetArgObject(0));
+        AFormattedText * const ftext = reinterpret_cast<AFormattedText *>(
+            gen_ptr->GetArgObject(1));
+        const bool prepend_self = *(bool*)gen_ptr->GetAddressOfArg(2);
+
+        if ((not room_entity) or (not ftext))
+        {
+            throw AngelException(
+                "AngelScript passed null pointers to us",
+                AS_OBJECT_TYPE_NAME,
+                FBROADCAST_TO_ROOM_METHOD_SIG);
+        }
+
+        text::ExternalTextLine text;
+        ftext->transfer(text);
+
+        send_event(
+            engine_ptr,
+            FBROADCAST_TO_ROOM_METHOD_SIG,
+            *room_entity,
+            true,
+            text,
             prepend_self,
             false);
     }
@@ -253,6 +355,67 @@ namespace angelscript
                         AS_OBJECT_TYPE_NAME,
                         PRINTLN_METHOD_SIG);
                 }
+            }
+        }
+        catch (std::exception &ex)
+        {
+            text::ExternalText::clear_text_line(text_line);
+
+            ScriptUtilities::set_exception_info(engine_ptr, ex);
+            throw;
+        }
+        catch (...)
+        {
+            text::ExternalText::clear_text_line(text_line);
+
+            ScriptUtilities::set_exception_info(engine_ptr);
+            throw;
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void InputOutputOps::fprintln(asIScriptGeneric *gen_ptr)
+    {
+        if (not gen_ptr)
+        {
+            LOG(fatal, "angelscript", "fprintln", "gen_ptr is null");
+            return;
+        }
+
+        asIScriptEngine * const engine_ptr = gen_ptr->GetEngine();
+        AFormattedText * const formatted_text =
+            reinterpret_cast<AFormattedText *>(gen_ptr->GetArgObject(0));
+
+        if (not formatted_text)
+        {
+            throw AngelException(
+                "AngelScript passed null pointers to us",
+                AS_OBJECT_TYPE_NAME,
+                FPRINTLN_METHOD_SIG);
+        }
+
+        text::ExternalTextLine text_line;
+
+        try
+        {
+            ScriptContext * const script_context_ptr =
+                ScriptUtilities::get_my_script_context(engine_ptr);
+
+            formatted_text->transfer(text_line);
+
+            const bool success_send =
+                script_context_ptr->get_output_channel() ?
+                    script_context_ptr->get_output_channel()->send_item(
+                        text_line) : false;
+
+            if (not success_send)
+            {
+                // Should never happen
+                throw AngelException(
+                    "Output Channel is closed or blocked",
+                    primitives::Result(),
+                    AS_OBJECT_TYPE_NAME,
+                    PRINTLN_METHOD_SIG);
             }
         }
         catch (std::exception &ex)
@@ -380,14 +543,13 @@ namespace angelscript
         const bool exclude_requester)
     {
         text::ExternalTextLine text_line;
+        security::Context * const security_context_ptr =
+            ScriptUtilities::get_my_security_context(engine_ptr);
 
+        // Convert text to ExternalText
+        //
         try
         {
-            security::Context * const security_context_ptr =
-                ScriptUtilities::get_my_security_context(engine_ptr);
-
-            // Convert text to ExternalText
-            //
             const primitives::Result convert_result =
                 primitives::PrimitivesAccess::instance()->
                     system_prims().to_external_text(
@@ -403,66 +565,109 @@ namespace angelscript
                     AS_OBJECT_TYPE_NAME,
                     method);
             }
-            else
+        }
+        catch (std::exception &ex)
+        {
+            text::ExternalText::clear_text_line(text_line);
+
+            ScriptUtilities::set_exception_info(engine_ptr, ex);
+            throw;
+        }
+        catch (...)
+        {
+            text::ExternalText::clear_text_line(text_line);
+
+            ScriptUtilities::set_exception_info(engine_ptr);
+            throw;
+        }
+
+        // If we're here, then conversion was successful.  Send it along.
+        //
+        send_event(
+            engine_ptr,
+            method,
+            entity,
+            entity_is_room,
+            text_line,
+            prepend_self,
+            exclude_requester);
+    }
+
+    // ----------------------------------------------------------------------
+    void InputOutputOps::send_event(
+        asIScriptEngine *const engine_ptr,
+        const std::string &method,
+        AEntity &entity,
+        const bool entity_is_room,
+        text::ExternalTextLine &text,
+        const bool prepend_self,
+        const bool exclude_requester)
+    {
+        text::ExternalTextLine text_line(text);
+        text.clear();
+
+        try
+        {
+            security::Context * const security_context_ptr =
+                ScriptUtilities::get_my_security_context(engine_ptr);
+
+            // Insert name in the front if requested.
+            //
+            if (prepend_self)
             {
-                // Insert name in the front if requested.
-                //
-                if (prepend_self)
-                {
-                    text::ExternalIdText *id_text_ptr = 0;
+                text::ExternalIdText *id_text_ptr = 0;
 
-                    const primitives::Result id_make_result =
-                        primitives::PrimitivesAccess::instance()->
-                            system_prims().make_id_text(
-                                *security_context_ptr,
-                                security_context_ptr->get_requester(),
-                                id_text_ptr);
-
-                    if ((not id_text_ptr) or (not id_make_result.is_success()))
-                    {
-                        delete id_text_ptr;
-                        id_text_ptr = 0;
-
-                        throw AngelException(
-                            "Failed to construct ID Text with requester",
-                            id_make_result,
-                            AS_OBJECT_TYPE_NAME,
-                            method);
-                    }
-                    else
-                    {
-                        text_line.insert(text_line.begin(), id_text_ptr);
-                        id_text_ptr = 0;
-                    }
-                }
-
-                // Send off the text.
-                //
-                const primitives::Result prim_result = (entity_is_room ?
+                const primitives::Result id_make_result =
                     primitives::PrimitivesAccess::instance()->
-                        event_prims().send_text_to_room(
+                        system_prims().make_id_text(
                             *security_context_ptr,
-                            entity.get_id(),
-                            text_line,
-                            exclude_requester) :
-                    primitives::PrimitivesAccess::instance()->
-                        event_prims().send_text_to_entity(
-                            *security_context_ptr,
-                            entity.get_id(),
-                            text_line));
+                            security_context_ptr->get_requester(),
+                            id_text_ptr);
 
-                if (not prim_result.is_success())
+                if ((not id_text_ptr) or (not id_make_result.is_success()))
                 {
+                    delete id_text_ptr;
+                    id_text_ptr = 0;
+
                     throw AngelException(
-                        "",
-                        prim_result,
+                        "Failed to construct ID Text with requester",
+                        id_make_result,
                         AS_OBJECT_TYPE_NAME,
                         method);
                 }
                 else
                 {
-                    text::ExternalText::clear_text_line(text_line);
+                    text_line.insert(text_line.begin(), id_text_ptr);
+                    id_text_ptr = 0;
                 }
+            }
+
+            // Send off the text.
+            //
+            const primitives::Result prim_result = (entity_is_room ?
+                primitives::PrimitivesAccess::instance()->
+                    event_prims().send_text_to_room(
+                        *security_context_ptr,
+                        entity.get_id(),
+                        text_line,
+                        exclude_requester) :
+                primitives::PrimitivesAccess::instance()->
+                    event_prims().send_text_to_entity(
+                        *security_context_ptr,
+                        entity.get_id(),
+                        text_line));
+
+            if (not prim_result.is_success())
+            {
+                throw AngelException(
+                    "",
+                    prim_result,
+                    AS_OBJECT_TYPE_NAME,
+                    method);
+            }
+            else
+            {
+                text::ExternalText::clear_text_line(text_line);
             }
         }
         catch (std::exception &ex)

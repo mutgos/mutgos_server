@@ -91,6 +91,21 @@ namespace text
     }
 
     // ----------------------------------------------------------------------
+    size_t ExternalText::total_mem_used(const ExternalTextLine &line)
+    {
+        size_t total_size = line.size() * sizeof(ExternalText *);
+
+        for (ExternalTextLine::const_iterator iter = line.begin();
+             iter != line.end();
+             ++iter)
+        {
+            total_size += (*iter)->mem_used();
+        }
+
+        return total_size;
+    }
+
+    // ----------------------------------------------------------------------
     // Note: This is used directly by the comm subsystem and parses data
     // provided by a client.
     //
@@ -140,9 +155,9 @@ namespace text
             line_iter != line.end();
             ++line_iter)
         {
-            JSON_MAKE_NODE(text_node);
+            JSON_MAKE_MAP_NODE(text_node);
             success = (*line_iter)->save(root, text_node) and success;
-            success = json::array_add_value(text_node, text_line_array, root)
+            success = json::array_add_node(text_node, text_line_array, root)
                       and success;
         }
 
@@ -183,7 +198,7 @@ namespace text
                 // construct the subclass, restore it, and add it to the line.
                 //
                 const json::JSONNode *text_node_ptr = 0;
-                success = json::array_get_value(
+                success = json::array_get_node(
                     *text_array_ptr,
                     index,
                     text_node_ptr) and success;

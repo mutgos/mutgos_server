@@ -148,7 +148,9 @@ namespace websocket
         boost::asio::io_context io_context; ///< The IO Context for the sockets.
 
         bool started; ///< True if start() has been called successfully.
+        bool inside_do_work; ///< True if in do_work(), to defer any requests for service
         PendingActions pending_actions; ///< connections with pending actions.
+        PendingActions pending_actions_deferred; ///< connections requesting pending actions while inside do_work().
         PendingDeletes pending_deletes; ///< connections to be deleted (no more references to them).
         ClientConnections client_connections; ///< All the active client connections.
     };

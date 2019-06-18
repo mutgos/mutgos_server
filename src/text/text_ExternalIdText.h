@@ -20,6 +20,7 @@ namespace text
         /**
          * Indicates type of Entity referred to by this ExternalIdText.
          * Update ExternalTextConverter if this enum changes.
+         * TODO Add a type that indicates 'thing/player/puppet/vehicle'?
          */
         enum IdType
         {
@@ -75,6 +76,15 @@ namespace text
          */
         virtual ~ExternalIdText()
           { }
+
+        /**
+         * @return How much memory this ExternalText instance uses.
+         */
+        virtual size_t mem_used(void) const
+        {
+            return ExternalText::mem_used() + db_id.mem_used()
+                + db_id_name.size() + sizeof(db_id_name);
+        }
 
         /**
          * Creates a copy of this ExternalText.

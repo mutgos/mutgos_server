@@ -1,5 +1,5 @@
-#ifndef MUTGOS_MESSAGE_REGISTRY_H
-#define MUTGOS_MESSAGE_REGISTRY_H
+#ifndef MUTGOS_MESSAGE_FACTORY_H
+#define MUTGOS_MESSAGE_FACTORY_H
 
 #include <vector>
 #include "message_ClientMessageType.h"
@@ -49,9 +49,19 @@ namespace message
 
         typedef std::vector<ClientMessageCreateFunc> ClientMessageFactory;
 
-        static ClientMessageFactory client_message_factory; ///< Factory for client messages
+        /**
+         * Used as a workaround for unpredictable static initialization.
+         * The registry vector needs to be initialized before anyone tries
+         * to add stuff to it.
+         * @return An array mapping message type to its factory method.
+         */
+        static ClientMessageFactory &registry(void)
+        {
+            static ClientMessageFactory registry_vector;
+            return registry_vector;
+        }
     };
 }
 }
 
-#endif //MUTGOS_MESSAGE_REGISTRY_H
+#endif //MUTGOS_MESSAGE_FACTORY_H

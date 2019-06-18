@@ -149,6 +149,14 @@ namespace text
          { }
 
         /**
+         * @return How much memory this ExternalText instance uses.
+         */
+        virtual size_t mem_used(void) const
+        {
+            return ExternalPlainText::mem_used();
+        }
+
+        /**
          * Creates a copy of this ExternalText.
          * @return A cloned copy.  Caller must manage the pointer.
          */

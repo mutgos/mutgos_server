@@ -750,18 +750,30 @@ namespace angelscript
     AString *AEntity::get_name(const bool append_id)
     {
         AString *result = 0;
+        const std::string entity_name = get_name_raw(append_id);
+
+        // If no exception, then we must have a valid name.
+
+        result = new AString(engine_ptr);
+        result->import_from_string(entity_name);
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    std::string AEntity::get_name_raw(const bool append_id) const
+    {
+        std::string entity_name;
 
         try
         {
-            std::string entity_name;
-
             const primitives::Result prim_result =
                 primitives::PrimitivesAccess::instance()->
-                    database_prims().convert_id_to_name(
-                        *ScriptUtilities::get_my_security_context(engine_ptr),
-                        entity_id,
-                        append_id,
-                        entity_name);
+                  database_prims().convert_id_to_name(
+                    *ScriptUtilities::get_my_security_context(engine_ptr),
+                    entity_id,
+                    append_id,
+                    entity_name);
 
             if (not prim_result.is_success())
             {
@@ -769,12 +781,7 @@ namespace angelscript
                     "",
                     prim_result,
                     AS_OBJECT_TYPE_NAME,
-                    "get_name(bool)");
-            }
-            else
-            {
-                result = new AString(engine_ptr);
-                result->import_from_string(entity_name);
+                    "get_name_raw(bool)");
             }
         }
         catch (std::exception &ex)
@@ -788,7 +795,7 @@ namespace angelscript
             throw;
         }
 
-        return result;
+        return entity_name;
     }
 
     // ----------------------------------------------------------------------

@@ -48,8 +48,11 @@ namespace message
         serial_id(serial),
         message_ptr(client_message_ptr)
     {
-        LOG(warning, "message", "ChannelData",
-            "client_message_ptr is null!");
+        if (not client_message_ptr)
+        {
+            LOG(warning, "message", "ChannelData",
+                "client_message_ptr is null!");
+        }
     }
 
     // ----------------------------------------------------------------------

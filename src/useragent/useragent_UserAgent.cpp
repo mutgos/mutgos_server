@@ -22,6 +22,12 @@
 #include "channels/events_TextChannel.h"
 #include "channels/events_ChannelFlowMessage.h"
 #include "channels/events_ChannelTextMessage.h"
+#include "channels/events_ClientDataChannel.h"
+#include "channels/events_ChannelClientDataMessage.h"
+#include "clientmessages/message_ClientExecuteEntity.h"
+#include "clientmessages/message_ClientMatchNameRequest.h"
+#include "clientmessages/message_ClientMatchNameResult.h"
+
 #include "events/events_EventAccess.h"
 #include "events/events_MovementSubscriptionParams.h"
 #include "events/events_MovementEvent.h"
@@ -30,6 +36,7 @@
 #include "events/events_EventMatchedMessage.h"
 
 #include "comminterface/comm_CommAccess.h"
+#include "comminterface/comm_SessionStats.h"
 
 #include "dbinterface/dbinterface_EntityRef.h"
 #include "dbinterface/dbinterface_DatabaseAccess.h"
@@ -53,6 +60,8 @@
 
 namespace
 {
+    const std::string CLIENT_DATA_CHANNEL_NAME = "ClientData";
+
     const std::string QUIT_COMMAND = "QUIT";
     const std::string LIST_PROG_COMMAND = "@listprog";
     const std::string EDIT_PROG_COMMAND = "@editprog";
@@ -84,7 +93,11 @@ namespace useragent
         output_channel_ptr(0),
         output_rid(0),
         input_channel_ptr(0),
-        input_rid(0)
+        input_rid(0),
+        data_output_channel_ptr(0),
+        data_output_rid(0),
+        data_input_channel_ptr(0),
+        data_input_rid(0)
     {
     }
 
@@ -94,6 +107,8 @@ namespace useragent
         delete program_source_ptr;
         delete output_channel_ptr;
         delete input_channel_ptr;
+        delete data_output_channel_ptr;
+        delete data_input_channel_ptr;
     }
 
     // ----------------------------------------------------------------------
@@ -152,6 +167,73 @@ namespace useragent
         {
             LOG(error, "useragent", "process_added",
                 "Failed to unblock input channel!");
+        }
+
+        // If this is a web client, it has addition data channels
+        //
+        const comm::SessionStats stats = comm::CommAccess::instance()->
+            get_session_stats(my_context.get_requester());
+
+        if ((not stats.get_entity_id().is_default()) and
+            stats.is_enhanced())
+        {
+            // Input from client
+            //
+            data_input_channel_ptr =
+                new events::ClientDataChannel(CLIENT_DATA_CHANNEL_NAME);
+
+            data_input_channel_ptr->next_resource_add_is_receiver(pid);
+
+            if (not services.add_blocking_resource(
+                data_input_channel_ptr,
+                data_input_rid))
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to register data input channel as resource!");
+            }
+
+            if (not comm::CommAccess::instance()->add_channel(
+                my_context.get_requester(),
+                data_input_channel_ptr,
+                false))
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to register data input channel on comm!");
+            }
+
+            if (not data_input_channel_ptr->unblock_channel())
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to unblock data input channel!");
+            }
+
+            // Output to client
+            //
+            data_output_channel_ptr =
+                new events::ClientDataChannel(CLIENT_DATA_CHANNEL_NAME);
+
+            if (not services.add_blocking_resource(
+                data_output_channel_ptr,
+                data_output_rid))
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to register data output channel as resource!");
+            }
+
+            if (not comm::CommAccess::instance()->add_channel(
+                my_context.get_requester(),
+                data_output_channel_ptr,
+                true))
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to register data output channel on comm!");
+            }
+
+            if (not data_output_channel_ptr->unblock_channel())
+            {
+                LOG(error, "useragent", "process_added",
+                    "Failed to unblock data output channel!");
+            }
         }
 
         // Do the subscriptions.
@@ -404,6 +486,70 @@ namespace useragent
                     "Unknown message type from input channel.");
             }
         }
+        else if (rid == data_input_rid)
+        {
+            if (message_type == executor::ProcessMessage::MESSAGE_CLIENT_DATA_CHANNEL)
+            {
+                // Input from the enhanced client has arrived
+                //
+                events::ChannelClientDataMessage * const data_message_ptr =
+                    dynamic_cast<events::ChannelClientDataMessage *>(&message);
+
+                if (not data_message_ptr)
+                {
+                    LOG(error, "useragent", "process_execute(rid)",
+                        "Expected client data message from data input channel "
+                        "but got something else.");
+                }
+                else
+                {
+                    const message::ClientMessage &message =
+                        data_message_ptr->get_item();
+                    const message::ClientMessageType messageType =
+                        message.get_message_type();
+
+                    if (messageType == message::CLIENTMESSAGE_EXECUTE_ENTITY)
+                    {
+                        const message::ClientExecuteEntity * const
+                            execute_entity_ptr = dynamic_cast<
+                                const message::ClientExecuteEntity *>(& message);
+
+                        if (execute_entity_ptr)
+                        {
+                            process_execute_entity(*execute_entity_ptr);
+                        }
+                        else
+                        {
+                            LOG(error, "useragent", "process_execute(rid)",
+                                "Expected client execute entity message "
+                                "but got something else.");
+                        }
+                    }
+                    else if (messageType == message::CLIENTMESSAGE_MATCH_NAME_REQUEST)
+                    {
+                        const message::ClientMatchNameRequest * const
+                            match_ptr = dynamic_cast<
+                                const message::ClientMatchNameRequest *>(& message);
+
+                        if (match_ptr)
+                        {
+                            process_match_name(*match_ptr);
+                        }
+                        else
+                        {
+                            LOG(error, "useragent", "process_execute(rid)",
+                                "Expected client match name message "
+                                "but got something else.");
+                        }
+                    }
+                    else
+                    {
+                        LOG(error, "useragent", "process_execute(rid)",
+                            "Unknown message type from data input channel.");
+                    }
+                }
+            }
+        }
         else
         {
             LOG(error, "useragent", "process_execute(rid)", "Unknown RID.");
@@ -448,6 +594,8 @@ namespace useragent
         // Just set these to null so the destructor won't delete them.
         output_channel_ptr = 0;
         input_channel_ptr = 0;
+        data_output_channel_ptr = 0;
+        data_input_channel_ptr = 0;
     }
 
     // ----------------------------------------------------------------------
@@ -711,7 +859,7 @@ namespace useragent
                 if (result.is_success())
                 {
                     arguments.clear();
-                    process_action(found_id, arguments);
+                    process_action(found_id, "", arguments);
                 }
                 else if (result.is_security_violation())
                 {
@@ -747,7 +895,7 @@ namespace useragent
 
                     if (result.is_success())
                     {
-                        process_action(found_id, arguments);
+                        process_action(found_id, "", arguments);
                     }
                     else if (result.is_security_violation())
                     {
@@ -768,6 +916,7 @@ namespace useragent
     // ----------------------------------------------------------------------
     void UserAgent::process_action(
         const dbtype::Id &action_id,
+        const std::string &channel_subtype,
         std::string &arguments)
     {
         // Get EntityRef
@@ -834,7 +983,9 @@ namespace useragent
                     my_context.get_requester(),
                     command_entity->get_first_action_target());
             events::TextChannel * const prog_output_ptr =
-                new events::TextChannel(FOREGROUND_PROG_CHAN_NAME);
+                new events::TextChannel(
+                    FOREGROUND_PROG_CHAN_NAME,
+                    channel_subtype);
 
             dbtype::Id redirect_entity;
             dbinterface::EntityRef redirect_entity_ref;
@@ -1016,6 +1167,87 @@ namespace useragent
         else
         {
             send_plain_text("Unknown action type.", true);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void UserAgent::process_execute_entity(
+        const mutgos::message::ClientExecuteEntity &message)
+    {
+        if (not message.get_entity_id().is_default())
+        {
+            std::string argument;
+
+            if (not message.get_program_arguments().empty())
+            {
+                argument = message.get_program_arguments().front();
+            }
+
+            process_action(
+                message.get_entity_id(),
+                message.get_channel_subtype(),
+                argument);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void UserAgent::process_match_name(
+        const message::ClientMatchNameRequest &message)
+    {
+        primitives::DatabasePrims &db_prims =
+            primitives::PrimitivesAccess::instance()->database_prims();
+        dbtype::Id found_id;
+        bool is_ambiguous = false;
+        primitives::Result result;
+        message::ClientMatchNameResult * const result_message_ptr =
+            new message::ClientMatchNameResult();
+
+        result_message_ptr->set_message_response_flag(true);
+        result_message_ptr->set_message_request_id(
+            message.get_message_request_id());
+
+        // Try and convert it to an ID first, and if not then do a normal
+        // search.
+        //
+        found_id = db_prims.convert_string_to_id(
+            my_context,
+            message.get_search_string());
+
+        if (found_id.is_default())
+        {
+            result = db_prims.match_name_to_id(
+                my_context,
+                message.get_search_string(),
+                message.get_exact_match_flag(),
+                message.get_entity_type(),
+                found_id,
+                is_ambiguous,
+                false);
+        }
+
+        // Put result into message.
+        //
+        if (result.is_success() and (not found_id.is_default()))
+        {
+            result_message_ptr->add_matching_id(found_id);
+        }
+        else if (result.is_security_violation())
+        {
+            result_message_ptr->set_security_violation_flag(true);
+        }
+        else
+        {
+            result_message_ptr->set_ambiguous_flag(is_ambiguous);
+        }
+
+        // Send message back to client.
+        //
+        if (data_output_channel_ptr)
+        {
+            if (not data_output_channel_ptr->send_item(result_message_ptr))
+            {
+                delete result_message_ptr;
+            }
         }
     }
 

@@ -22,6 +22,8 @@ namespace
         "ChannelData",
         "TextData",
         "ExecuteEntity",
+        "MatchNameRequest",
+        "MatchNameResult",
         "INVALID"
     };
 }

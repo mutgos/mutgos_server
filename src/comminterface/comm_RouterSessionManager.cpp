@@ -103,23 +103,6 @@ namespace comm
 
             // Now that the thread is gone, cleanup everything.
             //
-            SessionVector sessions;
-
-            for (SessionConnectionMap::iterator copy_iter =
-                    session_to_connection.begin();
-                copy_iter != session_to_connection.end();
-                ++copy_iter)
-            {
-                sessions.push_back(copy_iter->first);
-            }
-
-            for (SessionVector::iterator session_iter = sessions.begin();
-                session_iter != sessions.end();
-                ++session_iter)
-            {
-                remove_session((*session_iter));
-            }
-
             for (ConnectionDrivers::iterator driver_iter =
                 connection_drivers.begin();
                  driver_iter != connection_drivers.end();

@@ -26,6 +26,7 @@
 #include "angelscript_StringFactory.h"
 #include "angelscript_AEntity.h"
 #include "angelscript_OnlineStatEntry.h"
+#include "angelscript_AFormattedText.h"
 #include "angelscript_DatabaseOps.h"
 #include "angelscript_InputOutputOps.h"
 #include "angelscript_MovementOps.h"
@@ -605,6 +606,7 @@ namespace angelscript
             register_success = register_success and
                 AEntity::register_methods(*new_engine) and
                 OnlineStatEntry::register_methods(*new_engine) and
+                AFormattedText::register_methods(*new_engine) and
                 DatabaseOps::register_methods(*new_engine) and
                 InputOutputOps::register_methods(*new_engine) and
                 MovementOps::register_methods(*new_engine) and

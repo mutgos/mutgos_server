@@ -37,6 +37,11 @@
 
 // TODO May want to work on ChannelData, ClientTextData to have a 'no copy' mode for performance
 
+namespace
+{
+    const std::string KEEPALIVE_STRING = "KeepAlive";
+}
+
 namespace mutgos
 {
 namespace websocket
@@ -54,7 +59,6 @@ namespace websocket
         client_error(false),
         client_disconnect_state(WSClientConnection::DISCONNECT_STATE_NOT_REQUESTED),
         requested_service(false),
-        outgoing_size(0),
         outgoing_json_node(JSON_MAKE_ARRAY_ROOT()),
         auth_attempts(0),
         client_session_ptr(0),
@@ -376,94 +380,107 @@ namespace websocket
         }
         else
         {
-            LOG(debug, "websocket", "raw_data",
-                "Client sent "
-                + text::to_string(strlen(data_ptr))
-                + " bytes.  Source " + client_source + ", entity "
-                + client_entity_id.to_string(true));
-
-            json::JsonParsedObject *json_ptr = json::parse_json(data_ptr);
-            data_ptr = 0;
-
-            if (not json_ptr)
+            if ((data_size == KEEPALIVE_STRING.size()) and
+                (strncmp(KEEPALIVE_STRING.c_str(), data_ptr, data_size) == 0))
             {
-                LOG(error, "websocket", "raw_data",
-                    "Client sent invalid/incomplete JSON data!  "
-                    "Source " + client_source + ", entity "
-                    + client_entity_id.to_string(true));
-
-                client_error = true;
-                request_service();
+                // For now, ignore keepalives.  They are used by the client
+                // to detect when the connection has been lost, and to keep
+                // firewalls open.
+                delete[] data_ptr;
             }
             else
             {
-                // We now have a valid, parsed JSON.  Split it out into
-                // the various messages and parse each one.
-                //
-                if (json::is_map(json_ptr->get()))
+                LOG(debug, "websocket", "raw_data",
+                    "Client sent "
+                    + text::to_string(data_size)
+                    + " bytes.  Source " + client_source + ", entity "
+                    + client_entity_id.to_string(true));
+
+                json::JsonParsedObject *json_ptr = json::parse_json(data_ptr);
+                data_ptr = 0;
+
+                if (not json_ptr)
                 {
-                    // Single message not sent as array.  Process directly.
-                    process_message(restore_message(json_ptr));
+                    LOG(error, "websocket", "raw_data",
+                        "Client sent invalid/incomplete JSON data!  "
+                        "Source " + client_source + ", entity "
+                        + client_entity_id.to_string(true));
+
+                    client_error = true;
+                    request_service();
                 }
-                else if (json::is_array(json_ptr->get()))
+                else
                 {
-                    // One or more messages sent as array.  Process one at a
-                    // time.
+                    // We now have a valid, parsed JSON.  Split it out into
+                    // the various messages and parse each one.
                     //
-                    const MG_UnsignedInt message_count =
-                        json::array_size(json_ptr->get());
-                    char *raw_json_ptr = 0;
-                    size_t raw_json_size = 0;
-                    json::JsonParsedObject *indexed_json_ptr = 0;
-
-                    for (MG_UnsignedInt index = 0; index < message_count; ++index)
+                    if (json::is_map(json_ptr->get()))
                     {
-                        json::array_get_value(
-                            json_ptr->get(),
-                            index,
-                            raw_json_ptr,
-                            raw_json_size);
+                        // Single message not sent as array.  Process directly.
+                        process_message(restore_message(json_ptr));
+                    }
+                    else if (json::is_array(json_ptr->get()))
+                    {
+                        // One or more messages sent as array.  Process one at
+                        // a time.
+                        //
+                        const MG_UnsignedInt message_count =
+                            json::array_size(json_ptr->get());
+                        char *raw_json_ptr = 0;
+                        size_t raw_json_size = 0;
+                        json::JsonParsedObject *indexed_json_ptr = 0;
 
-                        if (not raw_json_ptr)
+                        for (MG_UnsignedInt index = 0; index < message_count;
+                            ++index)
                         {
-                            LOG(error, "websocket", "raw_data",
-                                "Empty JSON found in array, or wrong type.");
-                            client_error = true;
-                            request_service();
-                        }
-                        else
-                        {
-                            indexed_json_ptr = json::parse_json(raw_json_ptr);
+                            json::array_get_value(
+                                json_ptr->get(),
+                                index,
+                                raw_json_ptr,
+                                raw_json_size);
 
-                            if (not indexed_json_ptr)
+                            if (not raw_json_ptr)
                             {
                                 LOG(error, "websocket", "raw_data",
-                                    "Client sent invalid/incomplete JSON data "
-                                    "in array!  Source " + client_source
-                                    + ", entity "
-                                    + client_entity_id.to_string(true));
-
+                                    "Empty JSON found in array, or wrong type.");
                                 client_error = true;
                                 request_service();
                             }
                             else
                             {
-                                process_message(
-                                    restore_message(indexed_json_ptr));
+                                // TODO Need to make it so this is already parsed, just index into it.  May need to change JS side too
+                                indexed_json_ptr = json::parse_json(raw_json_ptr);
+
+                                if (not indexed_json_ptr)
+                                {
+                                    LOG(error, "websocket", "raw_data",
+                                        "Client sent invalid/incomplete JSON data "
+                                        "in array!  Source " + client_source
+                                        + ", entity "
+                                        + client_entity_id.to_string(true));
+
+                                    client_error = true;
+                                    request_service();
+                                }
+                                else
+                                {
+                                    process_message(
+                                        restore_message(indexed_json_ptr));
+                                }
                             }
                         }
                     }
-                }
-                else
-                {
-                    LOG(error, "websocket", "raw_data",
-                        "Client sent unknown JSON data!  "
-                            "Source " + client_source + ", entity "
-                        + client_entity_id.to_string(true));
+                    else
+                    {
+                        LOG(error, "websocket", "raw_data",
+                            "Client sent unknown JSON data!  "
+                                "Source " + client_source + ", entity "
+                            + client_entity_id.to_string(true));
 
-                    delete json_ptr;
-                    client_error = true;
-                    request_service();
+                        delete json_ptr;
+                        client_error = true;
+                        request_service();
+                    }
                 }
             }
         }
@@ -498,9 +515,7 @@ namespace websocket
             // Determine if we need to block (too big a message, too
             // many messages, etc).
             //
-            if ((json::array_size(outgoing_json_node) >=
-                     client_window_size) or
-                (client_window_size > config::comm::ws_max_window()))
+            if (json::array_size(outgoing_json_node) >= client_window_size)
             {
                 // We shouldn't take any more messages.
                 status = comm::ClientConnection::SEND_OK_BLOCKED;
@@ -536,15 +551,10 @@ namespace websocket
         }
         else
         {
-            const std::string message_json = json::write_json(
-                message_json_node);
-
-            json::array_add_value(
-                message_json,
+            json::array_add_node(
+                message_json_node,
                 outgoing_json_node,
                 outgoing_json_node);
-
-            client_window_size += message_json.size();
         }
 
         request_service();
@@ -789,6 +799,12 @@ namespace websocket
             comm::ClientSession *session_ptr = 0;
 
             client_window_size = request.get_window_size();
+
+            if (client_window_size > config::comm::ws_max_window())
+            {
+                client_window_size = config::comm::ws_max_window();
+            }
+
             client_entity_id = dbtype::Id(request.get_player_site_id(), 0);
 
             if (auth_attempts <= 6)
@@ -864,6 +880,8 @@ namespace websocket
                     channel_data.get_serial_id(),
                     static_cast<message::ClientTextData *>(content_ptr)->
                         transfer_text_line());
+                // We took the text, just need to delete the container for it.
+                delete content_ptr;
             }
             else
             {

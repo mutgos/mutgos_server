@@ -499,33 +499,39 @@ void main(const string &in args)
       //
       if (! actions.isEmpty())
       {
-        string @actionString = string();
+        string @spacer = string();
+        FormattedText @formattedActions = FormattedText();
+        
+        spacer.fill(" ", 4);
         
         for (uint index = 0; index < actions.length(); ++index)
         {
-          actionString.fill(" ", 4);
-          actionString += actions[index].get_name(false);
+          formattedActions.append_plain(spacer).append_entity(actions[index]);
         }
         
         println("Actions:");
-        println(actionString);
+        fprintln(formattedActions);
       }
       
       if (! items.isEmpty())
       {
-        string @itemsString = "Contains:";
+        string @spacer = string();
+        FormattedText @formattedItems = FormattedText();
+        
+        spacer.fill(" ", 2);
+        formattedItems.append_plain("Contains:");        
         
         for (uint index = 0; index < items.length(); ++index)
         {
-          itemsString.fill(" ", 2);
-          itemsString += items[index].get_name(false);
-          itemsString += ",";
+          if (index != 0)
+          {
+            formattedItems.append_plain(",");
+          }
+          
+          formattedItems.append_plain(spacer).append_entity(items[index]);
         }
-        
-        // Remove last comma
-        itemsString.erase(itemsString.size() - 1);
-        
-        println(itemsString);
+                
+        fprintln(formattedItems);
       }
     }
   }
@@ -679,9 +685,12 @@ void main(const string &in args)
     // Print the list out.
     if (! items.isEmpty())
     {
+      FormattedText @formattedItems = FormattedText();
+      
       for (uint index = 0; index < items.length(); ++index)
       {
-        println(items[index].get_name(true));
+		formattedItems.append_entity(items[index]);
+        fprintln(formattedItems);
       }
     }
   }

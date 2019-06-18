@@ -11,7 +11,6 @@
 
 #include "angelscript_SimpleGCObject.h"
 #include "osinterface/osinterface_OsTypes.h"
-#include "utilities/memory_VirtualHeapAllocator.h"
 
 #include "comminterface/comm_SessionStats.h"
 
