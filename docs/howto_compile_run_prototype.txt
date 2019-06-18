@@ -138,3 +138,20 @@ Connecting to the server
     * !help  -  Accesses help screen when connecting via a socket.  This provides socket-specific commands.
     * If you close your connection without typing 'QUIT', you can log back in and resume where you left off, and see what you missed.
     * Some commands accept color in the format (simplified for this document) of ~`colorname`, and ~`` to reset the color to default.  For instance:   say Hello ~`blue`blue text~``!
+
+    
+Using the Prototype Web Client
+------------------------------
+  * By default, in the config file, the websocket server is active and listening on port 7000
+  * MUTGOS itself is NOT a webserver by design.  You have to run a separate server to bring the pages up.  If you have Python installed, this is easy:
+	* Open a console and change to the 'web' directory inside the MUTGOS source tree.
+    * Run the Python built-in webserver from that directory like this:  python -m SimpleHTTPServer
+    * As an alternative approach, some IDEs can also serve up pages.
+  * Once the webserver is running, start up MUTGOS as usual.
+  * Point your browser to http://127.0.0.1:8000/ui/index.html   (if running locally with Python)
+  * Some features of note:
+    * The login dialog is not screen scraping; it uses JSON to get a list of sites, authenticate, etc.
+    * If you login on a separate computer, you can pull the network cable out, then plug it back in, and it will continue right where it left off with no loss of data.
+    * Anything in yellow can be clicked.
+      * If you click on an exit, it will take you through the exit (or run the program).
+      * Clicking on anything else (players, things, etc) will cause a popup to appear with the description.
