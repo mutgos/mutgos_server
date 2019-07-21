@@ -504,6 +504,28 @@ namespace dbtype
          */
         bool has_action_command(const std::string &command);
 
+        /**
+         * Like has_action_command, but requires/assumes command to find
+         * is already lowercase.
+         * @param command_lower[in] The command to find (MUST be lowercase).
+         * @param token[in] The lock token.
+         * @return True if this action has the command alias, or false if not
+         * or error.
+         */
+        bool has_action_command_lower(
+            const std::string &command_lower,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * Like has_action_command, but requires/assumes command to find
+         * is already lowercase.
+         * This method will automatically get a lock.
+         * @param command_lower[in] The command to find (MUST be lowercase).
+         * @return True if this action has the command alias, or false if not
+         * or error.
+         */
+        bool has_action_command_lower(const std::string &command_lower);
+
     protected:
         /**
          * Constructs an Entity with a provided type.  Used by subclasses.
@@ -547,6 +569,17 @@ namespace dbtype
          * everything lowercase.
          */
         void normalize_commands(void);
+
+        /**
+         * Assumes read locking has occurred.  This will check the
+         * normalized (lowercase) commands for an exact match of the
+         * provided lowercase command.
+         * @param command_lower[in] The lowercase command alias to check for.
+         * @return True if this action has the command alias, or false if not
+         * or error.
+         */
+        bool has_action_command_internal(
+            const std::string &command_lower) const;
 
         Entity::IdVector action_entity_targets; ///< What this targets
         Lock *action_entity_lock_ptr; ///< Lock users must pass in order to activate
@@ -610,6 +643,7 @@ namespace dbtype
             ar & action_entity_contained_by;
             ar & action_entity_commands;
 
+            action_entity_commands.shrink_to_fit();
             normalize_commands();
         }
         BOOST_SERIALIZATION_SPLIT_MEMBER();

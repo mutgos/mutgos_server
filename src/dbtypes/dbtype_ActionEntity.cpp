@@ -827,6 +827,7 @@ namespace dbtype
         if (token.has_lock(*this))
         {
             action_entity_commands = commands;
+            action_entity_commands.shrink_to_fit();
             normalize_commands();
             notify_field_changed(ENTITYFIELD_action_commands);
 
@@ -946,17 +947,7 @@ namespace dbtype
             const std::string &command_normalized =
                 text::to_lower_copy(command);
 
-            for (CommandList::const_iterator iter =
-                  action_entity_commands_normalized.begin();
-                iter != action_entity_commands_normalized.end();
-                ++iter)
-            {
-                if (*iter == command_normalized)
-                {
-                    result = true;
-                    break;
-                }
-            }
+            result = has_action_command_internal(command_normalized);
         }
         else
         {
@@ -973,6 +964,35 @@ namespace dbtype
         concurrency::ReaderLockToken token(*this);
 
         return has_action_command(command, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ActionEntity::has_action_command_lower(
+        const std::string &command_lower,
+        concurrency::ReaderLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            result = has_action_command_internal(command_lower);
+        }
+        else
+        {
+            LOG(error, "dbtype", "has_action_command_lower",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ActionEntity::has_action_command_lower(
+        const std::string &command_lower)
+    {
+        concurrency::ReaderLockToken token(*this);
+
+        return has_action_command_lower(command_lower, token);
     }
 
     // ----------------------------------------------------------------------
@@ -1013,6 +1033,14 @@ namespace dbtype
         for (CommandList::const_iterator command_iter =
             action_entity_commands.begin();
              command_iter != action_entity_commands.end();
+             ++command_iter)
+        {
+            field_sizes += sizeof(*command_iter) + command_iter->size();
+        }
+
+        for (CommandList::const_iterator command_iter =
+            action_entity_commands_normalized.begin();
+             command_iter != action_entity_commands_normalized.end();
              ++command_iter)
         {
             field_sizes += sizeof(*command_iter) + command_iter->size();
@@ -1080,6 +1108,9 @@ namespace dbtype
     void ActionEntity::normalize_commands(void)
     {
         action_entity_commands_normalized.clear();
+        action_entity_commands_normalized.shrink_to_fit();
+        action_entity_commands_normalized.reserve(
+            action_entity_commands.size());
 
         for (CommandList::const_iterator command_iter =
                 action_entity_commands.begin();
@@ -1089,6 +1120,27 @@ namespace dbtype
             action_entity_commands_normalized.push_back(
                 text::to_lower_copy(*command_iter));
         }
+    }
+
+    // ----------------------------------------------------------------------
+    bool ActionEntity::has_action_command_internal(
+        const std::string &command_lower) const
+    {
+        bool result = false;
+
+        for (CommandList::const_iterator iter =
+            action_entity_commands_normalized.begin();
+             iter != action_entity_commands_normalized.end();
+             ++iter)
+        {
+            if (*iter == command_lower)
+            {
+                result = true;
+                break;
+            }
+        }
+
+        return result;
     }
 } /* namespace dbtype */
 } /* namespace mutgos */
