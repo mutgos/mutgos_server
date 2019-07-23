@@ -505,7 +505,7 @@ namespace dbtype
         bool has_action_command(const std::string &command);
 
         /**
-         * Like has_action_command, but requires/assumes command to find
+         * Like has_action_command(), but requires/assumes command to find
          * is already lowercase.
          * @param command_lower[in] The command to find (MUST be lowercase).
          * @param token[in] The lock token.
@@ -517,7 +517,7 @@ namespace dbtype
             concurrency::ReaderLockToken &token);
 
         /**
-         * Like has_action_command, but requires/assumes command to find
+         * Like has_action_command(), but requires/assumes command to find
          * is already lowercase.
          * This method will automatically get a lock.
          * @param command_lower[in] The command to find (MUST be lowercase).
