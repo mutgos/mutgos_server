@@ -944,7 +944,7 @@ namespace dbtype
 
         if (token.has_lock(*this))
         {
-            const std::string &command_normalized =
+            const std::string command_normalized =
                 text::to_lower_copy(command);
 
             result = has_action_command_internal(command_normalized);
