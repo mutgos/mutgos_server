@@ -773,8 +773,9 @@ namespace primitives
          * @param contents[in] The IDs of the Entities to search, usually from
          * another Entity's contents.  May be actions, non-actions, or a
          * combination.
-         * @param search_string[in] The string to search for (always exact
-         * on actions, and will check command aliases).  Should be lower case.
+         * @param search_string_lower[in] The string to search for (always
+         * exact on actions, and will check command aliases).  Must be lower
+         * case.
          * @param exact_match[in] True for exact match on name, or false for
          * partial match of a name being acceptable.
          * @param found_entity[out] If a match is found, this will contain
@@ -791,7 +792,7 @@ namespace primitives
         bool match_name_in_contents(
             security::Context &context,
             const dbtype::Entity::IdVector &contents,
-            const std::string &search_string,
+            const std::string &search_string_lower,
             const bool exact_match,
             dbtype::Id &found_entity,
             bool &found_exact_match,

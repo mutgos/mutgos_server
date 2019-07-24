@@ -2327,7 +2327,7 @@ namespace primitives
     bool DatabasePrims::match_name_in_contents(
         security::Context &context,
         const dbtype::Entity::IdVector &contents,
-        const std::string &search_string,
+        const std::string &search_string_lower,
         const bool exact_match,
         dbtype::Id &found_entity,
         bool &found_exact_match,
@@ -2365,13 +2365,14 @@ namespace primitives
                     // An action.  Do exact match of commands, and partial
                     // match of name itself (if parameter indicates).
                     //
-                    if (security::SecurityAccess::instance()->security_check(
+                    if (action_ptr->has_action_command_lower(
+                            search_string_lower) and
+                        security::SecurityAccess::instance()->security_check(
                             security::OPERATION_GET_ENTITY_FIELD,
                             context,
                             entity_ref,
                             dbtype::ENTITYFIELD_action_commands,
-                            false) and
-                        action_ptr->has_action_command(search_string))
+                            false))
                     {
                         // Exact match for alias.
                         //
@@ -2399,17 +2400,17 @@ namespace primitives
                 //
                 bool temp_found_exact = false;
 
-                if (security::SecurityAccess::instance()->security_check(
+                if (match_name(
+                    entity_ref->get_entity_name(),
+                    search_string_lower,
+                    exact_match,
+                    temp_found_exact) and
+                    security::SecurityAccess::instance()->security_check(
                         security::OPERATION_GET_ENTITY_FIELD,
                         context,
                         entity_ref,
                         dbtype::ENTITYFIELD_name,
-                        false) and
-                    match_name(
-                        entity_ref->get_entity_name(),
-                        search_string,
-                        exact_match,
-                        temp_found_exact))
+                        false))
                 {
                     if (matched_something)
                     {
