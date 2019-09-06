@@ -24,6 +24,7 @@ namespace
         "ExecuteEntity",
         "MatchNameRequest",
         "MatchNameResult",
+        "LocationInfoChange",
         "INVALID"
     };
 }
