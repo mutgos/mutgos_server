@@ -27,6 +27,7 @@
 #include "clientmessages/message_ClientExecuteEntity.h"
 #include "clientmessages/message_ClientMatchNameRequest.h"
 #include "clientmessages/message_ClientMatchNameResult.h"
+#include "clientmessages/message_LocationInfoChange.h"
 
 #include "events/events_EventAccess.h"
 #include "events/events_MovementSubscriptionParams.h"
@@ -254,6 +255,23 @@ namespace useragent
             // directly by the executor if there are always messages waiting.
             //
             send_plain_text("Welcome!", false);
+
+            if (data_output_channel_ptr)
+            {
+                // Enhanced client.  Send an initial location update.
+                //
+                dbtype::Id location_id;
+
+                primitives::PrimitivesAccess::instance()->database_prims().
+                        get_entity_location(
+                            my_context,
+                            my_context.get_requester(),
+                            location_id,
+                            false);
+
+                send_location_update(location_id);
+            }
+
             force_look();
 
             first_execute = false;
@@ -639,6 +657,12 @@ namespace useragent
             emit_subscription_id = events::EventAccess::instance()->subscribe(
                 params,
                 callback);
+
+            if (data_output_channel_ptr)
+            {
+                // Enhanced client.  Send a location update.
+                send_location_update(movement_event_ptr->get_to());
+            }
 
             force_look();
         }
@@ -1557,6 +1581,36 @@ namespace useragent
 
         input_channel_ptr->send_item(line);
         text::ExternalText::clear_text_line(line);
+    }
+
+    // ----------------------------------------------------------------------
+    void UserAgent::send_location_update(const dbtype::Id &new_container)
+    {
+        if (data_output_channel_ptr)
+        {
+            std::string new_name;
+            message::LocationInfoChange *location_message_ptr =
+                new message::LocationInfoChange();
+
+            if (not primitives::PrimitivesAccess::instance()->database_prims().
+                convert_id_to_name(
+                    my_context,
+                    new_container,
+                    false,
+                    new_name,
+                    false).is_success())
+            {
+                new_name = "**UNKNOWN LOCATION NAME**";
+            }
+
+            location_message_ptr->set_room_id(new_container);
+            location_message_ptr->set_room_name(new_name);
+
+            if (not data_output_channel_ptr->send_item(location_message_ptr))
+            {
+                delete location_message_ptr;
+            }
+        }
     }
 
     // ----------------------------------------------------------------------

@@ -44,6 +44,8 @@ namespace message
         CLIENTMESSAGE_MATCH_NAME_REQUEST,
         /** ClientMatchNameResult class */
         CLIENTMESSAGE_MATCH_NAME_RESULT,
+        /** LocationInfoChange class */
+        CLIENTMESSAGE_LOCATION_INFO_CHANGE,
         /** Invalid type, do not directly use */
         CLIENTMESSAGE_END_INVALID
     };

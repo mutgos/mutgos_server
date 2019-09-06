@@ -53,8 +53,6 @@ namespace useragent
      * and direct events (private messages), and handling logout.
      *
      * The UserAgent is spawned by the global LoginManager process.
-     *
-     * This is currently only usable for non-enhanced clients (text only).
      */
     class UserAgent : public executor::Process
     {
@@ -305,6 +303,14 @@ namespace useragent
          * changing rooms.
          */
         void force_look(void);
+
+        /**
+         * Sends information to the enhanced a client about the location
+         * change of their Entity.
+         * @param new_container[in] The new container (usually a room)
+         * the client's Entity has moved to.
+         */
+        void send_location_update(const dbtype::Id &new_container);
 
         /**
          * Sends unformatted text to the output channel.
