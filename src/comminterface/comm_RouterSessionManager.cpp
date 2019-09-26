@@ -675,17 +675,12 @@ namespace comm
     {
         bool do_shutdown = false;
         bool more_work = false;
-        timeval current_idle_check_time;
-        timeval prev_idle_check_time;
-        timespec start_time;
-        timespec end_time;
-        timespec time_diff;
-        timespec time_to_wait;
-
-        time_to_wait.tv_sec = 0;
-        time_to_wait.tv_nsec = 0;
-        prev_idle_check_time.tv_sec = 0;
-        prev_idle_check_time.tv_usec = 0;
+        timeval current_idle_check_time = {};
+        timeval prev_idle_check_time = {};
+        timespec start_time = {};
+        timespec end_time = {};
+        timespec time_diff = {};
+        timespec time_to_wait = {};
 
         if (clock_gettime(CLOCK_MONOTONIC, &start_time))
         {
@@ -803,12 +798,13 @@ namespace comm
                 // last calls took.  This cannot be negative due to the clock
                 // type we are using.
                 //
-                osinterface::TimeUtils::timespec_substract(
-                    end_time,
-                    start_time,
-                    time_diff);
+                const bool is_negative =
+                    osinterface::TimeUtils::timespec_substract(
+                        end_time,
+                        start_time,
+                        time_diff);
 
-                if ((not time_diff.tv_sec) and
+                if ((not is_negative) and (not time_diff.tv_sec) and
                     (time_diff.tv_nsec < DEFAULT_SLEEP_TIME_NANOSEC))
                 {
                     // Did not take more time than the periodic sleep, so

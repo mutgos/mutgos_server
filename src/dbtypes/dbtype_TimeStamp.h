@@ -125,7 +125,7 @@ namespace dbtype
 
         /**
          * @return The TimeStamp in a format suitable for display in a
-         * standarized way.
+         * standarized way.  It will be in local time.
          */
         std::string format_time_stamp(void) const;
 
@@ -142,8 +142,27 @@ namespace dbtype
 
         /**
          * @return Returns how many seconds ago from 'now' this timestamp is.
+         * If negative, this will return 0.
          */
         MG_LongUnsignedInt get_relative_seconds(void) const;
+
+        /**
+         * @param negative[out] True if seconds are actually negative.
+         * @return Returns how many seconds ago from 'now' this timestamp is.
+         * This will be the absolute value if negative.
+         */
+        MG_LongUnsignedInt get_relative_seconds(bool &negative) const;
+
+        /**
+         * @param other[in] The timestamp to compare against, presumed
+         * to be 'newer' and will be what this timestamp subtracts.
+         * @param negative[out] True if seconds are actually negative.
+         * @return Returns how many seconds ago from other this timestamp is.
+         * This will be the absolute value if negative.
+         */
+        MG_LongUnsignedInt get_relative_seconds(
+            const TimeStamp &other,
+            bool &negative) const;
 
         /**
          * Compares against another TimeStamp.

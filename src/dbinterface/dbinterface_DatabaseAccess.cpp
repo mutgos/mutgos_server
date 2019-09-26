@@ -103,6 +103,14 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    void DatabaseAccess::os_time_has_jumped(bool backwards)
+    {
+        // Just pass this along for now, until an actual listener
+        // infrastructure is made.
+        UpdateManager::instance()->os_time_has_jumped(backwards);
+    }
+
+    // ----------------------------------------------------------------------
     void DatabaseAccess::add_entity_listener(
         DatabaseEntityListener * const listener_ptr)
     {

@@ -3,11 +3,14 @@
 
 #include <map>
 #include <list>
+#include <vector>
 
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
-#include <boost/lockfree/queue.hpp>
+#include <boost/interprocess/sync/interprocess_semaphore.hpp>
 #include <boost/atomic/atomic.hpp>
+
+#include "osinterface/osinterface_TimeJumpListener.h"
 
 #include "dbtypes/dbtype_Id.h"
 #include "dbtypes/dbtype_Entity.h"
@@ -29,7 +32,8 @@ namespace dbinterface
      * In the future this could allow for some sort of transaction-based updates
      * to preserve integrity.
      */
-    class UpdateManager : public dbtype::DatabaseEntityChangeListener
+    class UpdateManager : public dbtype::DatabaseEntityChangeListener,
+                                 osinterface::TimeJumpListener
     {
     public:
         /**
@@ -66,6 +70,13 @@ namespace dbinterface
          * Shuts down the singleton instance; called when MUTGOS is coming down.
          */
         void shutdown(void);
+
+        /**
+         * Called when a massive (more than a few seconds) system time jump has
+         * been detected.
+         * @param backwards[in] True if the jump was backwards.
+         */
+        virtual void os_time_has_jumped(bool backwards);
 
         /**
          * Called when the provided entity has changed in some way.
@@ -159,6 +170,14 @@ namespace dbinterface
 
         typedef std::map<dbtype::Id, EntityUpdate *> PendingUpdatesMap;
 
+        void process_immediate_updates(void);
+
+        /**
+         * Called by the update thread, this will commit any changed
+         * objects.
+         */
+        void process_db_commits(void);
+
         /**
          * Given the IDs added and removed on a given Entity, update the
          * Entities it is referencing with a back-reference.
@@ -213,9 +232,17 @@ namespace dbinterface
 
         static UpdateManager *singleton_ptr; ///< Singleton pointer.
 
+        typedef std::vector<EntityUpdate *> ImmediateUpdateQueue;
+
         boost::mutex mutex; ///< Enforces single access at a time.
         boost::thread *thread_ptr; ///< Non-null when thread is running.
+
         PendingUpdatesMap pending_updates; ///< Updates to be committed
+        ImmediateUpdateQueue immediate_update_queue; ///< Updates to be processed immediately
+        /** Semaphore associated with the immediate update queue so thread can
+            easily block and wait for work. */
+        boost::interprocess::interprocess_semaphore immediate_update_queue_sem;
+
         dbtype::Entity::IdSet pending_deletes; ///< Deletes to be committed
         dbtype::Id::SiteIdVector pending_site_deletes; ///< Pending site deletes
         boost::atomic<bool> shutdown_thread_flag; ///< True if thread should shutdown

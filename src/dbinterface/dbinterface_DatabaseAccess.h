@@ -5,6 +5,8 @@
 #include <set>
 #include <vector>
 
+#include "osinterface/osinterface_TimeJumpListener.h"
+
 #include "dbtypes/dbtype_Id.h"
 #include "dbinterface_EntityRef.h"
 #include "dbinterface/dbinterface_DbBackend.h"
@@ -34,7 +36,7 @@ namespace dbinterface
      * etc).  Generally, it will instantiate the DB backend, UpdateManager,
      * and any other classes needed to manage the database.
      */
-    class DatabaseAccess
+    class DatabaseAccess : public osinterface::TimeJumpListener
     {
     public:
         /**
@@ -68,6 +70,13 @@ namespace dbinterface
          * Shuts down the singleton instance; called when MUTGOS is coming down.
          */
         void shutdown(void);
+
+        /**
+         * Called when a massive (more than a few seconds) system time jump has
+         * been detected.
+         * @param backwards[in] True if the jump was backwards.
+         */
+        virtual void os_time_has_jumped(bool backwards);
 
         /**
          * Adds a DatabaseEntityListener.

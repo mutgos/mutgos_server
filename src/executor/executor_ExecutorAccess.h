@@ -6,6 +6,8 @@
 #include <boost/thread/thread.hpp>
 
 #include "osinterface/osinterface_OsTypes.h"
+#include "osinterface/osinterface_TimeJumpListener.h"
+
 #include "dbtypes/dbtype_Id.h"
 
 #include "executor/executor_CommonTypes.h"
@@ -35,7 +37,7 @@ namespace executor
      * Processes that are actively running need to use the provided
      * ExecutionInterface to communicate with the Executor, instead.
      */
-    class ExecutorAccess
+    class ExecutorAccess : public osinterface::TimeJumpListener
     {
     public:
 
@@ -74,6 +76,13 @@ namespace executor
          * Not thread safe.
          */
         void shutdown(void);
+
+        /**
+         * Called when a massive (more than a few seconds) system time jump has
+         * been detected.
+         * @param backwards[in] True if the jump was backwards.
+         */
+        virtual void os_time_has_jumped(bool backwards);
 
         /**
          * Adds the given process to the Executor.  The process will not

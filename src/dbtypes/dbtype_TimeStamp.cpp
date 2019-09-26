@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <locale>
+#include <stdlib.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/c_local_time_adjustor.hpp>
@@ -134,12 +135,12 @@ namespace dbtype
         const boost::posix_time::time_duration diff =
             (current.stored_time - stored_time);
 
-        if (diff.is_special())
+        if (diff.is_special() or diff.is_negative())
         {
             // Essentially happened now.
             return;
         }
-        else
+        else if (diff.total_seconds())
         {
             const unsigned long int days = diff.hours() / HOURS_DAY;
             const unsigned long int years = days / DAYS_YEAR;
@@ -177,15 +178,52 @@ namespace dbtype
         const TimeStamp current;
         const boost::posix_time::time_duration diff =
             (current.stored_time - stored_time);
+        const boost::posix_time::time_duration::sec_type total_seconds =
+            diff.total_seconds();
 
-        if (diff.is_special())
+        if ((diff.is_special()) or (not total_seconds) or diff.is_negative())
         {
             // Essentially happened now.
             return 0;
         }
         else
         {
-            return (MG_LongUnsignedInt) diff.total_seconds();
+            return (MG_LongUnsignedInt) total_seconds;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    MG_LongUnsignedInt TimeStamp::get_relative_seconds(bool &negative) const
+    {
+        const TimeStamp current;
+        return get_relative_seconds(current, negative);
+    }
+
+    // -----------------------------------------------------------------------
+    MG_LongUnsignedInt TimeStamp::get_relative_seconds(
+        const dbtype::TimeStamp &other,
+        bool &negative) const
+    {
+        const boost::posix_time::time_duration diff =
+            (other.stored_time - stored_time);
+        const boost::posix_time::time_duration::sec_type total_seconds =
+            diff.total_seconds();
+
+        if (diff.is_special() or (not total_seconds))
+        {
+            // Essentially happened now.
+            negative = false;
+            return 0;
+        }
+        else if (diff.is_negative())
+        {
+            negative = true;
+            return (MG_LongUnsignedInt) abs(total_seconds);
+        }
+        else
+        {
+            negative = false;
+            return (MG_LongUnsignedInt) total_seconds;
         }
     }
 
