@@ -1,10 +1,10 @@
 
 #include <string>
+#include <chrono>
 
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lock_guard.hpp>
 #include "text/text_StringConversion.h"
-#include <boost/date_time/microsec_time_clock.hpp>
 
 #include "executor/executor_ProcessInfo.h"
 #include "executor/executor_ProcessMessage.h"
@@ -420,7 +420,7 @@ namespace executor
     }
 
     // ----------------------------------------------------------------------
-    ProcessInfo::WakeupTimeUTC ProcessInfo::get_utc_wakeup_time(
+    ProcessInfo::WakeupTimePoint ProcessInfo::get_wakeup_time(
         concurrency::ReaderLockToken &token)
     {
         if (token.has_lock(*this))
@@ -429,20 +429,20 @@ namespace executor
         }
         else
         {
-            LOG(fatal, "executor", "get_utc_wakeup_time",
+            LOG(fatal, "executor", "get_wakeup_time",
                 "Using the wrong lock token!  PID "
                 + text::to_string(my_pid));
         }
 
-        return WakeupTimeUTC();
+        return std::chrono::steady_clock::now();
     }
 
     // ----------------------------------------------------------------------
-    ProcessInfo::WakeupTimeUTC ProcessInfo::get_utc_wakeup_time(void)
+    ProcessInfo::WakeupTimePoint ProcessInfo::get_wakeup_time(void)
     {
         concurrency::ReaderLockToken token(*this);
 
-        return get_utc_wakeup_time(token);
+        return get_wakeup_time(token);
     }
 
     // ----------------------------------------------------------------------
@@ -453,8 +453,8 @@ namespace executor
         if (token.has_lock(*this))
         {
             wakeup_time =
-                boost::posix_time::microsec_clock::universal_time()
-                  + boost::posix_time::millisec(offset_ms);
+                std::chrono::steady_clock::now()
+                  + std::chrono::milliseconds(offset_ms);
 
             return true;
         }

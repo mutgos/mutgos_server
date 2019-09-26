@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include <boost/interprocess/sync/interprocess_semaphore.hpp>
-#include <boost/lockfree/queue.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "text/text_StringConversion.h"
 #include <boost/date_time/microsec_time_clock.hpp>
@@ -97,6 +96,30 @@ namespace executor
             }
 
             LOG(info, "executor", "shutdown", "Shutdown complete.");
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void ProcessScheduler::os_time_has_jumped(bool backwards)
+    {
+        if (backwards)
+        {
+            // Forward jumping is OK - it means a quicker poll.  Backwards
+            // could mean too long a poll.
+
+            // Trigger the semaphore to break loose one thread.  This will
+            // ensure timed sleeps will still get processed.  The other
+            // threads will eventually get woken up as stuff comes in.
+            //
+            // Note this could in theory still result in a shutdown hang if the
+            // time went backwards too far and the server was then
+            // immediately shut down.  In practice this is unlikely to happen;
+            // one thread will be kicked loose, and the others should become
+            // active over a short period as stuff comes in from users.
+            // In the worse case, the operator can manually kill MUTGOS after
+            // a period of waiting, and there will be no corruption.
+
+            process_run_queue_semaphore.post();
         }
     }
 
@@ -594,8 +617,6 @@ namespace executor
         bool &is_shutting_down)
     {
         ProcessInfo *process_info_ptr = 0;
-        boost::posix_time::ptime current_time_utc =
-            boost::posix_time::microsec_clock::universal_time();
         bool shutdown_caller = false;
 
         // First, schedule anything due that is currently sleeping and needs
@@ -603,6 +624,8 @@ namespace executor
         //
         if (lock())
         {
+            const std::chrono::steady_clock::time_point current_time =
+                std::chrono::steady_clock::now();
             shutdown_caller = shutting_down;
 
             bool keep_looking = not process_timer_queue.empty();
@@ -618,7 +641,7 @@ namespace executor
                     // No more timers at all.
                     keep_looking = false;
                 }
-                else if (timer_iter->first > current_time_utc)
+                else if (timer_iter->first > current_time)
                 {
                     // The remaining entries in the map are beyond the current
                     // time and cannot be scheduled yet.
@@ -636,14 +659,15 @@ namespace executor
 
         // Next, wait for a little bit on the semaphore
         //
-        current_time_utc = boost::posix_time::microsec_clock::universal_time();
         bool got_sem = false;
 
         try
         {
             // Wait 3 seconds for semaphore to be posted.
+            // TODO One day this should wait up to the next timed sleep so it won't overshoot
             got_sem = process_run_queue_semaphore.timed_wait(
-                current_time_utc + boost::posix_time::seconds(3));
+                boost::posix_time::microsec_clock::universal_time()
+                + boost::posix_time::seconds(3));
         }
         catch (...)
         {
@@ -674,8 +698,8 @@ namespace executor
         }
         else
         {
-            // No processes were found, so let caller know if we're shutting
-            // down.
+            // No processes were found, so let caller know if we're actually
+            // shutting down.
             is_shutting_down = shutdown_caller;
         }
 
@@ -833,7 +857,7 @@ namespace executor
                 {
                     // Insert it into the timequeue
                     process_timer_queue.insert(std::make_pair(
-                        process_ptr->get_utc_wakeup_time(token),
+                        process_ptr->get_wakeup_time(token),
                         process_ptr));
                 }
 
@@ -1039,7 +1063,7 @@ namespace executor
                         process_ptr->get_db_owner_id(),
                         process_ptr->get_process()->process_get_name(
                             process_ptr->get_pid()),
-                        ProcessInfo::PROCESS_STATE_CREATED));
+                        ProcessInfo::PROCESS_STATE_KILLED));
             }
 
             if ((not in_queue) and (not executing))
@@ -1057,8 +1081,8 @@ namespace executor
                 // Remove process from timequeue if needed
                 if (sleeping)
                 {
-                    const boost::posix_time::ptime wakeup_time =
-                        process_ptr->get_utc_wakeup_time(token);
+                    const std::chrono::steady_clock::time_point wakeup_time =
+                        process_ptr->get_wakeup_time(token);
                     TimeQueue::iterator time_iter = process_timer_queue.find(
                         wakeup_time);
 

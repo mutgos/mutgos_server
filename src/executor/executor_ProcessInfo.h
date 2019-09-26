@@ -4,8 +4,8 @@
 #include <string>
 #include <queue>
 #include <set>
+#include <chrono>
 
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 
 #include "concurrency/concurrency_LockableObject.h"
@@ -67,8 +67,8 @@ namespace executor
             PROCESS_STATE_END_INVALID
         };
 
-        /** Absolute wakeup time in UTC */
-        typedef boost::posix_time::ptime WakeupTimeUTC;
+        /** Absolute wakeup time in monotonic clock time */
+        typedef std::chrono::steady_clock::time_point WakeupTimePoint;
 
         /**
          * Converts the given process state to a string.
@@ -324,17 +324,17 @@ namespace executor
          * This does not check the current process state, so it will return
          * a wakeup time in the past if the wakeup already happened.
          * @param token[in] The lock token.
-         * @return The absolute time, in UTC, for a sleeping process to wakeup.
+         * @return The steady clock time point for a sleeping process to wakeup.
          */
-        WakeupTimeUTC get_utc_wakeup_time(concurrency::ReaderLockToken &token);
+        WakeupTimePoint get_wakeup_time(concurrency::ReaderLockToken &token);
 
         /**
          * This does not check the current process state, so it will return
          * a wakeup time in the past if the wakeup already happened.
          * This method will automatically get a lock.
-         * @return The absolute time, in UTC, for a sleeping process to wakeup.
+         * @return The steady clock time point for a sleeping process to wakeup.
          */
-        WakeupTimeUTC get_utc_wakeup_time(void);
+        WakeupTimePoint get_wakeup_time(void);
 
         /**
          * Sets the absolute sleep time to be now + offset.
@@ -664,7 +664,7 @@ namespace executor
         bool pending_suspended; ///< True if process suspension has been requested
         bool daemon; ///< True if a process is a daemon (not cleaned up) TODO remove
 
-        WakeupTimeUTC wakeup_time; ///< If sleeping, when wakeup occurs
+        WakeupTimePoint wakeup_time; ///< If sleeping, when wakeup occurs
 
         MessageQueue waiting_messages; ///< ProcessMessages sent to process
 

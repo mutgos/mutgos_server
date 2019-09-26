@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <list>
+#include <chrono>
 
 #include <boost/interprocess/sync/interprocess_semaphore.hpp>
 #include <boost/lockfree/queue.hpp>
@@ -12,6 +13,7 @@
 #include <boost/thread/recursive_mutex.hpp>
 
 #include "osinterface/osinterface_OsTypes.h"
+#include "osinterface/osinterface_TimeJumpListener.h"
 
 #include "executor/executor_ProcessInfo.h"
 #include "executor/executor_ProcessStats.h"
@@ -38,7 +40,7 @@ namespace executor
      * at any time, however there is no guarantee of concurrency for every
      * method.
      */
-    class ProcessScheduler
+    class ProcessScheduler : public osinterface::TimeJumpListener
     {
     public:
         typedef std::vector<ProcessStats> ProcessStatsVector;
@@ -53,7 +55,7 @@ namespace executor
          * Destructor.  Also cleans up any processes still known to the
          * scheduler by running shutdown().
          */
-        ~ProcessScheduler();
+        virtual ~ProcessScheduler();
 
         /**
          * Cleans up all running processes and does not accept new processes.
@@ -61,6 +63,13 @@ namespace executor
          * running) have been cleaned up.
          */
         void shutdown(void);
+
+        /**
+         * Called when a massive (more than a few seconds) system time jump has
+         * been detected.
+         * @param backwards[in] True if the jump was backwards.
+         */
+        virtual void os_time_has_jumped(bool backwards);
 
         /**
          * Adds the given process, but does not run it.
@@ -233,7 +242,8 @@ namespace executor
         typedef std::map<dbtype::Id::SiteIdType, EntityIdToProcessMap>
             SiteIdToProcessesMap;
         /** Key is the absolute time to run the process */
-        typedef std::multimap<boost::posix_time::ptime, ProcessInfo *> TimeQueue;
+        typedef std::multimap<std::chrono::steady_clock::time_point, ProcessInfo *>
+            TimeQueue;
         /** Lock free queue of processes waiting to be executed */
         typedef boost::lockfree::queue<ProcessInfo *> RunQueue;
         /** Maps an active RID to an active PID. ProcessInfo can map in reverse */

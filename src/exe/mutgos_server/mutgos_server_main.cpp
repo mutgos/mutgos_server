@@ -27,6 +27,8 @@
 
 #include "useragent/useragent_ConnectionLifecycleManager.h"
 
+#include "dbtypes/dbtype_TimeStamp.h"
+
 #define HELP_ARG "help"
 #define CONFIGFILE_ARG "configfile"
 #define DATADIR_ARG "datadir"
@@ -169,6 +171,8 @@ int main(int argc, char* argv[])
      * PrimitivesAccess
      * SoftcodeAccess
      * AngelScriptAccess
+     *
+     * Shutdown order may vary.
      */
 
     if (good_init and
@@ -256,9 +260,40 @@ int main(int argc, char* argv[])
 
                 // Stay here so the program doesn't exit.  The other threads
                 // are what actually do all the MUTGOS work.
+                //
+                // During the loop, detect any large jumps in time.  This is
+                // mostly to make sure database commits continue to happen
+                // in the background.  It's a very basic detection for now
+                // and is not designed to detect frequently occuring jumps.
+                //
+                mutgos::dbtype::TimeStamp prev_time;
+                mutgos::dbtype::TimeStamp current_time = prev_time;
+
                 while (not mutgos::osinterface::Signals::got_quit_signal())
                 {
                     sleep(10);
+
+                    prev_time = current_time;
+                    current_time = mutgos::dbtype::TimeStamp();
+
+                    bool negative = false;
+                    const MG_LongUnsignedInt relative_diff =
+                        prev_time.get_relative_seconds(
+                            current_time,
+                            negative);
+
+                    if (relative_diff > 30)
+                    {
+                        std::cout << "** Time jump detected! **" << std::endl;
+
+                        // For now, don't have a whole listener infrastructure;
+                        // just call the two we know that care about time jumps.
+
+                        mutgos::dbinterface::DatabaseAccess::instance()->
+                            os_time_has_jumped(negative);
+                        mutgos::executor::ExecutorAccess::instance()->
+                            os_time_has_jumped(negative);
+                    }
                 }
             }
         }

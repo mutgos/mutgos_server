@@ -80,6 +80,13 @@ namespace executor
     }
 
     // ----------------------------------------------------------------------
+    void ExecutorAccess::os_time_has_jumped(bool backwards)
+    {
+        // Pass-through for now
+        process_scheduler.os_time_has_jumped(backwards);
+    }
+
+    // ----------------------------------------------------------------------
     PID ExecutorAccess::add_process(
         const dbtype::Id &executable_id,
         const dbtype::Id &owner_id,

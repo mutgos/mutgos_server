@@ -1,6 +1,9 @@
 
 #include <list>
+#include <vector>
 #include <unistd.h>
+#include <time.h>
+#include <chrono>
 
 #include "dbinterface_UpdateManager.h"
 
@@ -11,6 +14,8 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lock_guard.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/microsec_time_clock.hpp>
 
 #include "dbtypes/dbtype_Vehicle.h"
 #include "dbtypes/dbtype_Program.h"
@@ -28,6 +33,13 @@
 #include "concurrency/concurrency_ReaderLockToken.h"
 
 #include "logging/log_Logger.h"
+
+// Seconds between commits of changed Entities.  This is approximate
+// and may delay up to twice the time.
+#define DB_COMMIT_INTERVAL_SECS 5
+
+// The immediate update queue has at least this many elements pre-reserved
+#define IMMEDIATE_QUEUE_RESERVE_SIZE 64
 
 namespace mutgos
 {
@@ -91,6 +103,19 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    void UpdateManager::os_time_has_jumped(bool backwards)
+    {
+        if (backwards)
+        {
+            // Forward jumping is OK - it means a quicker poll.  Backwards
+            // could mean too long a poll.
+
+            // Trigger the semaphore to break it loose.
+            immediate_update_queue_sem.post();
+        }
+    }
+
+    // ----------------------------------------------------------------------
     UpdateManager::EntityUpdate::EntityUpdate(dbtype::Entity *entity)
       : entity_id(entity ? entity->get_entity_id() : dbtype::Id())
     {
@@ -110,29 +135,54 @@ namespace dbinterface
         //
         if (entity)
         {
-            PendingUpdatesMap::iterator update_iter = pending_updates.find(
-                entity->get_entity_id());
-
-            if (update_iter == pending_updates.end())
+            if (not ids_changed.empty())
             {
-                // Need to create entry, no merge needed.
+                // References changed, so detour to the immediate update
+                // queue before committing.
                 //
-                update_iter = pending_updates.insert(std::make_pair(
-                    entity->get_entity_id(),
-                    new EntityUpdate(entity))).first;
+                EntityUpdate * const new_update = new EntityUpdate(entity);
 
-                update_iter->second->fields_changed = fields_changed;
-                update_iter->second->flags_changed = flags_changed;
-                update_iter->second->ids_changed = ids_changed;
+                new_update->fields_changed = fields_changed;
+                new_update->flags_changed = flags_changed;
+                new_update->ids_changed = ids_changed;
+
+                immediate_update_queue.push_back(new_update);
+
+                if (immediate_update_queue.size() == 1)
+                {
+                    // First entry.  Post to the semaphore to get everything
+                    // picked up.
+                    immediate_update_queue_sem.post();
+                }
             }
             else
             {
-                // Existing.  Need to merge.
-                //
-                update_iter->second->merge_update(
-                    fields_changed,
-                    flags_changed,
-                    ids_changed);
+                PendingUpdatesMap::iterator update_iter = pending_updates.find(
+                    entity->get_entity_id());
+
+                if (update_iter == pending_updates.end())
+                {
+                    // Need to create entry, no merge needed.
+                    //
+                    EntityUpdate * const new_update = new EntityUpdate(entity);
+
+                    new_update->fields_changed = fields_changed;
+                    new_update->flags_changed = flags_changed;
+                    new_update->ids_changed = ids_changed;
+
+                    pending_updates.insert(std::make_pair(
+                        entity->get_entity_id(),
+                        new_update));
+                }
+                else
+                {
+                    // Existing.  Need to merge.
+                    //
+                    update_iter->second->merge_update(
+                        fields_changed,
+                        flags_changed,
+                        ids_changed);
+                }
             }
         }
     }
@@ -164,133 +214,46 @@ namespace dbinterface
     void UpdateManager::thread_main(void)
     {
         bool do_shutdown = false;
-        PendingUpdatesMap updates_copy;
-        dbtype::Entity::IdSet deletes_copy;
-        dbtype::Id::SiteIdVector site_deletes_copy;
+        std::chrono::steady_clock::time_point last_db_commit_time =
+            std::chrono::steady_clock::now();
 
+        // The timing is far from exact, but it will guarantee DB changes
+        // will be committed in at most (DB_COMMIT_INTERVAL_SECS * 2) seconds,
+        // with the expected time being a lot closer to DB_COMMIT_INTERVAL_SECS.
+        //
+        // This algorithm can always be made more exact later if timing
+        // becomes super important, which it shouldn't need to be.
+        //
         while (not do_shutdown)
         {
-            // TODO Figure out how to update immediately for changed 'contains'.
             // TODO Deleted entities need deleted flag set and saved in case of crash
-            sleep(3);
 
-            DatabaseAccess *db = DatabaseAccess::instance();
-
-            {
-                // Grab the stuff to update and delete en masse to avoid
-                // locking the data structures for too long.
-                //
-                boost::lock_guard<boost::mutex> guard(mutex);
-                updates_copy = pending_updates;
-                deletes_copy = pending_deletes;
-                site_deletes_copy = pending_site_deletes;
-
-                pending_updates.clear();
-                pending_deletes.clear();
-                pending_site_deletes.clear();
-            }
-
-            for (PendingUpdatesMap::iterator update_iter = updates_copy.begin();
-                update_iter != updates_copy.end();
-                ++update_iter)
-            {
-                if (not update_iter->second->ids_changed.empty())
-                {
-                    // References changed. Update them
-                    process_id_references(
-                        update_iter->first,
-                        update_iter->second->ids_changed);
-                }
-
-                // Commit the changes to the database.
-                //
-                EntityRef updated_entity = db->get_entity(update_iter->first);
-
-                if (updated_entity.valid())
-                {
-                    if (not db->internal_commit_entity(updated_entity))
-                    {
-                        LOG(error, "dbinterface", "thread_main",
-                            "Could not commit Entity with ID "
-                            + update_iter->first.to_string(true)
-                            + " to database.");
-                    }
-                }
-            }
-
-            // Process deletes.  Remove all references to each Entity being
-            // deleted, then attempt to remove it from the database and
-            // cache.  If it is not in use this will succeed, otherwise
-            // reinsert it into the pending deletes to try again later.
+            // Wait on the immediate update queue
             //
-            EntityRef deleted_entity_ref;
-
-            for (dbtype::Entity::IdSet::const_iterator deleted_id_iter =
-                    deletes_copy.begin();
-                deleted_id_iter != deletes_copy.end();
-                ++deleted_id_iter)
+            try
             {
-                deleted_entity_ref = db->get_entity_deleted(*deleted_id_iter);
+                // Wait a little for semaphore to be posted or a timeout.
+                immediate_update_queue_sem.timed_wait(
+                    boost::posix_time::microsec_clock::universal_time()
+                      + boost::posix_time::seconds(DB_COMMIT_INTERVAL_SECS));
+            }
+            catch (...)
+            {
+                LOG(fatal, "dbinterface", "thread_main",
+                    "Exception while doing timed_wait() on semaphore!");
+            }
 
-                if (deleted_entity_ref.valid())
-                {
-                    remove_all_references(deleted_entity_ref);
-                }
+            process_immediate_updates();
 
-                // Scope for clearing dirty info on Entity.  Lock needs to
-                // be released to avoid potential crashes while doing the
-                // actual delete.
-                {
-                    concurrency::WriterLockToken token(*deleted_entity_ref.get());
-                    deleted_entity_ref->clear_dirty(token);
-                }
-
-                deleted_entity_ref.clear();
-
-                // Remove from pending updates so we don't try and update a
-                // deleted Entity.
+            if (std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - last_db_commit_time).count() >=
+                    DB_COMMIT_INTERVAL_SECS)
+            {
+                // We haven't committed DB changes for a while, so do that now.
                 //
-                {
-                    // Scoped for mutex
-                    boost::lock_guard<boost::mutex> guard(mutex);
-                    pending_updates.erase(*deleted_id_iter);
-                }
-
-                // Attempt to do the actual deletion.  If it fails, reinsert
-                // to try again later.
-                //
-                if (db->internal_delete_entity(*deleted_id_iter) ==
-                    DBRESULTCODE_ERROR_ENTITY_IN_USE)
-                {
-                    boost::lock_guard<boost::mutex> guard(mutex);
-                    pending_deletes.insert(*deleted_id_iter);
-                }
+                process_db_commits();
+                last_db_commit_time = std::chrono::steady_clock::now();
             }
-
-            // Process site deletes.  Simply call DatabaseAccess again.  If it
-            // succeeds, then we're done, otherwise the ID has been automatically
-            // reinserted into the delete list to try again later.
-            //
-            for (dbtype::Id::SiteIdVector::iterator site_iter =
-                    site_deletes_copy.begin();
-                site_iter != site_deletes_copy.end();
-                ++site_iter)
-            {
-                db->delete_site(*site_iter);
-            }
-
-            // Clear the temporary holds for the next use
-            //
-            for (PendingUpdatesMap::iterator update_iter = updates_copy.begin();
-                 update_iter != updates_copy.end();
-                 ++update_iter)
-            {
-                delete update_iter->second;
-            }
-
-            updates_copy.clear();
-            deletes_copy.clear();
-            site_deletes_copy.clear();
 
             // Only shutdown if the pending updates are all finished
             //
@@ -298,9 +261,208 @@ namespace dbinterface
                 boost::lock_guard<boost::mutex> guard(mutex);
                 do_shutdown = pending_updates.empty()
                   and pending_deletes.empty()
+                  and immediate_update_queue.empty()
                   and shutdown_thread_flag.load();
             }
         }
+    }
+
+    // ----------------------------------------------------------------------
+    void UpdateManager::process_immediate_updates(void)
+    {
+        ImmediateUpdateQueue queue_copy;
+
+        {
+            // Grab the stuff to update en masse to avoid locking the data
+            // structures for too long.
+            //
+            boost::lock_guard<boost::mutex> guard(mutex);
+
+            if (not immediate_update_queue.empty())
+            {
+                queue_copy.reserve(IMMEDIATE_QUEUE_RESERVE_SIZE);
+                queue_copy.swap(immediate_update_queue);
+            }
+        }
+
+        if (not queue_copy.empty())
+        {
+            // Process the reference changes
+            //
+            for (ImmediateUpdateQueue::iterator immediate_iter =
+                    queue_copy.begin();
+                 immediate_iter != queue_copy.end();
+                 ++immediate_iter)
+            {
+                if (not (*immediate_iter)->ids_changed.empty())
+                {
+                    // References changed. Update them
+                    process_id_references(
+                        (*immediate_iter)->entity_id,
+                        (*immediate_iter)->ids_changed);
+
+                    // Now that we've updated them, take them out of the update
+                    // info so we don't do them again.
+                    (*immediate_iter)->ids_changed.clear();
+                }
+            }
+
+            {
+                // Move everything processed into the pending update queue so
+                // it'll be committed.
+                //
+                boost::lock_guard<boost::mutex> guard(mutex);
+
+                for (ImmediateUpdateQueue::iterator immediate_iter =
+                        queue_copy.begin();
+                     immediate_iter != queue_copy.end();
+                     ++immediate_iter)
+                {
+                    PendingUpdatesMap::iterator update_iter =
+                        pending_updates.find(
+                            (*immediate_iter)->entity_id);
+
+                    if (update_iter == pending_updates.end())
+                    {
+                        // Add new entry, no merge needed.
+                        //
+                        pending_updates.insert(std::make_pair(
+                            (*immediate_iter)->entity_id,
+                            *immediate_iter));
+                    }
+                    else
+                    {
+                        // Existing.  Need to merge.
+                        //
+                        update_iter->second->merge_update(
+                            (*immediate_iter)->fields_changed,
+                            (*immediate_iter)->flags_changed,
+                            (*immediate_iter)->ids_changed);
+
+                        delete *immediate_iter;
+                    }
+                }
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void UpdateManager::process_db_commits(void)
+    {
+        DatabaseAccess * const db = DatabaseAccess::instance();
+        PendingUpdatesMap updates_copy;
+        dbtype::Entity::IdSet deletes_copy;
+        dbtype::Id::SiteIdVector site_deletes_copy;
+
+        {
+            // Grab the stuff to update and delete en masse to avoid
+            // locking the data structures for too long.
+            //
+            boost::lock_guard<boost::mutex> guard(mutex);
+            updates_copy = pending_updates;
+            deletes_copy = pending_deletes;
+            site_deletes_copy = pending_site_deletes;
+
+            pending_updates.clear();
+            pending_deletes.clear();
+            pending_site_deletes.clear();
+        }
+
+        for (PendingUpdatesMap::iterator update_iter = updates_copy.begin();
+             update_iter != updates_copy.end();
+             ++update_iter)
+        {
+            // References were already updated in process_immediate_updates()
+
+            // Commit the changes to the database.
+            //
+            EntityRef updated_entity = db->get_entity(update_iter->first);
+
+            if (updated_entity.valid())
+            {
+                if (not db->internal_commit_entity(updated_entity))
+                {
+                    LOG(error, "dbinterface", "thread_main",
+                        "Could not commit Entity with ID "
+                        + update_iter->first.to_string(true)
+                        + " to database.");
+                }
+            }
+        }
+
+        // Process deletes.  Remove all references to each Entity being
+        // deleted, then attempt to remove it from the database and
+        // cache.  If it is not in use this will succeed, otherwise
+        // reinsert it into the pending deletes to try again later.
+        //
+        EntityRef deleted_entity_ref;
+
+        for (dbtype::Entity::IdSet::const_iterator deleted_id_iter =
+                 deletes_copy.begin();
+             deleted_id_iter != deletes_copy.end();
+             ++deleted_id_iter)
+        {
+            deleted_entity_ref = db->get_entity_deleted(*deleted_id_iter);
+
+            if (deleted_entity_ref.valid())
+            {
+                remove_all_references(deleted_entity_ref);
+            }
+
+            // Scope for clearing dirty info on Entity.  Lock needs to
+            // be released to avoid potential crashes while doing the
+            // actual delete.
+            {
+                concurrency::WriterLockToken token(*deleted_entity_ref.get());
+                deleted_entity_ref->clear_dirty(token);
+            }
+
+            deleted_entity_ref.clear();
+
+            // Remove from pending updates so we don't try and update a
+            // deleted Entity.
+            //
+            {
+                // Scoped for mutex
+                boost::lock_guard<boost::mutex> guard(mutex);
+                pending_updates.erase(*deleted_id_iter);
+            }
+
+            // Attempt to do the actual deletion.  If it fails, reinsert
+            // to try again later.
+            //
+            if (db->internal_delete_entity(*deleted_id_iter) ==
+                DBRESULTCODE_ERROR_ENTITY_IN_USE)
+            {
+                boost::lock_guard<boost::mutex> guard(mutex);
+                pending_deletes.insert(*deleted_id_iter);
+            }
+        }
+
+        // Process site deletes.  Simply call DatabaseAccess again.  If it
+        // succeeds, then we're done, otherwise the ID has been automatically
+        // reinserted into the delete list to try again later.
+        //
+        for (dbtype::Id::SiteIdVector::iterator site_iter =
+            site_deletes_copy.begin();
+             site_iter != site_deletes_copy.end();
+             ++site_iter)
+        {
+            db->delete_site(*site_iter);
+        }
+
+        // Clear the temporary holds for the next use
+        //
+        for (PendingUpdatesMap::iterator update_iter = updates_copy.begin();
+             update_iter != updates_copy.end();
+             ++update_iter)
+        {
+            delete update_iter->second;
+        }
+
+        updates_copy.clear();
+        deletes_copy.clear();
+        site_deletes_copy.clear();
     }
 
     // ----------------------------------------------------------------------
@@ -344,7 +506,7 @@ namespace dbinterface
                  added_iter != field_iter->second.second.end();
                  ++added_iter)
             {
-                // Process ID removals
+                // Process ID additions
                 //
                 EntityRef entity = db->get_entity_deleted(*added_iter);
 
@@ -801,6 +963,7 @@ namespace dbinterface
     // ----------------------------------------------------------------------
     UpdateManager::UpdateManager(void)
       : thread_ptr(0),
+        immediate_update_queue_sem(0),
         shutdown_thread_flag(false)
     {
     }
