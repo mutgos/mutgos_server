@@ -72,6 +72,7 @@ namespace events
             event_queue_semaphore.post();
 
             thread_ptr.load()->join();
+            delete thread_ptr.load();
             thread_ptr.store(0);
         }
     }
