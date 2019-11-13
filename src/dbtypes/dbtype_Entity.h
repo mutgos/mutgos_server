@@ -34,7 +34,6 @@
 #include "dbtypes/dbtype_Security.h"
 #include "dbtypes/dbtype_TimeStamp.h"
 
-// TODO: Create UTF-8 string length truncators and checkers.
 // TODO: Copy_fields()  should only copy anything if it's the right type??
 // TODO: Post-demo: Have hard string cutoff for ALL set strings, common cutoff method, UTF8 aware
 // TODO: Post-demo: Convert all sets to vectors where practical.
@@ -424,7 +423,7 @@ namespace dbtype
          * @param token[in] The lock token.
          * @return True if successfully set.
          */
-        bool set_entity_name(
+        virtual bool set_entity_name(
             const std::string &name,
             concurrency::WriterLockToken &token);
 

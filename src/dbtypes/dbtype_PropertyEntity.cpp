@@ -8,6 +8,8 @@
 #include <boost/algorithm/string/trim.hpp>
 
 #include "logging/log_Logger.h"
+#include "text/text_Utf8Tools.h"
+#include "utilities/mutgos_config.h"
 
 #include "dbtypes/dbtype_PropertyEntity.h"
 #include "dbtypes/dbtype_EntityType.h"
@@ -180,6 +182,12 @@ namespace dbtype
         {
             const std::string application =
                 get_application_name_from_path(path);
+
+            if (text::utf8_size(application) > config::db::limits_property_name())
+            {
+                // Application name too long
+                return false;
+            }
 
             if (not application.empty() and
                   (application_properties.find(application) ==

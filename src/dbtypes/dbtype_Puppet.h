@@ -75,6 +75,16 @@ namespace dbtype
         virtual std::string to_string(void);
 
         /**
+         * Sets the Puppet's name.
+         * @param name[in] The name of the Puppet.
+         * @param token[in] The lock token.
+         * @return True if successfully set.
+         */
+        virtual bool set_entity_name(
+            const std::string &name,
+            concurrency::WriterLockToken &token);
+
+        /**
          * Sets the puppet display name.
          * @param name[in] The puppet display name.
          * @param token[in] The lock token.

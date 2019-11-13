@@ -12,14 +12,13 @@
 #include <stddef.h>
 
 #include "osinterface/osinterface_OsTypes.h"
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 #include <boost/tokenizer.hpp>
 #include "text/text_StringConversion.h"
 
 #define SHORT_STRING_LENGTH 60
-#define DEFAULT_MAX_STRING_LENGTH 2048
-// TODO Will need to be made longer for programs
-#define DEFAULT_MAX_LINES 256
 
 namespace
 {
@@ -33,15 +32,13 @@ namespace dbtype
     // ----------------------------------------------------------------------
     DocumentProperty::DocumentProperty()
       : PropertyData(PROPERTYDATATYPE_document),
-        max_string_length(DEFAULT_MAX_STRING_LENGTH),
-        max_lines(DEFAULT_MAX_LINES)
+        max_lines(config::db::limits_property_document_lines())
     {
     }
 
     // ----------------------------------------------------------------------
     DocumentProperty::DocumentProperty(const DocumentProperty &data)
       : PropertyData(PROPERTYDATATYPE_document),
-        max_string_length(data.max_string_length),
         max_lines(data.max_lines)
     {
         set(data.document_data);
@@ -174,16 +171,6 @@ namespace dbtype
         }
     }
 
-    // ----------------------------------------------------------------------
-    void DocumentProperty::set_max_line_length(
-        const osinterface::OsTypes::UnsignedInt max)
-    {
-        if (max > 0)
-        {
-            max_string_length = max;
-        }
-    }
-
     // ------------------------------------------------------------------
     PropertyData *DocumentProperty::clone(void) const
     {
@@ -197,10 +184,14 @@ namespace dbtype
         {
             return false;
         }
+        else if (text::utf8_size(data) > config::db::limits_string_size())
+        {
+            // Too long a line.
+            return false;
+        }
         else
         {
-            document_data.push_back(new std::string(
-                data.substr(0, max_string_length)));
+            document_data.push_back(new std::string(data));
             return true;
         }
     }
@@ -216,18 +207,23 @@ namespace dbtype
         {
             success = false;
         }
+        else if (text::utf8_size(data) > config::db::limits_string_size())
+        {
+            // Too long a line.
+            success = false;
+        }
         else
         {
             if (line >= get_number_lines())
             {
                 // If out of range, then just append.
-                success = append_line(data);
+                document_data.push_back(new std::string(data));
             }
             else
             {
                 document_data.insert(
                     document_data.begin() + line,
-                    new std::string(data.substr(0, max_string_length)));
+                    new std::string(data));
             }
         }
 
@@ -324,6 +320,7 @@ namespace dbtype
     // ----------------------------------------------------------------------
     bool DocumentProperty::set_from_string(const std::string &str)
     {
+        bool success = true;
         clear();
 
         // Split it out by newlines, and put them one at a time into the
@@ -339,27 +336,40 @@ namespace dbtype
         {
             if (not append_line(*tok_iter))
             {
+                success = false;
                 break;
             }
         }
 
-        return true;
+        if (not success)
+        {
+            clear();
+        }
+
+        return success;
     }
 
     // ----------------------------------------------------------------------
     bool DocumentProperty::set(const std::vector<std::string> &data)
     {
+        bool success = true;
         clear();
 
         for (MG_UnsignedInt index = 0; index < data.size(); ++index)
         {
             if (not append_line(data[index]))
             {
+                success = false;
                 break;
             }
         }
 
-        return true;
+        if (not success)
+        {
+            clear();
+        }
+
+        return success;
     }
 
     // ----------------------------------------------------------------------
@@ -368,7 +378,7 @@ namespace dbtype
         if (&data == &document_data)
         {
             // This is us!
-            return false;
+            return true;
         }
 
         clear();
@@ -377,7 +387,7 @@ namespace dbtype
              iter != data.end();
              ++iter)
         {
-            std::string *string_ptr = new std::string(**iter);
+            std::string * const string_ptr = new std::string(**iter);
             document_data.push_back(string_ptr);
         }
 
@@ -400,7 +410,6 @@ namespace dbtype
              ++iter)
         {
             string_mem += (*iter)->capacity() + sizeof(void *)
-                          + sizeof(max_string_length)
                           + sizeof(max_lines);
         }
 

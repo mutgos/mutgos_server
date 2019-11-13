@@ -9,6 +9,8 @@
 
 #include "logging/log_Logger.h"
 #include "text/text_StringConversion.h"
+#include "text/text_Utf8Tools.h"
+#include "utilities/mutgos_config.h"
 
 #include "angelscript_AString.h"
 #include "angelscript_AngelException.h"
@@ -366,7 +368,8 @@ namespace angelscript
     AString::AString(
         asIScriptEngine *engine,
         const bool register_with_gc)
-        : SimpleGCObject(engine, AS_OBJECT_TYPE_NAME, register_with_gc)
+        : SimpleGCObject(engine, AS_OBJECT_TYPE_NAME, register_with_gc),
+          string_size(0)
     {
         // This occurs potentially on a stack, but we are counting it
         // towards the heap usage.
@@ -377,7 +380,8 @@ namespace angelscript
 
     // ----------------------------------------------------------------------
     AString::AString(asIScriptEngine *engine)
-      : SimpleGCObject(engine, AS_OBJECT_TYPE_NAME, true)
+      : SimpleGCObject(engine, AS_OBJECT_TYPE_NAME, true),
+        string_size(0)
     {
         memory::ThreadVirtualHeapManager::external_malloc(
             sizeof(AString),
@@ -445,27 +449,44 @@ namespace angelscript
     }
 
     // ----------------------------------------------------------------------
+    AString::StringPos AString::get_raw_size(void) const
+    {
+        return string_value.size();
+    }
+
+    // ----------------------------------------------------------------------
     void AString::assign(const AString &str)
     {
         string_value.assign(str.string_value);
+        string_size = str.string_size;
     }
 
     // ----------------------------------------------------------------------
     void AString::assign(const std::string &str)
     {
+        const size_t new_size = text::utf8_size(str);
+        check_exceed_max(new_size);
+
         string_value.assign(str.c_str(), str.size());
+        string_size = new_size;
     }
 
     // ----------------------------------------------------------------------
     AString &AString::operator=(const AString &rhs)
     {
         string_value = rhs.string_value;
+        string_size = rhs.string_size;
         return *this;
     }
 
     // ----------------------------------------------------------------------
     std::string AString::export_to_string(void) const
     {
+        if (not string_size)
+        {
+            return std::string();
+        }
+
         return std::string(string_value.c_str(), string_value.size());
     }
 
@@ -478,19 +499,23 @@ namespace angelscript
     // ----------------------------------------------------------------------
     void AString::import_from_string(const char *data, const size_t length)
     {
+        const size_t new_size = text::utf8_size(data, length);
+
+        check_exceed_max(new_size);
         string_value.assign(data, length);
+        string_size = new_size;
     }
 
     // ----------------------------------------------------------------------
     AString::StringPos AString::size(void) const
     {
-        return string_value.size();
+        return string_size;
     }
 
     // ----------------------------------------------------------------------
     bool AString::empty(void) const
     {
-        return string_value.empty();
+        return not string_size;
     }
 
     // ----------------------------------------------------------------------
@@ -498,12 +523,14 @@ namespace angelscript
     {
         string_value.clear();
         string_value.shrink_to_fit();
+        string_size = 0;
     }
 
     // ----------------------------------------------------------------------
     bool AString::operator==(const AString &rhs) const
     {
-        return string_value == rhs.string_value;
+        return (string_size == rhs.string_size) and
+               (string_value == rhs.string_value);
     }
 
     // ----------------------------------------------------------------------
@@ -525,10 +552,20 @@ namespace angelscript
 
         try
         {
+            const StringPos new_size = string_size + rhs.string_size;
+
+            check_exceed_max(new_size);
             result->string_value.assign(string_value);
+            result->string_size = string_size;
             result->string_value += rhs.string_value;
+            result->string_size = new_size;
         }
         catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
+        catch (AngelException &ex)
         {
             result->release_ref();
             throw;
@@ -540,14 +577,23 @@ namespace angelscript
     // ----------------------------------------------------------------------
     AString &AString::operator+=(const AString &rhs)
     {
+        const size_t new_size = string_size + rhs.string_size;
+
+        check_exceed_max(new_size);
         string_value += rhs.string_value;
+        string_size = new_size;
+
         return *this;
     }
 
     // ----------------------------------------------------------------------
     void AString::append(const AString &rhs)
     {
+        const size_t new_size = string_size + rhs.string_size;
+
+        check_exceed_max(new_size);
         string_value.append(rhs.string_value);
+        string_size = new_size;
     }
 
     // ----------------------------------------------------------------------
@@ -559,11 +605,20 @@ namespace angelscript
         {
             // Intermediate because of different allocators
             const std::string rhs_string = text::to_string(rhs);
+            const size_t new_size = string_size + text::utf8_size(rhs_string);
 
+            check_exceed_max(new_size);
             result->string_value.assign(string_value);
+            result->string_size = string_size;
             result->string_value.append(rhs_string.c_str(), rhs_string.size());
+            result->string_size = new_size;
         }
         catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
+        catch (AngelException &ex)
         {
             result->release_ref();
             throw;
@@ -577,8 +632,11 @@ namespace angelscript
     {
         // Intermediate because of different allocators
         const std::string rhs_string = text::to_string(rhs);
+        const size_t new_size = string_size + text::utf8_size(rhs_string);
 
+        check_exceed_max(new_size);
         string_value.append(rhs_string.c_str(), rhs_string.size());
+        string_size = new_size;
 
         return *this;
     }
@@ -598,11 +656,20 @@ namespace angelscript
         {
             // Intermediate because of different allocators
             const std::string rhs_string = text::to_string(rhs);
+            const size_t new_size = string_size + text::utf8_size(rhs_string);
 
+            check_exceed_max(new_size);
             result->string_value.assign(string_value);
+            result->string_size = string_size;
             result->string_value.append(rhs_string.c_str(), rhs_string.size());
+            result->string_size = new_size;
         }
         catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
+        catch (AngelException &ex)
         {
             result->release_ref();
             throw;
@@ -616,8 +683,11 @@ namespace angelscript
     {
         // Intermediate because of different allocators
         const std::string rhs_string = text::to_string(rhs);
+        const size_t new_size = string_size + text::utf8_size(rhs_string);
 
+        check_exceed_max(new_size);
         string_value.append(rhs_string.c_str(), rhs_string.size());
+        string_size = new_size;
 
         return *this;
     }
@@ -635,22 +705,39 @@ namespace angelscript
 
         try
         {
+            // Limit checks are done after the fact to keep the flow simpler,
+            // and also because booleans can't get that big.
+            //
+
+            check_exceed_max(string_size);
             result->string_value.assign(string_value);
+            result->string_size = string_size;
 
             if (rhs)
             {
                 result->string_value.append(
                     TRUE_VALUE.c_str(),
                     TRUE_VALUE.size());
+
+                result->string_size = string_size + text::utf8_size(TRUE_VALUE);
             }
             else
             {
                 result->string_value.append(
                     FALSE_VALUE.c_str(),
                     FALSE_VALUE.size());
+
+                result->string_size = string_size + text::utf8_size(FALSE_VALUE);
             }
+
+            check_exceed_max(result->string_size);
         }
         catch (std::bad_alloc &ex)
+        {
+            result->release_ref();
+            throw;
+        }
+        catch (AngelException &ex)
         {
             result->release_ref();
             throw;
@@ -662,14 +749,23 @@ namespace angelscript
     // ----------------------------------------------------------------------
     AString &AString::operator+=(const bool rhs)
     {
+        // Limit checks are done after the fact to keep the flow simpler,
+        // and also because booleans can't get that big.
+        //
+        check_exceed_max(string_size);
+
         if (rhs)
         {
             string_value.append(TRUE_VALUE.c_str(), TRUE_VALUE.size());
+            string_size += text::utf8_size(TRUE_VALUE);
         }
         else
         {
             string_value.append(FALSE_VALUE.c_str(), FALSE_VALUE.size());
+            string_size += text::utf8_size(FALSE_VALUE);
         }
+
+        check_exceed_max(string_size);
 
         return *this;
     }
@@ -685,9 +781,13 @@ namespace angelscript
     {
         if (repeats and (not str.empty()))
         {
+            const size_t new_size = string_size + (str.string_size * repeats);
+            check_exceed_max(new_size);
+
             for (StringPos count = 0; count < repeats; ++count)
             {
                 string_value.append(str.string_value);
+                string_size += str.string_size;
             }
         }
     }
@@ -696,7 +796,11 @@ namespace angelscript
     AString::StringPos AString::find(const AString &str) const
     {
         StringPos result = NOT_FOUND;
-        const size_t find_result = string_value.find(str.string_value);
+        const size_t find_result = text::utf8_find(
+            get_raw_data(),
+            get_raw_size(),
+            str.get_raw_data(),
+            str.get_raw_size());
 
         if (find_result != std::string::npos)
         {
@@ -711,7 +815,7 @@ namespace angelscript
         const AString &str,
         const AString::StringPos pos) const
     {
-        if (pos >= string_value.size())
+        if (pos >= string_size)
         {
             const std::string message =
                 "find(): Starting position is out of bounds.";
@@ -726,7 +830,12 @@ namespace angelscript
         }
 
         StringPos result = NOT_FOUND;
-        const size_t find_result = string_value.find(str.string_value, pos);
+        const size_t find_result = text::utf8_find(
+            get_raw_data(),
+            get_raw_size(),
+            str.get_raw_data(),
+            str.get_raw_size(),
+            pos);
 
         if (find_result != std::string::npos)
         {
@@ -740,7 +849,11 @@ namespace angelscript
     AString::StringPos AString::find_last(const AString &str) const
     {
         StringPos result = NOT_FOUND;
-        const size_t find_result = string_value.rfind(str.string_value);
+        const size_t find_result = text::utf8_find_last(
+            get_raw_data(),
+            get_raw_size(),
+            str.get_raw_data(),
+            str.get_raw_size());
 
         if (find_result != std::string::npos)
         {
@@ -755,7 +868,7 @@ namespace angelscript
         const AString &str,
         const AString::StringPos pos) const
     {
-        if (pos >= string_value.size())
+        if (pos >= string_size)
         {
             const std::string message =
                 "find_last(): End position is out of bounds.";
@@ -770,7 +883,26 @@ namespace angelscript
         }
 
         StringPos result = NOT_FOUND;
-        const size_t find_result = string_value.rfind(str.string_value, pos);
+
+        size_t str_find_size = get_raw_size();
+
+        if (pos < (string_size - 1))
+        {
+            // Not starting search at the end, so we need to convert to byte
+            // index.  Get the byte right after the one we're searching, so
+            // it can be used as the size.  This will exclude the undesired
+            // tail end of the string.
+            str_find_size = text::utf8_index_to_byte(
+                get_raw_data(),
+                get_raw_size(),
+                pos + 1);
+        }
+
+        const size_t find_result = text::utf8_find_last(
+            get_raw_data(),
+            str_find_size,
+            str.get_raw_data(),
+            str.get_raw_size());
 
         if (find_result != std::string::npos)
         {
@@ -783,7 +915,7 @@ namespace angelscript
     // ---------------------------------------------------------------------
     AString *AString::substring(const AString::StringPos start_pos) const
     {
-        if (start_pos >= string_value.size())
+        if (start_pos >= string_size)
         {
             const std::string message =
                 "substring(): Start position is out of bounds.";
@@ -799,9 +931,18 @@ namespace angelscript
 
         AString * const result = new AString(engine_ptr);
 
+        const size_t start_byte_index = text::utf8_index_to_byte(
+            get_raw_data(),
+            get_raw_size(),
+            start_pos);
+
         try
         {
-            result->string_value.assign(string_value.substr(start_pos));
+            result->string_value.assign(
+                string_value.substr(start_byte_index));
+            result->string_size = text::utf8_size(
+                result->string_value.c_str(),
+                result->string_value.size());
         }
         catch (std::bad_alloc &ex)
         {
@@ -817,7 +958,7 @@ namespace angelscript
         const AString::StringPos start_pos,
         const AString::StringPos len) const
     {
-        if (start_pos >= string_value.size())
+        if (start_pos >= string_size)
         {
             const std::string message =
                 "substring(): Start position is out of bounds.";
@@ -832,14 +973,29 @@ namespace angelscript
         }
 
         AString * const result = new AString(engine_ptr);
+        const StringPos end_pos = start_pos + len;
+        const size_t start_byte_index = text::utf8_index_to_byte(
+            get_raw_data(),
+            get_raw_size(),
+            start_pos);
+        size_t end_byte_index = get_raw_size();
+
+        if (end_pos < string_size)
+        {
+            end_byte_index = text::utf8_index_to_byte(
+                get_raw_data(),
+                get_raw_size(),
+                end_pos);
+        }
 
         try
         {
-            if (start_pos != std::string::npos)
-            {
-                result->string_value.assign(
-                    string_value.substr(start_pos, len));
-            }
+            result->string_value.assign(string_value.substr(
+                start_byte_index,
+                end_byte_index - start_byte_index));
+            result->string_size = text::utf8_size(
+                result->string_value.c_str(),
+                result->string_value.size());
         }
         catch (std::bad_alloc &ex)
         {
@@ -853,7 +1009,7 @@ namespace angelscript
     // ---------------------------------------------------------------------
     AString *AString::char_at(const AString::StringPos pos) const
     {
-        if (pos >= string_value.size())
+        if (pos >= string_size)
         {
             const std::string message =
                 "char_at(): Position is out of bounds.";
@@ -868,15 +1024,18 @@ namespace angelscript
         }
 
         AString * const result = new AString(engine_ptr);
+        const std::string found_char = text::utf8_char_at(
+            get_raw_data(),
+            get_raw_size(),
+            pos);
 
         try
         {
-            result->string_value = string_value[pos];
+            result->string_value.assign(found_char.c_str(), found_char.size());
+            result->string_size = (found_char.empty() ? 0 : 1);
         }
         catch (std::bad_alloc &ex)
         {
-            // A single character should never require an allocation, but
-            // this is to be consistent.
             result->release_ref();
             throw;
         }
@@ -887,7 +1046,7 @@ namespace angelscript
     // ---------------------------------------------------------------------
     void AString::erase(const AString::StringPos start_pos)
     {
-        if (start_pos >= string_value.size())
+        if (start_pos >= string_size)
         {
             const std::string message =
                 "erase(): Start position is out of bounds.";
@@ -901,7 +1060,12 @@ namespace angelscript
             throw AngelException(message);
         }
 
-        string_value.erase(start_pos);
+        const size_t start_byte = text::utf8_index_to_byte(
+            string_value.c_str(),
+            string_value.size(),
+            start_pos);
+        string_value.erase(start_byte);
+        string_size = text::utf8_size(get_raw_data(), get_raw_size());
     }
 
     // ---------------------------------------------------------------------
@@ -909,7 +1073,7 @@ namespace angelscript
         const AString::StringPos start_pos,
         const AString::StringPos len)
     {
-        if (start_pos >= string_value.size())
+        if (start_pos >= string_size)
         {
             const std::string message =
                 "erase(): Start position is out of bounds.";
@@ -923,7 +1087,40 @@ namespace angelscript
             throw AngelException(message);
         }
 
-        string_value.erase(start_pos, len);
+        if (not len)
+        {
+            // No change.
+            return;
+        }
+
+        const StringPos end_pos = start_pos + len;
+        const size_t start_byte_index = text::utf8_index_to_byte(
+            string_value.c_str(),
+            string_value.size(),
+            start_pos);
+        size_t end_byte_index = get_raw_size();
+
+        if (end_pos < string_size)
+        {
+            end_byte_index = text::utf8_index_to_byte(
+                string_value.c_str(),
+                string_value.size(),
+                end_pos);
+        }
+
+        if (end_byte_index)
+        {
+            string_value.erase(
+                start_byte_index,
+                end_byte_index - start_byte_index);
+        }
+        else
+        {
+            // End went past bounds, so just erase whatever's left.
+            string_value.erase(start_byte_index);
+        }
+
+        string_size = text::utf8_size(get_raw_data(), get_raw_size());
     }
 
     // ---------------------------------------------------------------------
@@ -935,9 +1132,11 @@ namespace angelscript
     // ---------------------------------------------------------------------
     bool AString::equals_ignore_case(const AString &rhs) const
     {
-        const std::string lhs_lower = text::to_lower_copy(export_to_string());
-        const std::string rhs_lower = text::to_lower_copy(
-            rhs.export_to_string());
+        std::string lhs_lower = export_to_string();
+        text::to_lower(lhs_lower);
+
+        std::string rhs_lower = rhs.export_to_string();
+        text::to_lower(rhs_lower);
 
         return lhs_lower == rhs_lower;
     }
@@ -1005,6 +1204,24 @@ namespace angelscript
                   + text::to_string(rc)
                   + ",  line = "
                   + text::to_string(line));
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    void AString::check_exceed_max(const size_t size) const
+    {
+        if (size > config::angelscript::max_string_size())
+        {
+            const std::string message =
+                "check_exceed_max(): String size exceeds maximum allowed.";
+
+            ScriptUtilities::set_exception_info(
+                engine_ptr,
+                ScriptContext::EXCEPTION_ANGEL,
+                message);
+
+            // Out of bounds
+            throw AngelException(message);
         }
     }
 }

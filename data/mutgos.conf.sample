@@ -31,10 +31,12 @@ executor.thread_count=2
 # Maximum time to wait, in seconds, for a connection (any) to
 # authenticate (log in) before automatically disconnecting them.
 connection.auth_time=300
+
 # Maximum time an authenticated connection can be idle (no activity from
 # client), in seconds.  This is temporary and will eventually be tunable per
 # site.
 connection.idle_time=7200
+
 # Maximum time, in seconds, that an improperly disconnected client
 # (connection blip, etc) has to reconnect and maintain their existing session.
 # If the time expires, they will be disconnected in game and any pending
@@ -44,28 +46,37 @@ connection.reconnect_wait_time=300
 # Maximum length of a single line input by a user, in bytes.  Anything longer
 # than this will either be rejected or cut off.
 connection.socket.input_line_length=8192
+
 # True to enable the SSL (encrypted) port.
 connection.socket.enable_ssl=true
+
 # True to enable the unencrypted (plaintext) port.
 connection.socket.enable_plain=true
+
 # The port to listen on for unencrypted socket connections.
 connection.socket.port=7072
+
 # The port to listen on for SSL (encrypted) socket connections.
 connection.socket.port_ssl=7073
+
 # If using SSL, this specifies the certificate file, in PEM format.
 connection.certificate_file=cert.pem
+
 # If using SSL, this specifies the private key file, in PEM format.
 # This may be the same file as the certificate itself.
 connection.certificate_private_key_file=key.pem
 
 # True to enable websocket support.
 connection.websocket.enable=true
+
 # What port the websocket will listen on locally (127.0.0.1) for proxied
 # connections.
 connection.websocket.port=7000
+
 # Maximum window size (pending messages).  This should normally not be adjusted
 # unless there are connection performance problems or memory usage issues.
 connection.websocket.max_window=8192
+
 # Maximum size of a websocket message coming from a client, in bytes.
 # This should normally not need to be adjusted.
 connection.websocket.max_incoming_message_size=16384
@@ -77,10 +88,35 @@ connection.websocket.max_incoming_message_size=16384
 
 # Specifies the SQLite database file.
 database.db_file=mutgos.db
+
 # How encrypted (via bcrypt) the Player passwords are.  Higher values will take
 # significantly longer (about a factor of 2x for every +1). This value may be
 # safely changed without invalidating existing passwords.
 database.password_workfactor=10
+
+# Unless overriden by other properties, the default max length for any string
+# stored in the database.  All string lengths in this section are measured in
+# UTF8 code points, not bytes.
+database.limits.string=4096
+
+# Max string length for an entity name, unless overridden.
+database.limits.entity.name=128
+
+# Max string length for a player or puppet name.
+database.limits.player_puppet.name=32
+
+# Max string length for a property name.  This is not the full path, just an
+# element of the path.
+database.limits.property.name=64
+
+# Maximum number of items in a property value set.
+database.limits.property.set.items=4096
+
+# Maximum number of lines in a non-program property value document.
+database.limits.property.document.lines=1024
+
+# Maximum number of lines in a program document.
+database.limits.program.lines=32768
 
 
 ########################################
@@ -98,3 +134,7 @@ angelscript.timeslice=300
 # if the pool is empty, but the pool will never contain more than the
 # count below.
 angelscript.max_pool_size=4
+
+# Maximum size for a runtime string in AngleScript.  This is measured in
+# UTF8 code points, not bytes.
+angelscript.max_string_length=32768

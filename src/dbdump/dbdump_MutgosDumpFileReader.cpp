@@ -7,6 +7,8 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include "text/text_StringConversion.h"
+#include "text/text_Utf8Tools.h"
+#include "utilities/mutgos_config.h"
 
 #include "dbdump_MutgosDumpFileReader.h"
 #include "dbtypes/dbtype_Id.h"
@@ -114,6 +116,11 @@ namespace dbdump
                 else if (line == "MUTGOS DUMP END")
                 {
                     file_parsed = true;
+                }
+                else if (not text::utf8_valid(line))
+                {
+                    error_condition = true;
+                    message = "Line is not UTF8 compliant.";
                 }
                 else
                 {
@@ -1035,6 +1042,14 @@ namespace dbdump
                 else
                 {
                     current_document_ptr = new dbtype::DocumentProperty();
+
+                    if (current_entity_field ==
+                        dbtype::EntityField::ENTITYFIELD_program_source_code)
+                    {
+                        // Source code gets a longer Document length.
+                        current_document_ptr->set_max_lines(
+                            config::db::limits_program_lines());
+                    }
                 }
             }
             else

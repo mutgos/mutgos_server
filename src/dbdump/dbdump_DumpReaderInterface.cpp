@@ -1784,8 +1784,16 @@ namespace dbdump
         {
             // Valid for setting the property.
             //
-            const dbtype::StringProperty property_data(data);
-            result = property_entity_ptr->set_property(path, property_data);
+            dbtype::StringProperty property_data;
+
+            if (not property_data.set(data))
+            {
+                result = false;
+            }
+            else
+            {
+                result = property_entity_ptr->set_property(path, property_data);
+            }
 
             LOG(result ? debug : error, "dbdump", "set_string_prop",
                 "Set " + path + " : " + property_data.get_as_short_string()

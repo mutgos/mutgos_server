@@ -70,6 +70,16 @@ namespace dbtype
         virtual std::string to_string(void);
 
         /**
+         * Sets the Player's name.
+         * @param name[in] The name of the Player.
+         * @param token[in] The lock token.
+         * @return True if successfully set.
+         */
+        virtual bool set_entity_name(
+            const std::string &name,
+            concurrency::WriterLockToken &token);
+
+        /**
          * Sets the password.  The password will be encrypted before storing.
          * @param new_password[in] The new, unencrypted password.
          * @param token[in] The lock token.

@@ -11,6 +11,8 @@
 #include "osinterface/osinterface_OsTypes.h"
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 #include "dbtypes/dbtype_Entity.h"
 #include "dbtypes/dbtype_EntityType.h"
@@ -447,6 +449,12 @@ namespace dbtype
             return false;
         }
 
+        if (text::utf8_size(name) > config::db::limits_entity_name())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             entity_name = name;
@@ -573,6 +581,12 @@ namespace dbtype
         const std::string& note,
         concurrency::WriterLockToken& token)
     {
+        if (text::utf8_size(note) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             // Limit the size of the note.
@@ -628,6 +642,12 @@ namespace dbtype
         const std::string &name,
         concurrency::WriterLockToken &token)
     {
+        if (text::utf8_size(name) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             // Limit size of the name
@@ -683,6 +703,12 @@ namespace dbtype
         const std::string &category,
         concurrency::WriterLockToken &token)
     {
+        if (text::utf8_size(category) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             // Limit size of the category

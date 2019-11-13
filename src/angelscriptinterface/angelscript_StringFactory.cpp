@@ -82,7 +82,7 @@ namespace angelscript
                 }
                 else
                 {
-                    *length = (asUINT) astr->size();
+                    *length = (asUINT) astr->get_raw_size();
                 }
             }
             else

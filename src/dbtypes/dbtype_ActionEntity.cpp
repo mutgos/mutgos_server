@@ -13,15 +13,17 @@
 #include "dbtype_EntityType.h"
 
 #include "logging/log_Logger.h"
+#include "utilities/mutgos_config.h"
 
+#include "text/text_Utf8Tools.h"
 #include "text/text_StringConversion.h"
+
+#define MAX_COMMANDS 64
 
 namespace mutgos
 {
 namespace dbtype
 {
-    // TODO Add code to concatonate actions together to make searching really quick
-
     // ----------------------------------------------------------------------
     ActionEntity::ActionEntity()
       : PropertyEntity(),
@@ -527,6 +529,12 @@ namespace dbtype
     {
         bool result = false;
 
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             action_entity_succ_msg = message;
@@ -584,6 +592,12 @@ namespace dbtype
         concurrency::WriterLockToken &token)
     {
         bool result = false;
+
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {
@@ -644,6 +658,12 @@ namespace dbtype
     {
         bool result = false;
 
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             action_entity_fail_msg = message;
@@ -701,6 +721,12 @@ namespace dbtype
         concurrency::WriterLockToken &token)
     {
         bool result = false;
+
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {
@@ -823,6 +849,21 @@ namespace dbtype
         concurrency::WriterLockToken &token)
     {
         bool result = false;
+
+        if (commands.size() > MAX_COMMANDS)
+        {
+            return false;
+        }
+
+        // Make sure none of the commands are too big
+        for (size_t index = 0; index < commands.size(); ++index)
+        {
+            if (text::utf8_size(commands[index]) >
+                config::db::limits_string_size())
+            {
+                return false;
+            }
+        }
 
         if (token.has_lock(*this))
         {

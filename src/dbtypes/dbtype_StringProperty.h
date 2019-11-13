@@ -32,12 +32,6 @@ namespace dbtype
         StringProperty();
 
         /**
-         * Creates with a provided string.
-         * @param data[in] The string data.
-         */
-        StringProperty(const std::string &data);
-
-        /**
          * Copy constructor.
          * @param rhs The source to copy from.
          */

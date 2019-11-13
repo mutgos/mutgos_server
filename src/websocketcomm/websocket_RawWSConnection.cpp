@@ -17,6 +17,7 @@
 
 #include "logging/log_Logger.h"
 #include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 #include "websocket_WSClientConnection.h"
 #include "websocket_RawWSConnection.h"
@@ -277,9 +278,22 @@ namespace websocket
                 bytes_transferred);
             raw_data_ptr[bytes_transferred] = '\0';
 
-            client_ptr->raw_data(raw_data_ptr, bytes_transferred);
-            incoming_buffer.consume(bytes_transferred);
-            do_read();
+            // Confirm valid UTF8 before passing along.
+            //
+            if (not text::utf8_valid(raw_data_ptr, bytes_transferred))
+            {
+                LOG(warning, "websocket", "on_read",
+                    "Client sent invalid UTF8 or unprintable characters.");
+
+                // Invalid UTF8.  Disconnect.
+                raw_disconnect();
+            }
+            else
+            {
+                client_ptr->raw_data(raw_data_ptr, bytes_transferred);
+                incoming_buffer.consume(bytes_transferred);
+                do_read();
+            }
         }
         else
         {
