@@ -120,7 +120,7 @@ namespace dbdump
                 else if (not text::utf8_valid(line))
                 {
                     error_condition = true;
-                    message = "Line is not UTF8 compliant.";
+                    status_message = "Line is not UTF8 compliant.";
                 }
                 else
                 {

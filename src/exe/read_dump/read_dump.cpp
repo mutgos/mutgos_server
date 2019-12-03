@@ -14,7 +14,7 @@
 #define HELP_ARG "help"
 #define CONFIGFILE_ARG "configfile"
 #define DUMPFILE_ARG "dumpfile"
-#define DATAFILE_ARG "datafile"
+#define DATAPATH_ARG "datapath"
 
 // TODO Update documentation for how to run.
 
@@ -102,15 +102,15 @@ int main(int argc, char* argv[])
            (DUMPFILE_ARG,
                boost::program_options::value<std::string>(),
                "The dump file to read in.  Default is mutgos.dump")
-           (DATAFILE_ARG,
+           (DATAPATH_ARG,
                boost::program_options::value<std::string>(),
-               "Specifies the path and filename to save the generated database to.  Default is mutgos.db")
+               "Specifies the path to save the generated database.  File name is specified in the config file.  Default is what's in the config file.")
         ;
 
     boost::program_options::variables_map args;
     std::string config_file = "mutgos.conf";
     std::string dump_file = "mutgos.dump";
-    std::string data_file = "mutgos.db";
+    std::string data_path = "";
     const bool good_parse = parse_commandline(option_desc, args, argc, argv);
 
     if (not good_parse)
@@ -135,13 +135,13 @@ int main(int argc, char* argv[])
         dump_file = args[DUMPFILE_ARG].as<std::string>();
     }
 
-    if (args.count(DATAFILE_ARG))
+    if (args.count(DATAPATH_ARG))
     {
-        data_file = args[DATAFILE_ARG].as<std::string>();
+        data_path = args[DATAPATH_ARG].as<std::string>();
     }
 
     mutgos::log::Logger::init(true);
-    const bool good_config_read = mutgos::config::parse_config(config_file, "");
+    const bool good_config_read = mutgos::config::parse_config(config_file, data_path);
 
     if (not good_config_read)
     {

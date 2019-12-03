@@ -117,8 +117,12 @@ mkentity program $ps_prog
     program_source_code=lines 30
 void main(const string &in args)
 {
-  string psOutput = SystemOps::get_formatted_processes();  
-  mprintln(psOutput);
+  array<string> @ps_output = SystemOps::get_formatted_processes();  
+    
+  for (uint index = 0; index < ps_output.length(); ++index)
+  {
+      println(ps_output[index]);
+  }
 }
 .end
   end fields
@@ -134,7 +138,7 @@ mkentity command $ps_command
   fields
     action_contained_by=$global_root_region
     action_targets=$ps_prog
-	action_commands=@ps
+    action_commands=@ps
   end fields
 end entity
 ####
@@ -231,7 +235,7 @@ mkentity command $who_command
   fields
     action_contained_by=$global_root_region
     action_targets=$who_prog
-	action_commands=who
+    action_commands=who
   end fields
 end entity
 ####
@@ -263,7 +267,12 @@ void main(const string &in args)
   if (entity.is_valid())
   {
     // Matched by ID.
-    mprintln(entity.to_string());
+    array<string> @examine_details = entity.to_string();
+    
+    for (uint index = 0; index < examine_details.length(); ++index)
+    {
+        println(examine_details[index]);
+    }
   }
   else
   {
@@ -289,7 +298,12 @@ void main(const string &in args)
     else
     {
       // Found it!
-      mprintln(entity.to_string());
+      array<string> @examine_details = entity.to_string();
+        
+      for (uint index = 0; index < examine_details.length(); ++index)
+      {
+          println(examine_details[index]);
+      }
     }
   }
 }
@@ -304,7 +318,7 @@ mkentity command $examine_command
     action_targets=$examine_prog
     action_commands=ex
     action_commands=exam
-	action_commands=examine
+    action_commands=examine
   end fields
 end entity
 ####
@@ -339,8 +353,8 @@ mkentity command $say_command
   fields
     action_contained_by=$global_root_region
     action_targets=$say_prog
-	action_commands=say
-	action_commands="
+    action_commands=say
+    action_commands="
   end fields
 end entity
 ####
@@ -395,8 +409,8 @@ mkentity command $pose_command
   fields
     action_contained_by=$global_root_region
     action_targets=$pose_prog
-	action_commands=pose
-	action_commands=:
+    action_commands=pose
+    action_commands=:
   end fields
 end entity
 ####
@@ -550,7 +564,7 @@ mkentity command $look_command
   fields
     action_contained_by=$global_root_region
     action_targets=$look_prog
-	action_commands=look
+    action_commands=look
   end fields
 end entity
 ####
@@ -619,7 +633,7 @@ void main(const string &in args)
   
   if (clear)
   {
-	entity.set_prop("/look/shortdesc", "");
+    entity.set_prop("/look/shortdesc", "");
   }
   else
   {
@@ -638,10 +652,10 @@ mkentity command $desc_command
   fields
     action_contained_by=$global_root_region
     action_targets=$desc_prog
-	action_commands=@description
-	action_commands=@desc
-	action_commands=@setdesc
-	action_commands=@setdescription
+    action_commands=@description
+    action_commands=@desc
+    action_commands=@setdesc
+    action_commands=@setdescription
   end fields
 end entity
 ####
@@ -689,7 +703,7 @@ void main(const string &in args)
       
       for (uint index = 0; index < items.length(); ++index)
       {
-		formattedItems.append_entity(items[index]);
+        formattedItems.append_entity(items[index]);
         fprintln(formattedItems);
       }
     }
@@ -704,9 +718,9 @@ mkentity command $inventory_command
   fields
     action_contained_by=$global_root_region
     action_targets=$inventory_prog
-	action_commands=i
-	action_commands=inv
-	action_commands=inventory
+    action_commands=i
+    action_commands=inv
+    action_commands=inventory
   end fields
 end entity
 ####
@@ -752,7 +766,7 @@ mkentity command $create_command
   fields
     action_contained_by=$global_root_region
     action_targets=$create_prog
-	action_commands=@create
+    action_commands=@create
   end fields
 end entity
 ####
@@ -819,9 +833,9 @@ mkentity command $delete_command
   fields
     action_contained_by=$global_root_region
     action_targets=$delete_prog
-	action_commands=@delete
-	action_commands=@recycle
-	action_commands=@rec
+    action_commands=@delete
+    action_commands=@recycle
+    action_commands=@rec
   end fields
 end entity
 ####
@@ -904,7 +918,7 @@ mkentity command $drop_command
   fields
     action_contained_by=$global_root_region
     action_targets=$drop_prog
-	action_commands=drop
+    action_commands=drop
   end fields
 end entity
 ####
@@ -987,8 +1001,8 @@ mkentity command $get_command
   fields
     action_contained_by=$global_root_region
     action_targets=$get_prog
-	action_commands=get
-	action_commands=pickup
+    action_commands=get
+    action_commands=pickup
   end fields
 end entity
 ####
@@ -1069,8 +1083,8 @@ mkentity command $page_command
   fields
     action_contained_by=$global_root_region
     action_targets=$page_prog
-	action_commands=page
-	action_commands=p
+    action_commands=page
+    action_commands=p
   end fields
 end entity
 ####
@@ -1216,7 +1230,7 @@ mkentity command $security_command
   fields
     action_contained_by=$global_root_region
     action_targets=$security_prog
-	action_commands=@security
+    action_commands=@security
   end fields
 end entity
 ####
@@ -1363,7 +1377,7 @@ mkentity command $looksecurity_command
   fields
     action_contained_by=$global_root_region
     action_targets=$looksecurity_prog
-	action_commands=@looksecurity
+    action_commands=@looksecurity
   end fields
 end entity
 ####
@@ -1450,7 +1464,7 @@ mkentity command $admin_player_action
   fields
     action_contained_by=$admin_player
     action_targets=$admin_player_prog
-	action_commands=runprog
+    action_commands=runprog
   end fields
 end entity
 
@@ -1546,7 +1560,7 @@ mkentity exit $room1_exit
     action_succ_msg=You head to the light!
     action_succ_room_msg=heads out to the light.
     exit_arrive_room_msg=arrives from the root of everything.
-	action_commands=o
+    action_commands=o
     action_commands=out
   end fields
 end entity
@@ -1558,7 +1572,7 @@ mkentity command $run_prog_command
   fields
     action_contained_by=$root_region
     action_targets=$hello_prog
-	action_commands=h
+    action_commands=h
     action_commands=hello
   end fields
 end entity
@@ -1639,7 +1653,7 @@ mkentity command $normal_player_action
   fields
     action_contained_by=$normal_player
     action_targets=$normal_player_prog
-	action_commands=runprog
+    action_commands=runprog
   end fields
 end entity
 

@@ -277,8 +277,8 @@ namespace angelscript
 
         rc = engine.RegisterObjectMethod(
             AS_OBJECT_TYPE_NAME.c_str(),
-            "string@ to_string()",
-            asMETHODPR(AEntity, to_string, (void), AString *), asCALL_THISCALL);
+            "array<string> @to_string()",
+            asMETHODPR(AEntity, to_string, (void), CScriptArray *), asCALL_THISCALL);
         check_register_rc(rc, __LINE__, result);
 
         rc = engine.RegisterObjectMethod(
@@ -569,9 +569,9 @@ namespace angelscript
     }
 
     // ----------------------------------------------------------------------
-    AString *AEntity::to_string(void)
+    CScriptArray *AEntity::to_string(void)
     {
-        AString *result = 0;
+        CScriptArray *result = 0;
 
         try
         {
@@ -594,8 +594,10 @@ namespace angelscript
             }
             else
             {
-                result = new AString(engine_ptr);
-                result->import_from_string(stringed_entity);
+                result = ScriptUtilities::multiline_string_to_array(
+                    engine_ptr,
+                    stringed_entity,
+                    true);
             }
         }
         catch (std::exception &ex)
@@ -734,11 +736,21 @@ namespace angelscript
         }
         catch (std::exception &ex)
         {
+            if (result)
+            {
+                result->Release();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr, ex);
             throw;
         }
         catch (...)
         {
+            if (result)
+            {
+                result->Release();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr);
             throw;
         }
@@ -1272,6 +1284,8 @@ namespace angelscript
     {
         CScriptArray *result = 0;
 
+        AString * converted_line = 0;
+
         try
         {
             primitives::DatabasePrims::DocumentContents contents;
@@ -1312,7 +1326,7 @@ namespace angelscript
                          iter != contents.end();
                          ++iter)
                     {
-                        AString * const converted_line = new AString(engine_ptr);
+                        converted_line = new AString(engine_ptr);
                         converted_line->import_from_string(*iter);
 
                         result->InsertLast(converted_line);
@@ -1320,6 +1334,7 @@ namespace angelscript
                         // Reference count starts out as 1.  Manually adding it
                         // to the array will make it 2.  Release our reference.
                         converted_line->release_ref();
+                        converted_line = 0;
 
                         if (not (inserts % 20))
                         {
@@ -1332,11 +1347,31 @@ namespace angelscript
         }
         catch (std::exception &ex)
         {
+            if (result)
+            {
+                result->Release();
+            }
+
+            if (converted_line)
+            {
+                converted_line->release_ref();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr, ex);
             throw;
         }
         catch (...)
         {
+            if (result)
+            {
+                result->Release();
+            }
+
+            if (converted_line)
+            {
+                converted_line->release_ref();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr);
             throw;
         }

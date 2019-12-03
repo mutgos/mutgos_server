@@ -129,10 +129,10 @@ namespace angelscript
         bool is_player(void);
 
         /**
-         * @return Detailed information about the Entity.  There are embedded
-         * newlines.
+         * @return Detailed information about the Entity as an array of
+         * strings.
          */
-        AString *to_string(void);
+        CScriptArray *to_string(void);
 
         /**
          * @return The Entity containing this one, or an exception if

@@ -74,10 +74,10 @@ Before you can run the server, you need to import a database.  This can be done 
 
   * Find the readdump executable.  Depending on if you had an IDE build it or not, it may be alongside the source code at src/exe/read_dump, or in a parallel directory such as cmake-build-debug/src/exe/read_dump.
   * cd to where the readdump executable is.
-  * Run a command like:  ./readdump /path/to/mutgos/data/prototype_db.dump
+  * Run a command like:  ./readdump --configfile /path/to/mutgos/data/mutgos.conf --dumpfile /path/to/mutgos/data/prototype_db.dump
   * This will import the given dump file.
   * A bunch of text will scroll by, and you should catch something about "Parsing completed successfully.".
-  * Once back at the commandline, copy the resulting mutgos.db file (an SQLITE file) to the data directory you created earlier.
+  * The database file will now exist wherever the MUTGOS config file specified.
 
 
 Generating a SSL Certificate

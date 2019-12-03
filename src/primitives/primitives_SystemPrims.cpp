@@ -28,10 +28,7 @@
 
 #include "comminterface/comm_CommAccess.h"
 
-namespace
-{
-    #define TELNET_LF '\n'
-}
+#define TELNET_LF '\n'
 
 namespace mutgos
 {
@@ -171,6 +168,7 @@ namespace primitives
     }
 
     // ----------------------------------------------------------------------
+    // TODO Remove once temporary commands gone.  This is not supposed to be used long term.
     Result SystemPrims::to_external_text_multiline_unformatted(
         security::Context &context,
         const std::string &text,
@@ -390,3 +388,5 @@ namespace primitives
     }
 }
 }
+
+#undef TELNET_LF
