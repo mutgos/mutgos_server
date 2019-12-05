@@ -107,6 +107,8 @@ namespace dbtype
 
         /**
          * Sets the source code to the provided DocumentProperty.
+         * Suggested to use a Document retrieved by get_source_code(), to
+         * preserve length limits.
          * @param source_code[in] The source code to set.
          * @param token[in] The lock token.
          * @return True if success.
@@ -117,6 +119,8 @@ namespace dbtype
 
         /**
          * Sets the source code to the provided DocumentProperty.
+         * Suggested to use a Document retrieved by get_source_code(), to
+         * preserve length limits.
          * This method automatically gets a lock.
          * @param source_code[in] The source code to set.
          * @return True if success.
@@ -311,6 +315,7 @@ namespace dbtype
         Id get_next_program_include(
             const Id &program_id,
             concurrency::ReaderLockToken &token);
+
         /**
          * This method will automatically get a lock.
          * @param program_id[in] The current position in the program include set.

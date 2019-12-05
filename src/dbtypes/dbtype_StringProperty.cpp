@@ -6,9 +6,10 @@
 #include <stddef.h>
 
 #include "dbtypes/dbtype_StringProperty.h"
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 #define SHORT_STRING_LENGTH 60
-#define MAX_STRING_LENGTH 1024
 
 namespace mutgos
 {
@@ -18,13 +19,6 @@ namespace mutgos
         StringProperty::StringProperty()
           : PropertyData(PROPERTYDATATYPE_string)
         {
-        }
-
-        // ------------------------------------------------------------------
-        StringProperty::StringProperty(const std::string &data)
-          : PropertyData(PROPERTYDATATYPE_string)
-        {
-            string_data = data.substr(0, MAX_STRING_LENGTH);
         }
 
         // ------------------------------------------------------------------
@@ -118,7 +112,12 @@ namespace mutgos
         // ------------------------------------------------------------------
         bool StringProperty::set(const std::string &str)
         {
-            string_data = str.substr(0, MAX_STRING_LENGTH);
+            if (text::utf8_size(str) > config::db::limits_string_size())
+            {
+                return false;
+            }
+
+            string_data = str;
 
             return true;
         }

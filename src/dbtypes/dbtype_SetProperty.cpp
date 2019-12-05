@@ -16,10 +16,10 @@
 
 #include "dbtypes/dbtype_SetProperty.h"
 #include "osinterface/osinterface_OsTypes.h"
+#include "utilities/mutgos_config.h"
 
 namespace
 {
-    const MG_UnsignedInt MAX_SET_SIZE = 1024;
     const MG_UnsignedInt SHORT_STRING_SIZE = 60;
     const MG_UnsignedInt MAX_STRING_SIZE = 32768; // for get_as_string()
 }
@@ -420,7 +420,7 @@ namespace dbtype
     // ----------------------------------------------------------------------
     bool SetProperty::is_full(void) const
     {
-        return property_data_set.size() > MAX_SET_SIZE;
+        return property_data_set.size() > config::db::limits_property_set_items();
     }
 
     // ----------------------------------------------------------------------

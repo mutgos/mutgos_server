@@ -1835,14 +1835,22 @@ namespace primitives
         const std::string &property_value,
         const bool throw_on_violation)
     {
-        const dbtype::StringProperty property_obj =
-            dbtype::StringProperty(property_value);
-        Result result = set_property_raw(
-            context,
-            entity_id,
-            property_path,
-            &property_obj,
-            throw_on_violation);
+        Result result;
+        dbtype::StringProperty property_obj;
+
+        if (not property_obj.set(property_value))
+        {
+            result.set_status(Result::STATUS_BAD_ARGUMENTS);
+        }
+        else
+        {
+            result = set_property_raw(
+                context,
+                entity_id,
+                property_path,
+                &property_obj,
+                throw_on_violation);
+        }
 
         return result;
     }

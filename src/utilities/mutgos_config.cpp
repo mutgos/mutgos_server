@@ -17,7 +17,12 @@
 
 #define MINIMUM_WS_MAX_INCOMING_MESSAGE_SIZE 8192
 #define MINIMUM_ANGEL_MAX_HEAP 64
+#define MINIMUM_ANGEL_MAX_STRING_LENGTH 1024
 #define MINIMUM_ANGEL_TIMESLICE 50
+#define MINIMUM_DB_STRING_LENGTH 80
+#define MINIMUM_DB_NAME_LENGTH 16
+#define MINIMUM_DB_SET_LENGTH 64
+#define MINIMUM_DB_DOCUMENT_LENGTH 64
 
 //
 // To add a new key:
@@ -85,8 +90,22 @@ namespace
     std::string config_db_file = MUTGOS_DB_DEFAULT_FILE_NAME;
     const std::string KEY_DB_PASSWORD_WORKFACTOR = "database.password_workfactor";
     MG_UnsignedInt config_db_password_workfactor = 10;
+    const std::string KEY_DB_LIMIT_STRING = "database.limits.string";
+    MG_UnsignedInt config_db_limit_string = 4096;
+    const std::string KEY_DB_LIMIT_ENTITY_NAME = "database.limits.entity.name";
+    MG_UnsignedInt config_db_limit_entity_name = 128;
+    const std::string KEY_DB_LIMIT_PLAYER_PUPPET_NAME = "database.limits.player_puppet.name";
+    MG_UnsignedInt config_db_limit_player_puppet_name = 32;
+    const std::string KEY_DB_LIMIT_PROPERTY_NAME = "database.limits.property.name";
+    MG_UnsignedInt config_db_limit_property_name = 64;
+    const std::string KEY_DB_LIMIT_PROPERTY_SET_ITEMS = "database.limits.property.set.items";
+    MG_UnsignedInt config_db_limit_property_set_items = 4096;
+    const std::string KEY_DB_LIMIT_DOCUMENT_LINES = "database.limits.property.document.lines";
+    MG_UnsignedInt config_db_limit_document_lines = 1024;
+    const std::string KEY_DB_LIMIT_PROGRAM_LINES = "database.limits.program.lines";
+    MG_UnsignedInt config_db_limit_program_lines = 32768;
 
-    // Angelscript
+    // AngelScript
     //
     const std::string KEY_ANGEL_MAX_HEAP = "angelscript.max_heap";
     MG_UnsignedInt config_angel_max_heap = 1024;
@@ -94,6 +113,8 @@ namespace
     MG_UnsignedInt config_angel_timeslice = 300;
     const std::string KEY_ANGEL_MAX_POOL_SIZE = "angelscript.max_pool_size";
     MG_UnsignedInt config_angel_max_pool_size = 4;
+    const std::string KEY_ANGEL_MAX_STRING_SIZE = "angelscript.max_string_length";
+    MG_UnsignedInt config_angel_max_string_size = 32768;
 }
 
 namespace mutgos
@@ -200,7 +221,7 @@ namespace config
         }
     }
 
-    // ----------------------------------------------------------------------
+
     /**
      * Parses the config file and sets all the file-scope variables.
      * @param config_stream[in] The config file stream to parse.
@@ -288,6 +309,27 @@ namespace config
             (KEY_DB_PASSWORD_WORKFACTOR.c_str(),
                 boost::program_options::value<MG_UnsignedInt>()->
                     default_value(config_db_password_workfactor), "")
+           (KEY_DB_LIMIT_STRING.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_string), "")
+           (KEY_DB_LIMIT_ENTITY_NAME.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_entity_name), "")
+           (KEY_DB_LIMIT_PLAYER_PUPPET_NAME.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_player_puppet_name), "")
+           (KEY_DB_LIMIT_PROPERTY_NAME.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_property_name), "")
+           (KEY_DB_LIMIT_PROPERTY_SET_ITEMS.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_property_set_items), "")
+           (KEY_DB_LIMIT_DOCUMENT_LINES.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_document_lines), "")
+           (KEY_DB_LIMIT_PROGRAM_LINES.c_str(),
+               boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_db_limit_program_lines), "")
 
             // Angelscript
             //
@@ -300,6 +342,9 @@ namespace config
             (KEY_ANGEL_MAX_POOL_SIZE.c_str(),
                 boost::program_options::value<MG_UnsignedInt>()->
                     default_value(config_angel_max_pool_size), "")
+            (KEY_ANGEL_MAX_STRING_SIZE.c_str(),
+                boost::program_options::value<MG_UnsignedInt>()->
+                    default_value(config_angel_max_string_size), "")
         ;
 
 
@@ -450,13 +495,68 @@ namespace config
                 config_db_file,
                 success);
 
-
             config_db_password_workfactor =
                 vars[KEY_DB_PASSWORD_WORKFACTOR].as<MG_UnsignedInt>();
             validate_uint(
                 KEY_DB_PASSWORD_WORKFACTOR,
                 config_db_password_workfactor,
                 success);
+
+            config_db_limit_string =
+                vars[KEY_DB_LIMIT_STRING].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_STRING,
+                config_db_limit_string,
+                success,
+                MINIMUM_DB_STRING_LENGTH);
+
+            config_db_limit_entity_name =
+                vars[KEY_DB_LIMIT_ENTITY_NAME].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_ENTITY_NAME,
+                config_db_limit_entity_name,
+                success,
+                MINIMUM_DB_NAME_LENGTH);
+
+            config_db_limit_player_puppet_name =
+                vars[KEY_DB_LIMIT_PLAYER_PUPPET_NAME].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_PLAYER_PUPPET_NAME,
+                config_db_limit_player_puppet_name,
+                success,
+                MINIMUM_DB_NAME_LENGTH);
+
+            config_db_limit_property_name =
+                vars[KEY_DB_LIMIT_PROPERTY_NAME].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_PROPERTY_NAME,
+                config_db_limit_property_name,
+                success,
+                MINIMUM_DB_NAME_LENGTH);
+
+            config_db_limit_property_set_items =
+                vars[KEY_DB_LIMIT_PROPERTY_SET_ITEMS].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_PROPERTY_SET_ITEMS,
+                config_db_limit_property_set_items,
+                success,
+                MINIMUM_DB_SET_LENGTH);
+
+            config_db_limit_document_lines =
+                vars[KEY_DB_LIMIT_DOCUMENT_LINES].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_DOCUMENT_LINES,
+                config_db_limit_document_lines,
+                success,
+                MINIMUM_DB_DOCUMENT_LENGTH);
+
+            config_db_limit_program_lines =
+                vars[KEY_DB_LIMIT_PROGRAM_LINES].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_DB_LIMIT_PROGRAM_LINES,
+                config_db_limit_program_lines,
+                success,
+                MINIMUM_DB_DOCUMENT_LENGTH);
 
             // Angelscript
             //
@@ -480,6 +580,14 @@ namespace config
                 KEY_ANGEL_MAX_POOL_SIZE,
                 config_angel_max_pool_size,
                 success);
+
+            config_angel_max_string_size =
+                vars[KEY_ANGEL_MAX_STRING_SIZE].as<MG_UnsignedInt>();
+            validate_uint(
+                KEY_ANGEL_MAX_STRING_SIZE,
+                config_angel_max_string_size,
+                success,
+                MINIMUM_ANGEL_MAX_STRING_LENGTH);
         }
         catch (boost::program_options::unknown_option &uoex)
         {
@@ -735,6 +843,48 @@ namespace db
     {
         return config_db_password_workfactor;
     }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_string_size(void)
+    {
+        return config_db_limit_string;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_entity_name(void)
+    {
+        return config_db_limit_entity_name;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_player_puppet_name(void)
+    {
+        return config_db_limit_player_puppet_name;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_property_name(void)
+    {
+        return config_db_limit_property_name;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_property_set_items(void)
+    {
+        return config_db_limit_property_set_items;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_property_document_lines(void)
+    {
+        return config_db_limit_document_lines;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt limits_program_lines(void)
+    {
+        return config_db_limit_program_lines;
+    }
 }
 
 namespace angelscript
@@ -755,6 +905,12 @@ namespace angelscript
     MG_UnsignedInt max_pool_size(void)
     {
         return config_angel_max_pool_size;
+    }
+
+    // ----------------------------------------------------------------------
+    MG_UnsignedInt max_string_size(void)
+    {
+        return config_angel_max_string_size;
     }
 }
 

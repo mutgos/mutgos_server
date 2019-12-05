@@ -78,8 +78,7 @@ RUN if [ ! -f /home/mutgos/data/key.pem ] || [ ! -f /home/mutgos/data/cert.pem ]
 # Build the db and put it in the right place.
 RUN if [ ! -f /home/mutgos/data/mutgos.db ]; then \
         cd /home/mutgos/src/exe/read_dump \
-        && ./readdump /home/mutgos/data/prototype_db.dump \
-        && cp ./mutgos.db /home/mutgos/data/ \
+        && ./readdump --configfile /home/mutgos/data/mutgos.conf --dumpfile /home/mutgos/data/prototype_db.dump \
     ; fi
 
 

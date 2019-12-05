@@ -38,9 +38,6 @@ namespace angelscript
      * call functions on this class; export to an std::string, perform
      * needed operations, then import the result.
      *
-     * TODO UTF-8 support.
-     * TODO Filtering of newlines, etc.
-     * TODO Max string length, regardless of memory.
      * TODO Add 'complexity' metric to do better timesharing
      * TODO Useful post on how someone else did this class:  https://www.gamedev.net/forums/topic/639252-asobj-ref-and-asobj-value-at-the-same-time/?tab=comments#comment-5035942
      */
@@ -103,10 +100,16 @@ namespace angelscript
 
         /**
          * Used by the string factory.
-         * @return The string data as raw bytes.  Use size() to find out how
-         * long the string is.
+         * @return The string data as raw bytes.  Use raw_size() to find out
+         * how long the string is.
          */
         const char *get_raw_data(void) const;
+
+        /**
+         * @return The number of bytes in this string.  Used only in
+         * conjunction with get_raw_data().
+         */
+        StringPos get_raw_size(void) const;
 
         /**
          * Overwrites whatever is in the string with what's supplied.
@@ -164,7 +167,7 @@ namespace angelscript
             const size_t length);
 
         /**
-         * @return The number of characters in this string.
+         * @return The number of characters (UTF8 code points) in this string.
          */
         StringPos size(void) const;
 
@@ -338,7 +341,9 @@ namespace angelscript
          * starting where specified and working backwards.
          * @param str[in] The string to search for.
          * @param pos[in] The position within this string to start searching.
-         * It will work backwards from this position.
+         * It will work backwards from this position and will include the
+         * position in the search.  IE: To search the entire string, pos
+         * would be string size - 1.
          * @return The position where str starts, or the NOT_FOUND constant
          * if the string is not found.
          */
@@ -433,6 +438,15 @@ namespace angelscript
             const size_t line,
             bool &current_result);
 
+        /**
+         * Checks if the size given would exceed the maximum allowed string
+         * size.  If it does, an exception is thrown.
+         * The max size is retrieved from the configuration subsystem.
+         * @param size[in] The size to check.
+         * @throws AngelException if size exceeds max.
+         */
+        void check_exceed_max(const size_t size) const;
+
         // A string with the virtual heap allocator so its allocations
         // are tracked and restricted.
         typedef std::basic_string<
@@ -440,6 +454,7 @@ namespace angelscript
               ManagedString;
 
         ManagedString string_value; ///< The string value
+        StringPos string_size; ///< The UTF-8 aware string size
     };
 }
 }

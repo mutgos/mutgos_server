@@ -15,6 +15,8 @@
 #include "concurrency/concurrency_WriterLockToken.h"
 #include "concurrency/concurrency_LockableObject.h"
 
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 namespace mutgos
 {
@@ -80,11 +82,31 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
+    bool Puppet::set_entity_name(
+        const std::string &name,
+        mutgos::concurrency::WriterLockToken &token)
+    {
+        if (text::utf8_size(name) > config::db::limits_player_puppet_name())
+        {
+            // Exceeds size.
+            return false;
+        }
+
+        return Thing::set_entity_name(name, token);
+    }
+
+    // ----------------------------------------------------------------------
     bool Puppet::set_puppet_display_name(
         const std::string &name,
         concurrency::WriterLockToken &token)
     {
         bool result = false;
+
+        if (text::utf8_size(name) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {

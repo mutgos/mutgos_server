@@ -9,15 +9,16 @@
 #include <sstream>
 #include <ostream>
 
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string/trim.hpp>
+
 #include "logging/log_Logger.h"
 #include "osinterface/osinterface_OsTypes.h"
+#include "text/text_Utf8Tools.h"
+#include "utilities/mutgos_config.h"
 
 #include "dbtypes/dbtype_PropertyDirectory.h"
 #include "dbtypes/dbtype_PropertyData.h"
-
-
-#include <boost/tokenizer.hpp>
-#include <boost/algorithm/string/trim.hpp>
 
 namespace
 {
@@ -624,6 +625,22 @@ namespace dbtype
         boost::char_separator<char> sep(PATH_SEPARATOR.c_str());
         boost::tokenizer<boost::char_separator<char> >
             tokens(trimmed_path, sep);
+
+        // Check sizes
+        //
+        if (create)
+        {
+            for (boost::tokenizer<boost::char_separator<char> >::iterator
+                     tok_iter = tokens.begin();
+                 tok_iter != tokens.end(); ++tok_iter)
+            {
+                if (text::utf8_size(*tok_iter) > config::db::limits_property_name())
+                {
+                    // Too long. Abort.
+                    return 0;
+                }
+            }
+        }
 
         // Go through the path one segment at a time, traversing the property
         // directories until either the end is found, or a segment cannot

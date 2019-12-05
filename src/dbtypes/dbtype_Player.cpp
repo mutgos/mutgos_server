@@ -12,6 +12,7 @@
 
 #include "bcrypt/BCrypt.hpp"
 #include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 #include "concurrency/concurrency_ReaderLockToken.h"
 #include "concurrency/concurrency_WriterLockToken.h"
@@ -100,11 +101,31 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
+    bool Player::set_entity_name(
+        const std::string &name,
+        mutgos::concurrency::WriterLockToken &token)
+    {
+        if (text::utf8_size(name) > config::db::limits_player_puppet_name())
+        {
+            // Exceeds size.
+            return false;
+        }
+
+        return ContainerPropertyEntity::set_entity_name(name, token);
+    }
+
+    // ----------------------------------------------------------------------
     bool Player::set_password(
         const std::string &new_password,
         concurrency::WriterLockToken &token)
     {
         bool success = false;
+
+        if (text::utf8_size(new_password) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {
@@ -166,6 +187,12 @@ namespace dbtype
         concurrency::WriterLockToken &token)
     {
         bool success = false;
+
+        if (text::utf8_size(name) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {

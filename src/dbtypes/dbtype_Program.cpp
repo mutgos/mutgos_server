@@ -20,8 +20,8 @@
 #include "concurrency/concurrency_WriterLockToken.h"
 #include "concurrency/concurrency_LockableObject.h"
 
-#define DEFAULT_MAX_PROGRAM_STRING_LENGTH 2048
-#define DEFAULT_MAX_PROGRAM_LINES 3192
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 namespace mutgos
 {
@@ -32,9 +32,7 @@ namespace dbtype
         : PropertyEntity(),
           program_runtime_sec(0)
     {
-        program_source_code.set_max_line_length(
-            DEFAULT_MAX_PROGRAM_STRING_LENGTH);
-        program_source_code.set_max_lines(DEFAULT_MAX_PROGRAM_LINES);
+        program_source_code.set_max_lines(config::db::limits_program_lines());
     }
 
     // ----------------------------------------------------------------------
@@ -42,9 +40,7 @@ namespace dbtype
         : PropertyEntity(id, ENTITYTYPE_program, 0, 0),
           program_runtime_sec(0)
     {
-        program_source_code.set_max_line_length(
-            DEFAULT_MAX_PROGRAM_STRING_LENGTH);
-        program_source_code.set_max_lines(DEFAULT_MAX_PROGRAM_LINES);
+        program_source_code.set_max_lines(config::db::limits_program_lines());
     }
 
     // ----------------------------------------------------------------------
@@ -343,6 +339,12 @@ namespace dbtype
     {
         bool result = false;
 
+        if (text::utf8_size(language) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             program_language = language;
@@ -529,7 +531,7 @@ namespace dbtype
     {
         concurrency::ReaderLockToken token(*this);
 
-        return get_first_program_include();
+        return get_first_program_include(token);
     }
 
     // ----------------------------------------------------------------------
@@ -570,7 +572,7 @@ namespace dbtype
     {
         concurrency::ReaderLockToken token(*this);
 
-        return get_next_program_include(program_id);
+        return get_next_program_include(program_id, token);
     }
 
     // ----------------------------------------------------------------------
@@ -599,7 +601,7 @@ namespace dbtype
     {
         concurrency::ReaderLockToken token(*this);
 
-        return get_last_program_include();
+        return get_last_program_include(token);
     }
 
     // ----------------------------------------------------------------------

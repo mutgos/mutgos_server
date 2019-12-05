@@ -145,6 +145,42 @@ namespace config
          * @return The 'work factor' for database password encryption.
          */
         MG_UnsignedInt password_workfactor(void);
+
+        /**
+         * @return Default UTF8 length limit of any string in the database,
+         * unless overridden by other limits.
+         */
+        MG_UnsignedInt limits_string_size(void);
+
+        /**
+         * @return UTF8 length limit of entity name string.
+         */
+        MG_UnsignedInt limits_entity_name(void);
+
+        /**
+         * @return UTF8 length limit of player and puppet name string.
+         */
+        MG_UnsignedInt limits_player_puppet_name(void);
+
+        /**
+         * @return UTF8 length limit of property element name string.
+         */
+        MG_UnsignedInt limits_property_name(void);
+
+        /**
+         * @return Size (count) limit of items in a property set.
+         */
+        MG_UnsignedInt limits_property_set_items(void);
+
+        /**
+         * @return Line limit of property document.
+         */
+        MG_UnsignedInt limits_property_document_lines(void);
+
+        /**
+         * @return Line limit of program Documents.
+         */
+        MG_UnsignedInt limits_program_lines(void);
     }
 
 
@@ -168,6 +204,11 @@ namespace config
          * in the pool.
          */
         MG_UnsignedInt max_pool_size(void);
+
+        /**
+         * @return UTF8 maximum runtime string length.
+         */
+        MG_UnsignedInt max_string_size(void);
     }
 }
 }

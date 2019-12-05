@@ -14,7 +14,8 @@
 #include "concurrency/concurrency_LockableObject.h"
 
 #include "logging/log_Logger.h"
-
+#include "utilities/mutgos_config.h"
+#include "text/text_Utf8Tools.h"
 
 namespace mutgos
 {
@@ -88,6 +89,12 @@ namespace dbtype
     {
         bool result = false;
 
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
+
         if (token.has_lock(*this))
         {
             exit_arrive_message = message;
@@ -145,6 +152,12 @@ namespace dbtype
         concurrency::WriterLockToken &token)
     {
         bool result = false;
+
+        if (text::utf8_size(message) > config::db::limits_string_size())
+        {
+            // Exceeds size.
+            return false;
+        }
 
         if (token.has_lock(*this))
         {

@@ -78,13 +78,6 @@ namespace dbtype
         void set_max_lines(const osinterface::OsTypes::UnsignedInt max);
 
         /**
-         * Sets the maximum line string length.  Set this BEFORE adding any
-         * lines.
-         * @param max[in] The maximum line string length.  Must be > 0.
-         */
-        void set_max_line_length(const osinterface::OsTypes::UnsignedInt max);
-
-        /**
          * Creates a clone of the given property data.  Caller must manage
          * returned pointer.
          * @return A pointer to the newly cloned instance of PropertyData.
@@ -162,8 +155,7 @@ namespace dbtype
          * Sets the string data contained by this instance using a string.
          * Newlines will be converted into new line entries.
          * @param str[in] The data to set, as a string.
-         * @return True if successfully set.  It will return true even if the
-         * input has been truncated.
+         * @return True if successfully set.
          */
         virtual bool set_from_string(const std::string &str);
 
@@ -171,20 +163,21 @@ namespace dbtype
          * Sets the string data contained by this instance using a vector
          * of strings.
          * @param data[in] The data to set.
-         * @return True if successfully set.  It will return true even if the
-         * input has been truncated.
+         * @return True if successfully set.
          */
         bool set(const std::vector<std::string> &data);
 
         /**
          * Sets the string data contained by this instance using another
-         * DocumentData instance.
-         * @param data[in] The data to set.
+         * DocumentData instance.  This is for internal use only;
+         * no limit checks are performed.
+         * @param data[in] The data to set.  It will be copied.
          * @return True if successfully set.
          */
         bool set(const DocumentData &data);
 
         /**
+         * Generally for internal use only; not to be exposed to user code.
          * @return The data contained by this DocumentProperty.
          */
         const DocumentData &get(void) const;
@@ -200,7 +193,6 @@ namespace dbtype
 
     private:
 
-        osinterface::OsTypes::UnsignedInt max_string_length; ///< Max Length of strings
         osinterface::OsTypes::UnsignedInt max_lines; ///< Max number of lines
 
         /**
@@ -275,7 +267,6 @@ namespace dbtype
             // serialize base class information
             ar & boost::serialization::base_object<PropertyData>(*this);
 
-            ar & max_string_length;
             ar & max_lines;
             save_document_data(document_data, ar, version);
         }
@@ -288,7 +279,6 @@ namespace dbtype
 
             clear();
 
-            ar & max_string_length;
             ar & max_lines;
             load_document_data(ar, version, document_data);
         }

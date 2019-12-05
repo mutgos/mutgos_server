@@ -44,7 +44,7 @@ namespace angelscript
         // Register the functions
         //
         rc = engine.RegisterGlobalFunction(
-            "string@ get_formatted_processes()",
+            "array<string> @get_formatted_processes()",
             asFUNCTION(get_formatted_processes),
             asCALL_GENERIC);
         check_register_rc(rc, __LINE__, result);
@@ -103,7 +103,7 @@ namespace angelscript
 
         // What will be our return value.
         //
-        AString *result_ptr = 0;
+        CScriptArray *result_ptr = 0;
 
         try
         {
@@ -125,20 +125,11 @@ namespace angelscript
             }
             else
             {
-                result_ptr = new AString(engine_ptr);
-                result_ptr->import_from_string(raw_output);
+                result_ptr = ScriptUtilities::multiline_string_to_array(
+                    engine_ptr,
+                    raw_output,
+                    true);
             }
-        }
-        catch (std::bad_alloc &ex)
-        {
-            // String ran out of memory
-            if (result_ptr)
-            {
-                result_ptr->release_ref();
-            }
-
-            ScriptUtilities::set_exception_info(engine_ptr, ex);
-            throw;
         }
         catch (std::exception &ex)
         {
@@ -152,7 +143,7 @@ namespace angelscript
         }
 
         // Return the result
-        *(AString **)gen_ptr->GetAddressOfReturnLocation() = result_ptr;
+        *(CScriptArray **)gen_ptr->GetAddressOfReturnLocation() = result_ptr;
     }
 
     // ----------------------------------------------------------------------
@@ -232,11 +223,21 @@ namespace angelscript
         }
         catch (std::exception &ex)
         {
+            if (result_ptr)
+            {
+                result_ptr->Release();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr, ex);
             throw;
         }
         catch (...)
         {
+            if (result_ptr)
+            {
+                result_ptr->Release();
+            }
+
             ScriptUtilities::set_exception_info(engine_ptr);
             throw;
         }

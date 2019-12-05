@@ -110,6 +110,20 @@ namespace angelscript
             const size_t initial_size,
             const bool exception_on_too_big);
 
+        /**
+         * Converts a string with embedded newlines into an array, with
+         * each newline indicating a new element.
+         * @param engine[in] The engine running this script.
+         * @param str[in] The string to convert.
+         * @param exception_on_too_big[in] If initial_size is bigger than the
+         * array supports, throw an exception if true, otherwise make it as
+         * big as possible and return.
+         * @return str as an array of strings.
+         */
+        static CScriptArray *multiline_string_to_array(
+            asIScriptEngine * const engine,
+            const std::string &str,
+            const bool exception_on_too_big);
     private:
         // Static-only class
         ScriptUtilities(void);
