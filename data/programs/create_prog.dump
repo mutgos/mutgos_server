@@ -1,0 +1,22 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  if (args.empty())
+  {
+    println("You must provide a name for the thing!");
+    return;
+  }
+  
+  Entity @createdEntity = DatabaseOps::create_entity(ENTITYTYPE_thing, args);
+  
+  if (createdEntity.is_valid())
+  {
+    println("Created " + createdEntity.get_name(true));
+  }
+  else
+  {
+    println("Unable to create an entity named " + args);
+  }
+}
+.end

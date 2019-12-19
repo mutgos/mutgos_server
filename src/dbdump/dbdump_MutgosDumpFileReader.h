@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <vector>
 
 #include "dbtypes/dbtype_Id.h"
 #include "dbtypes/dbtype_DocumentProperty.h"
@@ -29,8 +30,12 @@ namespace dbdump
         /**
          * Constructs a reader with the given file.
          * @param file_name[in] The file to parse.
+         * @param base_path[in] The base path for includes (generally the
+         * same directory as the dump file).
          */
-        MutgosDumpFileReader(const std::string &file_name);
+        MutgosDumpFileReader(
+            const std::string &file_name,
+            const std::string &base_path);
 
         /**
          * Destructor.
@@ -46,13 +51,42 @@ namespace dbdump
         bool parse(std::string &message);
 
         /**
-         * @return The index (from 0) of the last line parsed.  Useful for
-         * determining where an error occurred.
+         * @return The index (from 1) of the last line parsed.  Useful for
+         * determining where an error occurred.  0 if error/no file.
          */
-        size_t get_current_line_index() const
-          { return current_line; }
+        size_t get_current_line_index(void) const;
+
+        /**
+         * @return The file name of the current file being parsed, or empty
+         * if none/error.
+         */
+        std::string get_current_file(void) const;
+
+        /**
+         * @return The index (from 1) of the last line parsed of the next file
+         * back in the stack.  Useful for determining where an error occurred
+         * if a file is included in multiple places.  0 if error/no file.
+         */
+        size_t get_current_line_index_prev_file(void) const;
+
+        /**
+         * @return The file name of the next file in the stack being parsed,
+         * or empty if none/error.
+         */
+        std::string get_prev_file(void) const;
 
     private:
+
+        /**
+         * Adds the given file to the file parsing stack if successfully
+         * opened.  If there is an error, the file will not be added to the
+         * stack.
+         * @param file_name[in] The name of the file (including path if needed)
+         * to add.
+         * @return True if successfully added.  If false returned,
+         * the error flag and message will have been set.
+         */
+        bool add_file_to_stack(const std::string &file_name);
 
         /**
          * Given a line from the file reader, determines what parser method
@@ -240,13 +274,47 @@ namespace dbdump
             SUBPARSER_DOCUMENT       ///< Working on a document
         };
 
+        /**
+         * Container class that keeps track of a file being parsed and
+         * information about it.
+         */
+        class FileStream
+        {
+        public:
+            /**
+             * Constructs and opens the file.
+             * @param file[in] The full path of the file to open.
+             */
+            FileStream(const std::string &file)
+              : current_line(0),
+                file_name(file),
+                stream(file.c_str())
+            {
+            }
+
+            ~FileStream()
+            {
+            }
+
+            /**
+             * Increments the current line number.
+             */
+            void increment_line(void)
+            {
+                ++current_line;
+            }
+
+            size_t current_line;  // Now many lines have been parsed so far
+            const std::string file_name; // Name of the file being parsed
+            std::ifstream stream; // Stream for file being parsed
+        };
+
         /** Maps dynamic variable name to ID */
         typedef std::map<std::string, dbtype::Id> VariableMap;
 
         bool error_condition;  // True if error and parser needs to stop
         bool file_parsed;       // True if file completed parsing.
         std::string status_message; // Message to be passed back to class caller
-        size_t current_line;  // Now many lines have been parsed so far
         ParserMode parser_mode;  // Mode the parser is in
         SubParserMode subparser_mode; // Mode the subparser is in, if any
 
@@ -270,7 +338,8 @@ namespace dbdump
         const dbtype::Id default_id; // Used to indicate not found
 
         DumpReaderInterface db; // Interface to write to the db
-        std::ifstream *stream_ptr; // The data being processed
+        std::vector<FileStream *> file_stack; // The files being processed, as a stack.  Last is latest.
+        const std::string base_file_path; // Base path for stream includes
     };
 }
 }

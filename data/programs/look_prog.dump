@@ -1,0 +1,126 @@
+    program_language=AngelScript
+    program_source_code=lines 150
+void main(const string &in args)
+{
+  const string @lookat = args;
+
+  if (args.empty())
+  {
+    @lookat = string("here");
+  }
+
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(lookat);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      lookat,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(lookat + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + lookat);
+      }
+    }
+  }
+  
+  // Confirm we actually have something before looking it up.
+  //
+  if (entity.is_valid())
+  {
+    // Print the main desc
+    //
+    if (entity.is_room())
+    {
+      println(entity.get_name(true));
+    }
+    if (entity.is_prop_document("/look/longdesc"))
+    {
+        array<string> @desc = entity.get_document_prop("/look/longdesc/");
+        for (uint index = 0; index < desc.length(); ++index)
+        {
+            println(desc[index]);
+        }
+    }
+    else
+    {
+        string@ desc = entity.get_string_prop("/look/shortdesc");
+        println(desc);
+    }
+    
+    array<Entity> @contents = entity.get_contents();
+    
+    if (! contents.isEmpty())
+    {
+      // Sort by actions and items
+      //
+      array<Entity> @actions = array<Entity>();
+      array<Entity> @items = array<Entity>();
+      
+      for (uint index = 0; index < contents.length(); ++index)
+      {
+        Entity@ entry = contents[index];
+
+        if (entry.is_action())
+        {
+          actions.insertLast(entry);
+        }
+        else if (entry.is_valid())
+        {
+          items.insertLast(entry);
+        }
+      }
+      
+      // Print each list out.
+      //
+      if (! actions.isEmpty())
+      {
+        string @spacer = string();
+        FormattedText @formattedActions = FormattedText();
+        
+        spacer.fill(" ", 4);
+        
+        for (uint index = 0; index < actions.length(); ++index)
+        {
+          formattedActions.append_plain(spacer).append_entity(actions[index]);
+        }
+        
+        println("Actions:");
+        fprintln(formattedActions);
+      }
+      
+      if (! items.isEmpty())
+      {
+        string @spacer = string();
+        FormattedText @formattedItems = FormattedText();
+        
+        spacer.fill(" ", 2);
+        formattedItems.append_plain("Contains:");        
+        
+        for (uint index = 0; index < items.length(); ++index)
+        {
+          if (index != 0)
+          {
+            formattedItems.append_plain(",");
+          }
+          
+          formattedItems.append_plain(spacer).append_entity(items[index]);
+        }
+                
+        fprintln(formattedItems);
+      }
+    }
+  }
+}
+.end

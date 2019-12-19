@@ -1,0 +1,42 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{  
+  if (args.empty())
+  {
+    println("You must provide something to delete!");
+    return;
+  }
+  
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+      
+      return;
+    }
+  }
+  
+  entity.delete_entity();  
+  println("Deleted.");
+}
+.end

@@ -2,3 +2,5 @@ add_executable(readdump read_dump.cpp)
 
 target_link_libraries(readdump mutgos_dbdump)
 target_link_libraries(readdump mutgos_logging)
+target_link_libraries(readdump boost_system)
+target_link_libraries(readdump boost_filesystem)

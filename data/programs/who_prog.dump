@@ -1,0 +1,64 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  println("Name                  On For   Idle");
+
+  array<OnlineStatEntry>@ online = SystemOps::get_online_players();
+  
+  for (uint index = 0; index < online.length(); ++index)
+  {
+    OnlineStatEntry@ entry = online[index];
+  
+    if (entry.is_valid())
+    {
+      string line;
+      string entityName = entry.get_entity().get_name(false);
+      
+      line.append(entityName);
+      
+      if (entityName.size() < 20)
+      {
+        line.fill(" ", 20 - entityName.size());
+      }
+      
+      TimeDiff secsOnline = entry.get_time_online_secs();
+      TimeDiff minsOnline = 0;
+      TimeDiff hoursOnline = 0;
+      
+      minsOnline = secsOnline / 60;
+      hoursOnline = minsOnline / 60;
+      minsOnline -= hoursOnline * 60;
+
+      string onFor = "" + hoursOnline + ":" + minsOnline;
+      
+      if (! entry.is_connected())
+      {
+        line += " !";
+      }
+      else
+      {
+        line.fill(" ", 2);
+      }
+      
+      line += onFor;
+      
+      if (onFor.size() < 4)
+      {
+        line.fill(" ", 4 - onFor.size());
+      }
+      
+      line.fill(" ", 5);
+      line.append(entry.get_idle_time_secs());
+      
+      println(line);
+    }
+  }
+  
+  string footer;
+  footer.append(online.length());
+  footer += " players online.";
+  
+  println(footer);
+}
+.end

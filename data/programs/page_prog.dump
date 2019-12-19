@@ -1,0 +1,42 @@
+    program_language=AngelScript
+    program_source_code=lines 150
+void main(const string &in args)
+{
+  StringPos sepIndex = args.find("=");
+  
+  if ((sepIndex >= (args.size() - 1)))
+  {
+    println("Syntax is: page <player>=<message>");
+    println("  ... just like on any MUCK. :)");
+    return;
+  }
+
+  Entity @myself = SystemOps::get_me();
+  string targetStr = args.substring(0, sepIndex);
+  string contentStr = args.substring(sepIndex + 1);
+  bool ambiguous = false;
+  
+  Entity @target = DatabaseOps::match_name_to_entity(
+    targetStr,
+    false,
+    ENTITYTYPE_player,
+    ambiguous);
+
+  if (! target.is_valid())
+  {
+    if (ambiguous)
+    {
+      println(targetStr + " is ambiguous."); 
+    }
+    else
+    {
+      println("Cannot find player " + targetStr);
+    }
+    
+    return;
+  }
+  
+  InputOutputOps::send_to_entity(target, " pages to you, \"" + contentStr + "\"", true);
+  println("You page, \"" + contentStr + "\" to " + target.get_name(false));
+}
+.end

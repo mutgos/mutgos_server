@@ -1,0 +1,117 @@
+    program_language=AngelScript
+    program_source_code=lines 500
+void main(const string &in args)
+{
+  // This poorly written program also demonstrates how nicely AngelScript will fail it out
+  //
+  StringPos commandIndex = args.find(" #");
+  
+  if ((commandIndex >= (args.size() - 1)))
+  {
+    println("Syntax is: @security <target> #readwrite/#!readwrite/#admin/#!admin <admin>");
+    println("Example 1: @security me #readwrite");
+    println("Example 2: @security me #admin root");
+    return;
+  }
+  
+  commandIndex++;
+  string @targetStr = args.substring(0, commandIndex);
+  targetStr.strip();
+  
+  bool ambiguous = false;
+
+  // Find the Entity by ID or name
+  Entity @target = DatabaseOps::convert_id_to_entity(targetStr);
+  
+  if (! target.is_valid())
+  {
+    @target = DatabaseOps::match_name_to_entity(
+      targetStr,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+
+    if (! target.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(targetStr + " is ambiguous."); 
+      }
+      else
+      {
+        println("Cannot find target " + targetStr);
+      }
+    
+      return;
+    }
+  }
+  
+  StringPos commandEndIndex = args.find(" ", commandIndex);
+  string @commandStr = args.substring(commandIndex, commandEndIndex - commandIndex);
+  commandStr.strip();
+  
+  if (commandStr.equals_ignore_case("#readwrite"))
+  {
+    // #readwrite command
+    target.set_security_other(true);
+    println("Security on Entity updated (read/write on).");
+    return;
+  }
+  else if (commandStr.equals_ignore_case("#!readwrite"))
+  {
+    // #!readwrite command
+    target.set_security_other(false);
+    println("Security on Entity updated (read/write off).");
+    return;
+  }
+  else
+  {
+    // Must be admin
+    //
+    string @adminStr = args.substring(commandEndIndex);
+    adminStr.strip();
+    
+    Entity @admin = DatabaseOps::convert_id_to_entity(adminStr);
+
+    if (! admin.is_valid())
+    {
+      @admin = DatabaseOps::match_name_to_entity(
+        adminStr,
+        false,
+        ENTITYTYPE_player,
+        ambiguous);
+
+      if (! admin.is_valid())
+      {
+        if (ambiguous)
+        {
+          println(adminStr + " is ambiguous."); 
+        }
+        else
+        {
+          println("Cannot find admin target " + adminStr);
+        }
+        
+        return;
+      }
+    }
+
+    if (commandStr.equals_ignore_case("#admin"))
+    {
+      target.set_security_add_admin(admin);
+      println("Added admin.");
+      return;
+    }
+    else if (commandStr.equals_ignore_case("#!admin"))
+    {
+      target.set_security_remove_admin(admin);
+      println("Removed admin.");
+      return;
+    }
+    else
+    {
+      println("Unknown command.");
+    }
+  }
+}
+.end

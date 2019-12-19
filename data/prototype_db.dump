@@ -92,13 +92,7 @@ mkentity program $hello_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 30
-void main(const string &in args)
-{
-  println("Hello.");
-}
-.end
+@@INCLUDE programs/hello_prog.dump
   end fields
 end entity
 
@@ -113,18 +107,7 @@ mkentity program $ps_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 30
-void main(const string &in args)
-{
-  array<string> @ps_output = SystemOps::get_formatted_processes();  
-    
-  for (uint index = 0; index < ps_output.length(); ++index)
-  {
-      println(ps_output[index]);
-  }
-}
-.end
+@@INCLUDE programs/ps_prog.dump
   end fields
 end entity
 modentity $global_cap_admin
@@ -153,70 +136,7 @@ mkentity program $who_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  println("Name                  On For   Idle");
-
-  array<OnlineStatEntry>@ online = SystemOps::get_online_players();
-  
-  for (uint index = 0; index < online.length(); ++index)
-  {
-    OnlineStatEntry@ entry = online[index];
-  
-    if (entry.is_valid())
-    {
-      string line;
-      string entityName = entry.get_entity().get_name(false);
-      
-      line.append(entityName);
-      
-      if (entityName.size() < 20)
-      {
-        line.fill(" ", 20 - entityName.size());
-      }
-      
-      TimeDiff secsOnline = entry.get_time_online_secs();
-      TimeDiff minsOnline = 0;
-      TimeDiff hoursOnline = 0;
-      
-      minsOnline = secsOnline / 60;
-      hoursOnline = minsOnline / 60;
-      minsOnline -= hoursOnline * 60;
-
-      string onFor = "" + hoursOnline + ":" + minsOnline;
-      
-      if (! entry.is_connected())
-      {
-        line += " !";
-      }
-      else
-      {
-        line.fill(" ", 2);
-      }
-      
-      line += onFor;
-      
-      if (onFor.size() < 4)
-      {
-        line.fill(" ", 4 - onFor.size());
-      }
-      
-      line.fill(" ", 5);
-      line.append(entry.get_idle_time_secs());
-      
-      println(line);
-    }
-  }
-  
-  string footer;
-  footer.append(online.length());
-  footer += " players online.";
-  
-  println(footer);
-}
-.end
+@@INCLUDE programs/who_prog.dump
   end fields
 end entity
 modentity $global_cap_connection_check
@@ -252,62 +172,7 @@ mkentity program $examine_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  if (args.empty())
-  {
-    println("Provide something to examine!");
-    return;
-  }
-
-  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
-  
-  if (entity.is_valid())
-  {
-    // Matched by ID.
-    array<string> @examine_details = entity.to_string();
-    
-    for (uint index = 0; index < examine_details.length(); ++index)
-    {
-        println(examine_details[index]);
-    }
-  }
-  else
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      args,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(args + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + args);
-      }
-    }
-    else
-    {
-      // Found it!
-      array<string> @examine_details = entity.to_string();
-        
-      for (uint index = 0; index < examine_details.length(); ++index)
-      {
-          println(examine_details[index]);
-      }
-    }
-  }
-}
-.end
+@@INCLUDE programs/examine_prog.dump
   end fields
 end entity
 mkentity command $examine_command
@@ -334,17 +199,7 @@ mkentity program $say_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 30
-void main(const string &in args)
-{
-  println("You say, \"" + args + "\"");
-  
-  Entity @myself = SystemOps::get_me();
-  
-  InputOutputOps::emit_to_room(myself.get_location(), " says, \"" + args + "\"", true);
-}
-.end
+@@INCLUDE programs/say_prog.dump
   end fields
 end entity
 mkentity command $say_command
@@ -370,37 +225,7 @@ mkentity program $pose_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 30
-void main(const string &in args)
-{
-  Entity @myself = SystemOps::get_me();
-  string @poseString;
-
-  if (args.empty())
-  {
-    @poseString = "";
-  }
-  else
-  {
-    string @firstChar = args[0];
-  
-    if (! ((firstChar == "'") || (firstChar == ",") || (firstChar == ".") || (firstChar == ":")))
-    {
-      // No possessive.  Add a space.
-      @poseString = " " + args;
-    }
-    else
-    {
-      // Possessive.  Don't add a space.
-      @poseString = string(args);
-    }
-  }
-  
-  println(myself.get_name(false) + poseString);
-  InputOutputOps::emit_to_room(myself.get_location(), poseString, true);
-}
-.end
+@@INCLUDE programs/pose_prog.dump
   end fields
 end entity
 mkentity command $pose_command
@@ -425,132 +250,7 @@ mkentity program $look_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 150
-void main(const string &in args)
-{
-  const string @lookat = args;
-
-  if (args.empty())
-  {
-    @lookat = string("here");
-  }
-
-  // Find the Entity by ID or name
-  Entity@ entity = DatabaseOps::convert_id_to_entity(lookat);
-  
-  if (! entity.is_valid())
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      lookat,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(lookat + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + lookat);
-      }
-    }
-  }
-  
-  // Confirm we actually have something before looking it up.
-  //
-  if (entity.is_valid())
-  {
-    // Print the main desc
-    //
-    if (entity.is_room())
-    {
-      println(entity.get_name(true));
-    }
-    if (entity.is_prop_document("/look/longdesc"))
-    {
-        array<string> @desc = entity.get_document_prop("/look/longdesc/");
-        for (uint index = 0; index < desc.length(); ++index)
-        {
-            println(desc[index]);
-        }
-    }
-    else
-    {
-        string@ desc = entity.get_string_prop("/look/shortdesc");
-        println(desc);
-    }
-    
-    array<Entity> @contents = entity.get_contents();
-    
-    if (! contents.isEmpty())
-    {
-      // Sort by actions and items
-      //
-      array<Entity> @actions = array<Entity>();
-      array<Entity> @items = array<Entity>();
-      
-      for (uint index = 0; index < contents.length(); ++index)
-      {
-        Entity@ entry = contents[index];
-
-        if (entry.is_action())
-        {
-          actions.insertLast(entry);
-        }
-        else if (entry.is_valid())
-        {
-          items.insertLast(entry);
-        }
-      }
-      
-      // Print each list out.
-      //
-      if (! actions.isEmpty())
-      {
-        string @spacer = string();
-        FormattedText @formattedActions = FormattedText();
-        
-        spacer.fill(" ", 4);
-        
-        for (uint index = 0; index < actions.length(); ++index)
-        {
-          formattedActions.append_plain(spacer).append_entity(actions[index]);
-        }
-        
-        println("Actions:");
-        fprintln(formattedActions);
-      }
-      
-      if (! items.isEmpty())
-      {
-        string @spacer = string();
-        FormattedText @formattedItems = FormattedText();
-        
-        spacer.fill(" ", 2);
-        formattedItems.append_plain("Contains:");        
-        
-        for (uint index = 0; index < items.length(); ++index)
-        {
-          if (index != 0)
-          {
-            formattedItems.append_plain(",");
-          }
-          
-          formattedItems.append_plain(spacer).append_entity(items[index]);
-        }
-                
-        fprintln(formattedItems);
-      }
-    }
-  }
-}
-.end
+@@INCLUDE programs/look_prog.dump
   end fields
 end entity
 modentity $global_cap_id_to_name
@@ -581,69 +281,7 @@ mkentity program $desc_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  StringPos sepIndex = args.find("=");
-  bool clear = false;
-  
-  if (sepIndex > (args.size() - 1))
-  {
-    println("Syntax is <command> entity=Description");
-    println("Example: @desc me=My Description.");
-    return;
-  }
-  
-  if (sepIndex == (args.size() - 1))
-  {
-    clear = true;
-  }
-  
-  string @what = args.substring(0, sepIndex);
-  what.strip();
-
-  // Find the Entity by ID or name
-  Entity@ entity = DatabaseOps::convert_id_to_entity(what);
-  
-  if (! entity.is_valid())
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      what,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(what + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + what);
-      }
-      
-      return;
-    }
-  }
-  
-  if (clear)
-  {
-    entity.set_prop("/look/shortdesc", "");
-  }
-  else
-  {
-    string @desc = args.substring(sepIndex + 1);
-    entity.set_prop("/look/shortdesc", desc);
-  }
-  
-  println("Description set.");
-}
-.end
+@@INCLUDE programs/desc_prog.dump
   end fields
 end entity
 mkentity command $desc_command
@@ -671,45 +309,7 @@ mkentity program $inventory_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  Entity @myself = SystemOps::get_me();
-  array<Entity> @contents = myself.get_contents();
-
-  println("You are carrying:");
-  
-  if (! contents.isEmpty())
-  {
-    // Sort items only
-    //
-    array<Entity> @items = array<Entity>();
-      
-    for (uint index = 0; index < contents.length(); ++index)
-    {
-      Entity@ entry = contents[index];
-
-      if (entry.is_valid() and (! entry.is_action()))
-      {
-        items.insertLast(entry);
-      }
-    }
-
-    // Print the list out.
-    if (! items.isEmpty())
-    {
-      FormattedText @formattedItems = FormattedText();
-      
-      for (uint index = 0; index < items.length(); ++index)
-      {
-        formattedItems.append_entity(items[index]);
-        fprintln(formattedItems);
-      }
-    }
-  }
-}
-.end
+@@INCLUDE programs/inventory_prog.dump
   end fields
 end entity
 mkentity command $inventory_command
@@ -736,28 +336,7 @@ mkentity program $create_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  if (args.empty())
-  {
-    println("You must provide a name for the thing!");
-    return;
-  }
-  
-  Entity @createdEntity = DatabaseOps::create_entity(ENTITYTYPE_thing, args);
-  
-  if (createdEntity.is_valid())
-  {
-    println("Created " + createdEntity.get_name(true));
-  }
-  else
-  {
-    println("Unable to create an entity named " + args);
-  }
-}
-.end
+@@INCLUDE programs/create_prog.dump
   end fields
 end entity
 mkentity command $create_command
@@ -783,48 +362,7 @@ mkentity program $delete_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{  
-  if (args.empty())
-  {
-    println("You must provide something to delete!");
-    return;
-  }
-  
-  // Find the Entity by ID or name
-  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
-  
-  if (! entity.is_valid())
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      args,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(args + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + args);
-      }
-      
-      return;
-    }
-  }
-  
-  entity.delete_entity();  
-  println("Deleted.");
-}
-.end
+@@INCLUDE programs/delete_prog.dump
   end fields
 end entity
 mkentity command $delete_command
@@ -851,65 +389,7 @@ mkentity program $drop_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{  
-  if (args.empty())
-  {
-    println("You must provide something to drop!");
-    return;
-  }
-  
-  Entity @myself = SystemOps::get_me();
-  
-  // Find the Entity by ID or name
-  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
-  
-  if (! entity.is_valid())
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      args,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(args + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + args);
-      }
-      
-      return;
-    }
-  }
-  
-  if (! entity.is_thing())
-  {
-    println("You can't drop non-Things!");
-  }
-  else
-  {
-    if (! (entity.get_location() == myself))
-    {
-      println("You aren't holding that.");
-    }
-    else
-    {
-      MovementOps::move_entity(entity, myself.get_location());
-      InputOutputOps::emit_to_room(myself.get_location(), " dropped " + entity.get_name(false), true);
-      println("Dropped.");
-    }
-  }
-}
-.end
+@@INCLUDE programs/drop_prog.dump
   end fields
 end entity
 mkentity command $drop_command
@@ -934,65 +414,7 @@ mkentity program $get_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{  
-  if (args.empty())
-  {
-    println("You must provide something to get!");
-    return;
-  }
-  
-  Entity @myself = SystemOps::get_me();
-  
-  // Find the Entity by ID or name
-  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
-  
-  if (! entity.is_valid())
-  {
-    bool ambiguous = false;
-
-    @entity = DatabaseOps::match_name_to_entity(
-      args,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-      
-    if (! entity.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(args + " is ambiguous.");
-      }
-      else
-      {
-        println("Cannot find " + args);
-      }
-      
-      return;
-    }
-  }
-  
-  if (! entity.is_thing())
-  {
-    println("You can't get non-Things!");
-  }
-  else
-  {
-    if (entity.get_location() == myself)
-    {
-      println("You already have that!");
-    }
-    else
-    {
-      MovementOps::move_entity(entity, myself);
-      InputOutputOps::emit_to_room(myself.get_location(), " picked up " + entity.get_name(false), true);
-      println("Picked up.");
-    }
-  }
-}
-.end
+@@INCLUDE programs/get_prog.dump
   end fields
 end entity
 mkentity command $get_command
@@ -1018,48 +440,7 @@ mkentity program $page_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 150
-void main(const string &in args)
-{
-  StringPos sepIndex = args.find("=");
-  
-  if ((sepIndex >= (args.size() - 1)))
-  {
-    println("Syntax is: page <player>=<message>");
-    println("  ... just like on any MUCK. :)");
-    return;
-  }
-
-  Entity @myself = SystemOps::get_me();
-  string targetStr = args.substring(0, sepIndex);
-  string contentStr = args.substring(sepIndex + 1);
-  bool ambiguous = false;
-  
-  Entity @target = DatabaseOps::match_name_to_entity(
-    targetStr,
-    false,
-    ENTITYTYPE_player,
-    ambiguous);
-
-  if (! target.is_valid())
-  {
-    if (ambiguous)
-    {
-      println(targetStr + " is ambiguous."); 
-    }
-    else
-    {
-      println("Cannot find player " + targetStr);
-    }
-    
-    return;
-  }
-  
-  InputOutputOps::send_to_entity(target, " pages to you, \"" + contentStr + "\"", true);
-  println("You page, \"" + contentStr + "\" to " + target.get_name(false));
-}
-.end
+@@INCLUDE programs/page_prog.dump
   end fields
 end entity
 modentity $global_cap_id_to_name
@@ -1100,123 +481,7 @@ mkentity program $security_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 500
-void main(const string &in args)
-{
-  // This poorly written program also demonstrates how nicely AngelScript will fail it out
-  //
-  StringPos commandIndex = args.find(" #");
-  
-  if ((commandIndex >= (args.size() - 1)))
-  {
-    println("Syntax is: @security <target> #readwrite/#!readwrite/#admin/#!admin <admin>");
-    println("Example 1: @security me #readwrite");
-    println("Example 2: @security me #admin root");
-    return;
-  }
-  
-  commandIndex++;
-  string @targetStr = args.substring(0, commandIndex);
-  targetStr.strip();
-  
-  bool ambiguous = false;
-
-  // Find the Entity by ID or name
-  Entity @target = DatabaseOps::convert_id_to_entity(targetStr);
-  
-  if (! target.is_valid())
-  {
-    @target = DatabaseOps::match_name_to_entity(
-      targetStr,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-
-    if (! target.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(targetStr + " is ambiguous."); 
-      }
-      else
-      {
-        println("Cannot find target " + targetStr);
-      }
-    
-      return;
-    }
-  }
-  
-  StringPos commandEndIndex = args.find(" ", commandIndex);
-  string @commandStr = args.substring(commandIndex, commandEndIndex - commandIndex);
-  commandStr.strip();
-  
-  if (commandStr.equals_ignore_case("#readwrite"))
-  {
-    // #readwrite command
-    target.set_security_other(true);
-    println("Security on Entity updated (read/write on).");
-    return;
-  }
-  else if (commandStr.equals_ignore_case("#!readwrite"))
-  {
-    // #!readwrite command
-    target.set_security_other(false);
-    println("Security on Entity updated (read/write off).");
-    return;
-  }
-  else
-  {
-    // Must be admin
-    //
-    string @adminStr = args.substring(commandEndIndex);
-    adminStr.strip();
-    
-    Entity @admin = DatabaseOps::convert_id_to_entity(adminStr);
-
-    if (! admin.is_valid())
-    {
-      @admin = DatabaseOps::match_name_to_entity(
-        adminStr,
-        false,
-        ENTITYTYPE_player,
-        ambiguous);
-
-      if (! admin.is_valid())
-      {
-        if (ambiguous)
-        {
-          println(adminStr + " is ambiguous."); 
-        }
-        else
-        {
-          println("Cannot find admin target " + adminStr);
-        }
-        
-        return;
-      }
-    }
-
-    if (commandStr.equals_ignore_case("#admin"))
-    {
-      target.set_security_add_admin(admin);
-      println("Added admin.");
-      return;
-    }
-    else if (commandStr.equals_ignore_case("#!admin"))
-    {
-      target.set_security_remove_admin(admin);
-      println("Removed admin.");
-      return;
-    }
-    else
-    {
-      println("Unknown command.");
-    }
-  }
-}
-.end
+@@INCLUDE programs/security_prog.dump
   end fields
 end entity
 modentity $global_cap_find_by_name
@@ -1246,124 +511,7 @@ mkentity program $looksecurity_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 500
-void main(const string &in args)
-{
-  // This poorly written program also demonstrates how nicely AngelScript will fail it out
-  //
-  string @appName = "look";
-  StringPos commandIndex = args.find(" #");
-  
-  if ((commandIndex >= (args.size() - 1)))
-  {
-    println("Syntax is: @looksecurity <target> #write/#!write/#admin/#!admin <admin>");
-    println("Example 1: @looksecurity me #write");
-    println("Example 2: @looksecurity me #admin root");
-    return;
-  }
-  
-  commandIndex++;
-  string @targetStr = args.substring(0, commandIndex);
-  targetStr.strip();
-  
-  bool ambiguous = false;
-
-  // Find the Entity by ID or name
-  Entity @target = DatabaseOps::convert_id_to_entity(targetStr);
-  
-  if (! target.is_valid())
-  {
-    @target = DatabaseOps::match_name_to_entity(
-      targetStr,
-      false,
-      ENTITYTYPE_entity,
-      ambiguous);
-
-    if (! target.is_valid())
-    {
-      if (ambiguous)
-      {
-        println(targetStr + " is ambiguous."); 
-      }
-      else
-      {
-        println("Cannot find target " + targetStr);
-      }
-    
-      return;
-    }
-  }
-  
-  StringPos commandEndIndex = args.find(" ", commandIndex);
-  string @commandStr = args.substring(commandIndex, commandEndIndex - commandIndex);
-  commandStr.strip();
-  
-  if (commandStr.equals_ignore_case("#write"))
-  {
-    // #write command
-    target.set_application_security_other(appName, true);
-    println("Security on look Application properties updated (write on).");
-    return;
-  }
-  else if (commandStr.equals_ignore_case("#!write"))
-  {
-    // #!write command
-    target.set_application_security_other(appName, false);
-    println("Security on look Application properties updated (write off).");
-    return;
-  }
-  else
-  {
-    // Must be admin
-    //
-    string @adminStr = args.substring(commandEndIndex);
-    adminStr.strip();
-    
-    Entity @admin = DatabaseOps::convert_id_to_entity(adminStr);
-
-    if (! admin.is_valid())
-    {
-      @admin = DatabaseOps::match_name_to_entity(
-        adminStr,
-        false,
-        ENTITYTYPE_player,
-        ambiguous);
-
-      if (! admin.is_valid())
-      {
-        if (ambiguous)
-        {
-          println(adminStr + " is ambiguous."); 
-        }
-        else
-        {
-          println("Cannot find admin target " + adminStr);
-        }
-        
-        return;
-      }
-    }
-
-    if (commandStr.equals_ignore_case("#admin"))
-    {
-      target.set_application_security_add_admin(appName, admin);
-      println("Added admin.");
-      return;
-    }
-    else if (commandStr.equals_ignore_case("#!admin"))
-    {
-      target.set_application_security_remove_admin(appName, admin);
-      println("Removed admin.");
-      return;
-    }
-    else
-    {
-      println("Unknown command.");
-    }
-  }
-}
-.end
+@@INCLUDE programs/looksecurity_prog.dump
   end fields
 end entity
 modentity $global_cap_find_by_name
@@ -1442,20 +590,7 @@ mkentity program $admin_player_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  // This will cause an out of memory situation inside the virtual heap
-  array<string> @stuff = array<string>();
-  string @mystring = "";
-  while (true)
-  {
-    stuff.insertLast(string("Wow this is a fancy string"));
-    mystring += "Wow this is a fancy string";
-  }
-}
-.end
+@@INCLUDE programs/admin_player_prog.dump
   end fields
 end entity
 mkentity command $admin_player_action
@@ -1638,13 +773,7 @@ mkentity program $normal_player_prog
     flag other B
   end security
   fields
-    program_language=AngelScript
-    program_source_code=lines 100
-void main(const string &in args)
-{
-  println("Hello.");
-}
-.end
+@@INCLUDE programs/normal_player_prog.dump
   end fields
 end entity
 mkentity command $normal_player_action

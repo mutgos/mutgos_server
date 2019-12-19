@@ -1,0 +1,12 @@
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  array<string> @ps_output = SystemOps::get_formatted_processes();  
+    
+  for (uint index = 0; index < ps_output.length(); ++index)
+  {
+      println(ps_output[index]);
+  }
+}
+.end
