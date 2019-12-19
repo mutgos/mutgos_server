@@ -1,0 +1,31 @@
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  Entity @myself = SystemOps::get_me();
+  string @poseString;
+
+  if (args.empty())
+  {
+    @poseString = "";
+  }
+  else
+  {
+    string @firstChar = args[0];
+  
+    if (! ((firstChar == "'") || (firstChar == ",") || (firstChar == ".") || (firstChar == ":")))
+    {
+      // No possessive.  Add a space.
+      @poseString = " " + args;
+    }
+    else
+    {
+      // Possessive.  Don't add a space.
+      @poseString = string(args);
+    }
+  }
+  
+  println(myself.get_name(false) + poseString);
+  InputOutputOps::emit_to_room(myself.get_location(), poseString, true);
+}
+.end

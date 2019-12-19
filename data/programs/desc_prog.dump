@@ -1,0 +1,63 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  StringPos sepIndex = args.find("=");
+  bool clear = false;
+  
+  if (sepIndex > (args.size() - 1))
+  {
+    println("Syntax is <command> entity=Description");
+    println("Example: @desc me=My Description.");
+    return;
+  }
+  
+  if (sepIndex == (args.size() - 1))
+  {
+    clear = true;
+  }
+  
+  string @what = args.substring(0, sepIndex);
+  what.strip();
+
+  // Find the Entity by ID or name
+  Entity@ entity = DatabaseOps::convert_id_to_entity(what);
+  
+  if (! entity.is_valid())
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      what,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(what + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + what);
+      }
+      
+      return;
+    }
+  }
+  
+  if (clear)
+  {
+    entity.set_prop("/look/shortdesc", "");
+  }
+  else
+  {
+    string @desc = args.substring(sepIndex + 1);
+    entity.set_prop("/look/shortdesc", desc);
+  }
+  
+  println("Description set.");
+}
+.end

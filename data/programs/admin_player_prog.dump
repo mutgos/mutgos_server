@@ -1,0 +1,14 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  // This will cause an out of memory situation inside the virtual heap
+  array<string> @stuff = array<string>();
+  string @mystring = "";
+  while (true)
+  {
+    stuff.insertLast(string("Wow this is a fancy string"));
+    mystring += "Wow this is a fancy string";
+  }
+}
+.end

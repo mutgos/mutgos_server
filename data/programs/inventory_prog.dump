@@ -1,0 +1,39 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  Entity @myself = SystemOps::get_me();
+  array<Entity> @contents = myself.get_contents();
+
+  println("You are carrying:");
+  
+  if (! contents.isEmpty())
+  {
+    // Sort items only
+    //
+    array<Entity> @items = array<Entity>();
+      
+    for (uint index = 0; index < contents.length(); ++index)
+    {
+      Entity@ entry = contents[index];
+
+      if (entry.is_valid() and (! entry.is_action()))
+      {
+        items.insertLast(entry);
+      }
+    }
+
+    // Print the list out.
+    if (! items.isEmpty())
+    {
+      FormattedText @formattedItems = FormattedText();
+      
+      for (uint index = 0; index < items.length(); ++index)
+      {
+        formattedItems.append_entity(items[index]);
+        fprintln(formattedItems);
+      }
+    }
+  }
+}
+.end

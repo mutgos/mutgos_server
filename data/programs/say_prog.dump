@@ -1,0 +1,11 @@
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  println("You say, \"" + args + "\"");
+  
+  Entity @myself = SystemOps::get_me();
+  
+  InputOutputOps::emit_to_room(myself.get_location(), " says, \"" + args + "\"", true);
+}
+.end

@@ -6,6 +6,7 @@
 #include <iostream>
 #include "text/text_StringConversion.h"
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 #include "logging/log_Logger.h"
 #include "dbdump/dbdump_MutgosDumpFileReader.h"
@@ -149,8 +150,18 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    boost::filesystem::path dump_path = dump_file;
+    std::string parent_path = dump_path.parent_path().string();
     std::string message;
-    mutgos::dbdump::MutgosDumpFileReader reader(dump_file);
+
+    if (parent_path.empty())
+    {
+        parent_path = ".";
+    }
+
+    mutgos::dbdump::MutgosDumpFileReader reader(
+        dump_file,
+        parent_path);
 
     if (reader.parse(message))
     {
@@ -160,9 +171,14 @@ int main(int argc, char* argv[])
     else
     {
         std::cerr << "FAILURE: Parsing did NOT complete." << std::endl
+                  << "  File: " << reader.get_current_file()
                   << "  Line: " << mutgos::text::to_string(
                      reader.get_current_line_index()) << std::endl
-                  << "  Message: " << message << std::endl;
+                  << "  Message: " << message << std::endl
+                  << std::endl
+                  << "  Prev File: " << reader.get_prev_file()
+                  << "  Prev Line: " << mutgos::text::to_string(
+                      reader.get_current_line_index_prev_file()) << std::endl;
 
         rc = -1;
     }

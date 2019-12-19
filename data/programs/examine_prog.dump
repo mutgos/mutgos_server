@@ -1,0 +1,56 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  if (args.empty())
+  {
+    println("Provide something to examine!");
+    return;
+  }
+
+  Entity@ entity = DatabaseOps::convert_id_to_entity(args);
+  
+  if (entity.is_valid())
+  {
+    // Matched by ID.
+    array<string> @examine_details = entity.to_string();
+    
+    for (uint index = 0; index < examine_details.length(); ++index)
+    {
+        println(examine_details[index]);
+    }
+  }
+  else
+  {
+    bool ambiguous = false;
+
+    @entity = DatabaseOps::match_name_to_entity(
+      args,
+      false,
+      ENTITYTYPE_entity,
+      ambiguous);
+      
+    if (! entity.is_valid())
+    {
+      if (ambiguous)
+      {
+        println(args + " is ambiguous.");
+      }
+      else
+      {
+        println("Cannot find " + args);
+      }
+    }
+    else
+    {
+      // Found it!
+      array<string> @examine_details = entity.to_string();
+        
+      for (uint index = 0; index < examine_details.length(); ++index)
+      {
+          println(examine_details[index]);
+      }
+    }
+  }
+}
+.end

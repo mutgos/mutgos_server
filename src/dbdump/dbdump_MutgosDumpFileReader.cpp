@@ -18,19 +18,27 @@
 #include "dbtypes/dbtype_EntityField.h"
 #include "dbtypes/dbtype_Lock.h"
 
-
 #define VAR_PREFIX '$'
 #define COMMENT_PREFIX '#'
+#define FILE_STACK_LIMIT 16
+
+namespace
+{
+    const std::string INCLUDE_COMMAND = "@@INCLUDE ";
+}
+
+// TODO: Review changes, test every program out again
 
 namespace mutgos
 {
 namespace dbdump
 {
     // ----------------------------------------------------------------------
-    MutgosDumpFileReader::MutgosDumpFileReader(const std::string &file_name)
+    MutgosDumpFileReader::MutgosDumpFileReader(
+        const std::string &file_name,
+        const std::string &base_path)
       : error_condition(false),
         file_parsed(false),
-        current_line(0),
         parser_mode(MutgosDumpFileReader::PARSER_NONE),
         subparser_mode(MutgosDumpFileReader::SUBPARSER_NONE),
         current_site(0),
@@ -40,31 +48,30 @@ namespace dbdump
         current_set_type(dbtype::PROPERTYDATATYPE_invalid),
         current_set_ptr(0),
         operation_not(false),
-        stream_ptr(0)
+        base_file_path(base_path)
     {
         if (file_name.empty())
         {
             set_error("The file name provided was empty.");
         }
+        else if (base_path.empty())
+        {
+            set_error("The base path provided was empty.");
+        }
         else
         {
-            stream_ptr = new std::ifstream(file_name.c_str());
-
-            if ((not stream_ptr->good()) or (not stream_ptr->is_open()))
-            {
-                set_error("The file " + file_name + " cannot be read.");
-            }
+            add_file_to_stack(file_name);
         }
     }
 
     // ----------------------------------------------------------------------
     MutgosDumpFileReader::~MutgosDumpFileReader()
     {
-        if (stream_ptr)
+        while (not file_stack.empty())
         {
-            stream_ptr->close();
-            delete stream_ptr;
-            stream_ptr = 0;
+            FileStream * const file_ptr = file_stack.back();
+            file_stack.pop_back();
+            delete file_ptr;
         }
 
         delete current_document_ptr;
@@ -88,12 +95,13 @@ namespace dbdump
         }
         else
         {
+            FileStream *file  = file_stack.back();
             std::string line;
 
             // Confirm version
             //
-            ++current_line;
-            std::getline(*stream_ptr, line);
+            file->increment_line();
+            std::getline(file->stream, line);
             boost::trim(line);
 
             if (line != "MUTGOS DUMP VERSION 1")
@@ -104,14 +112,16 @@ namespace dbdump
 
             // Parse the file line by line
             //
-            while ((not file_parsed) and (not error_condition))
+            while ((not file_stack.empty()) and
+                (not file_parsed) and (not error_condition))
             {
-                ++current_line;
-                std::getline(*stream_ptr, line);
+                line.clear();
+                file->increment_line();
+                std::getline(file->stream, line);
 
-                if (not stream_ptr->good())
+                if (file->stream.bad())
                 {
-                    file_parsed = true;
+                    set_error("I/O error");
                 }
                 else if (line == "MUTGOS DUMP END")
                 {
@@ -119,8 +129,7 @@ namespace dbdump
                 }
                 else if (not text::utf8_valid(line))
                 {
-                    error_condition = true;
-                    status_message = "Line is not UTF8 compliant.";
+                    set_error("Line is not UTF8 compliant.");
                 }
                 else
                 {
@@ -131,11 +140,43 @@ namespace dbdump
 
                     parse_line(line);
                 }
+
+                if ((file->stream.eof()) and (not error_condition))
+                {
+                    // End of file.  If this is an inner file, pop
+                    // and go to the previous file.
+                    //
+                    if (file_stack.size() > 1)
+                    {
+                        delete file_stack.back();
+                        file_stack.pop_back();
+                    }
+                    else
+                    {
+                        set_error("Primary dump file ended unexpectedly.");
+                    }
+                }
+
+                if (file_stack.empty())
+                {
+                    file = 0;
+                }
+                else
+                {
+                    file = file_stack.back();
+                }
             }
 
             // Parsing completed.  Determine if there was an error and if the
             // file was complete.
             //
+            if ((not error_condition) and (file_stack.size() != 1))
+            {
+                error_condition = true;
+                status_message +=
+                    "File stack is empty or has more files than expected!";
+            }
+
             if (not error_condition)
             {
                 if ((parser_mode == PARSER_NONE) and
@@ -162,86 +203,194 @@ namespace dbdump
     }
 
     // ----------------------------------------------------------------------
+    size_t MutgosDumpFileReader::get_current_line_index(void) const
+    {
+        size_t result = 0;
+
+        if (not file_stack.empty())
+        {
+            result = file_stack.back()->current_line;
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    std::string MutgosDumpFileReader::get_current_file(void) const
+    {
+        std::string result;
+
+        if (not file_stack.empty())
+        {
+            result = file_stack.back()->file_name;
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    size_t MutgosDumpFileReader::get_current_line_index_prev_file(void) const
+    {
+        size_t result = 0;
+
+        if (file_stack.size() > 1)
+        {
+            result = file_stack[file_stack.size() - 2]->current_line;
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    std::string MutgosDumpFileReader::get_prev_file(void) const
+    {
+        std::string result;
+
+        if (file_stack.size() > 1)
+        {
+            result = file_stack[file_stack.size() - 2]->file_name;
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool MutgosDumpFileReader::add_file_to_stack(const std::string &file_name)
+    {
+        bool result = true;
+
+        if (file_stack.size() >= FILE_STACK_LIMIT)
+        {
+            result = false;
+            set_error("File stack size exceeded.  Too many nested files.");
+        }
+        else
+        {
+            FileStream *const file = new FileStream(file_name);
+            file_stack.push_back(file);
+
+            if ((not file->stream.good()) or (not file->stream.is_open()))
+            {
+                set_error("The file " + file_name + " cannot be read.");
+                result = false;
+
+                delete file;
+                file_stack.pop_back();
+            }
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
     void MutgosDumpFileReader::parse_line(const std::string &input)
     {
-        if ((! input.empty()) and (input[0] != COMMENT_PREFIX))
+        if (not input.empty())
         {
-            if (subparser_mode != SUBPARSER_NONE)
+            if (input.find(INCLUDE_COMMAND) == 0)
             {
-                // In the middle of a multi-line item, so let those parsers
-                // handle it.
+                // They want to jump parsing to a new file.
+                // Do not allow absolute paths or going up a directory
+                // for security purposes.
                 //
-                switch (subparser_mode)
+                std::string file_path = input.substr(INCLUDE_COMMAND.size());
+                boost::trim(file_path);
+
+                if (file_path.empty() or
+                    (file_path.find("..") != std::string::npos) or
+                    (file_path[0] == '/'))
                 {
-                    case SUBPARSER_LOCK:
-                    {
-                        subparse_lock(input);
-                        break;
-                    }
-
-                    case SUBPARSER_LOCK_ID:
-                    {
-                        subparse_lock_id(input);
-                        break;
-                    }
-
-                    case SUBPARSER_LOCK_PROPERTY:
-                    {
-                        subparse_lock_property(input);
-                        break;
-                    }
-
-                    case SUBPARSER_DOCUMENT:
-                    {
-                        subparse_document(input);
-                        break;
-                    }
-
-                    default:
-                    {
-                        set_error("Unknown subparser mode!");
-                    }
+                    set_error("File include path is empty or not allowed: "
+                      + file_path);
+                }
+                else
+                {
+                    // Potentially valid file.  Form the full path and try and
+                    // open.
+                    //
+                    file_path = base_file_path + "/" + file_path;
+                    add_file_to_stack(file_path);
                 }
             }
-            else
+            else if (current_document_ptr or (input[0] != COMMENT_PREFIX))
             {
-                // Standard line
-                //
-                switch (parser_mode)
+                if (subparser_mode != SUBPARSER_NONE)
                 {
-                    case PARSER_NONE:
+                    // In the middle of a multi-line item, so let those
+                    // parsers handle it.
+                    //
+                    switch (subparser_mode)
                     {
-                        parse_none(input);
-                        break;
-                    }
+                        case SUBPARSER_LOCK:
+                        {
+                            subparse_lock(input);
+                            break;
+                        }
 
-                    case PARSER_ENTITY:
-                    {
-                        parse_entity(input);
-                        break;
-                    }
+                        case SUBPARSER_LOCK_ID:
+                        {
+                            subparse_lock_id(input);
+                            break;
+                        }
 
-                    case PARSER_SECURITY:
-                    {
-                        parse_security(input);
-                        break;
-                    }
+                        case SUBPARSER_LOCK_PROPERTY:
+                        {
+                            subparse_lock_property(input);
+                            break;
+                        }
 
-                    case PARSER_FIELDS:
-                    {
-                        parse_fields(input);
-                        break;
-                    }
+                        case SUBPARSER_DOCUMENT:
+                        {
+                            subparse_document(input);
+                            break;
+                        }
 
-                    case PARSER_PROPERTIES:
-                    {
-                        parse_properties(input);
-                        break;
+                        default:
+                        {
+                            set_error("Unknown subparser mode!");
+                        }
                     }
-
-                    default:
+                }
+                else
+                {
+                    // Standard line
+                    //
+                    switch (parser_mode)
                     {
-                        set_error("Unknown parser mode!");
+                        case PARSER_NONE:
+                        {
+                            parse_none(input);
+                            break;
+                        }
+
+                        case PARSER_ENTITY:
+                        {
+                            parse_entity(input);
+                            break;
+                        }
+
+                        case PARSER_SECURITY:
+                        {
+                            parse_security(input);
+                            break;
+                        }
+
+                        case PARSER_FIELDS:
+                        {
+                            parse_fields(input);
+                            break;
+                        }
+
+                        case PARSER_PROPERTIES:
+                        {
+                            parse_properties(input);
+                            break;
+                        }
+
+                        default:
+                        {
+                            set_error("Unknown parser mode!");
+                        }
                     }
                 }
             }

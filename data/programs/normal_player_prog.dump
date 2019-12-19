@@ -1,0 +1,7 @@
+    program_language=AngelScript
+    program_source_code=lines 100
+void main(const string &in args)
+{
+  println("Hello.");
+}
+.end
