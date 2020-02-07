@@ -182,6 +182,47 @@ namespace sqliteinterface
          */
         virtual bool delete_site_in_db(const dbtype::Id::SiteIdType site_id);
 
+        /**
+         * Gets the name for a site.
+         * @param site_id[in] The existing site ID to get the name for.
+         * @param site_name[out] The site name, or empty if error or none.
+         * @return True if successfully retrieved the site name.
+         */
+        virtual bool get_site_name_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_name);
+
+        /**
+         * Sets the name for a site.
+         * @param site_id[in] The existing site ID to set the name for.
+         * @param site_name[in] The site's new name.
+         * @return True if successfully set the site name.
+         */
+        virtual bool set_site_name_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_name);
+
+        /**
+         * Gets the description for a site.
+         * @param site_id[in] The existing site ID to get the description for.
+         * @param site_description[out] The site description, or empty if
+         * error or none.
+         * @return True if successfully retrieved the site description.
+         */
+        virtual bool get_site_description_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_description);
+
+        /**
+         * Sets the description for a site.
+         * @param site_id[in] The existing site ID to set the description for.
+         * @param site_description[in] The site's new description.
+         * @return True if successfully set the site description.
+         */
+        virtual bool set_site_description_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_description);
+
     private:
 
         /**
@@ -249,8 +290,10 @@ namespace sqliteinterface
         sqlite3_stmt *find_name_type_in_db_stmt; ///< Find all of type with name LIKE
         sqlite3_stmt *find_exact_name_type_in_db_stmt; ///< Find all of type with name
         sqlite3_stmt *get_entity_type_stmt; ///< Gets the type for an Entity
+        sqlite3_stmt *get_site_name_stmt; ///< Gets a site's name.
+        sqlite3_stmt *get_site_description_stmt; ///< Gets a site's description.
 
-        // Create, delete sites
+        // Create, edit, delete sites
         //
         sqlite3_stmt *undelete_site_stmt; ///< Update deleted site to be active
         sqlite3_stmt *next_site_id_stmt; ///< Get next new site id
@@ -258,16 +301,15 @@ namespace sqliteinterface
         sqlite3_stmt *update_next_site_id_stmt; ///< Update next new site ID
         sqlite3_stmt *insert_new_site_stmt; ///< insert new site ID into site table
         sqlite3_stmt *insert_first_site_entity_id_stmt; ///< Insert first entity ID for site
+        sqlite3_stmt *delete_site_entities_stmt; ///< Delete all entities of a site
+        sqlite3_stmt *delete_site_display_names_stmt; ///< Delete site's display names
+        sqlite3_stmt *set_site_name_stmt; ///< Sets a new name for a site.
+        sqlite3_stmt *set_site_description_stmt; ///< Sets a new description for a site.
 
         // Update and load entity
         //
         sqlite3_stmt *update_entity_stmt; ///< Updates Entity data, including blob
         sqlite3_stmt *get_entity_stmt; ///< Gets the blob data for an Entity
-
-        // Delete site
-        //
-        sqlite3_stmt *delete_site_entities_stmt; ///< Delete all entities of a site
-        sqlite3_stmt *delete_site_display_names_stmt; ///< Delete site's display names
 
         // New entity
         //

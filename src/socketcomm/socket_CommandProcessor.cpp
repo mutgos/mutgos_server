@@ -3,6 +3,7 @@
  */
 
 #include <string>
+#include <sstream>
 
 #include "logging/log_Logger.h"
 
@@ -94,10 +95,9 @@ namespace socket
          * consider at some point how to see who is currently online at a site.
          */
 
-        const dbtype::Id::SiteIdVector db_sites =
-            dbinterface::DatabaseAccess::instance()->get_all_site_ids();
+        const dbinterface::DatabaseAccess::SiteInfoVector db_sites =
+            dbinterface::DatabaseAccess::instance()->get_all_site_info();
         std::string output;
-        std::string site_conv_temp;
 
         output += "Welcome to the MUTGOS Alpha Demo.\n";
         output += "Pick a site below and connect to it like this: "
@@ -106,23 +106,22 @@ namespace socket
         output += "SITE #     NAME                   DESCRIPTION\n";
         output += "---------------------------------------------\n";
 
-        for (dbtype::Id::SiteIdVector::const_iterator site_iter =
-              db_sites.begin();
+        for (dbinterface::DatabaseAccess::SiteInfoVector::const_iterator
+                site_iter = db_sites.begin();
             site_iter != db_sites.end();
             ++site_iter)
         {
-            site_conv_temp = text::to_string(*site_iter);
+            std::ostringstream stream;
 
-            if (site_conv_temp.size() < 4)
-            {
-                // Simple padding
-                site_conv_temp.insert(0, 4 - site_conv_temp.size(), ' ');
-            }
+            stream << std::right << std::setw(4) << site_iter->get_site_id()
+                   << "  "
+                   << std::left << std::setw(22)
+                   << site_iter->get_site_name().substr(0, 22)
+                   << "  "
+                   << site_iter->get_site_description().substr(0, 40)
+                   << '\n';
 
-            output += site_conv_temp;
-
-            // TODO Implement actual name and description
-            output += "      <Not implemented>\n";
+            output += stream.str();
         }
 
         output += "\n\n";

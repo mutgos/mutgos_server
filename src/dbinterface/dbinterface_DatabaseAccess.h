@@ -13,6 +13,7 @@
 #include "sqliteinterface/sqliteinterface_SqliteBackend.h"
 #include "dbinterface/dbinterface_SiteCache.h"
 #include "dbinterface/dbinterface_DatabaseEntityListener.h"
+#include "dbinterface/dbinterface_SiteInfo.h"
 
 #include "dbinterface_DbResultCode.h"
 
@@ -39,6 +40,8 @@ namespace dbinterface
     class DatabaseAccess : public osinterface::TimeJumpListener
     {
     public:
+        typedef std::vector<SiteInfo> SiteInfoVector;
+
         /**
          * Creates the singleton if it doesn't already exist.
          * @return The singleton instance.
@@ -215,6 +218,67 @@ namespace dbinterface
         dbtype::Id::SiteIdVector get_all_site_ids(void);
 
         /**
+         * @return A copy of the information about all known sites.
+         */
+        SiteInfoVector get_all_site_info(void);
+
+        /**
+         * Gets the name for a site.
+         * @param site_id[in] The site ID to get the name for.
+         * @param site_name[out] The site name, or empty if error or none.
+         * @return The status code.  Can return
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_ERROR,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode get_site_name(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_name);
+
+        /**
+         * Sets the name for a site.
+         * @param site_id[in] The site ID to set the name for.
+         * @param site_name[in] The site's new name.  The name must not
+         * already be in use.
+         * @return The status code.  Can return
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_ERROR,
+         * DBRESULTCODE_BAD_SITE_ID,
+         * DBRESULTCODE_BAD_NAME
+         */
+        DbResultCode set_site_name(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_name);
+
+        /**
+         * Gets the description for a site.
+         * @param site_id[in] The site ID to get the name for.
+         * @param site_description[out] The site description, or empty if
+         * error or none.
+         * @return The status code.  Can return
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_ERROR,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode get_site_description(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_description);
+
+        /**
+         * Sets the description for a site.
+         * @param site_id[in] The site ID to set the name for.
+         * @param site_description[in] The site's new description.
+         * @return The status code.  Can return
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_ERROR,
+         * DBRESULTCODE_BAD_SITE_ID,
+         * DBRESULTCODE_BAD_NAME
+         */
+        DbResultCode set_site_description(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_description);
+
+        /**
          * Creates a new site in the database.
          * @param site_id[out] The ID of the site that was created, if success.
          * @return The status code.  Can return
@@ -294,15 +358,23 @@ namespace dbinterface
             const dbtype::Id::SiteIdType site_id,
             const bool include_delete_pending = false);
 
+        /**
+         * Retrieves information from the DB backend about a site
+         * that is known to exist, and puts its info in the site info cache.
+         * Assumes locking has already been done.
+         * @param site_id[in] The site ID to get info for.
+         */
+        void add_site_info_to_cache(const dbtype::Id::SiteIdType site_id);
+
         typedef std::map<dbtype::Id::SiteIdType, SiteCache *> CacheMap;
-        typedef std::set<dbtype::Id::SiteIdType> ValidSiteIdsSet;
+        typedef std::map<dbtype::Id::SiteIdType, SiteInfo> SiteIdToInfo;
         typedef std::vector<DatabaseEntityListener *> EntityListenerList;
 
         static DatabaseAccess *singleton_ptr; ///< Singleton pointer.
         static EntityListenerList entity_listeners; ///< List of Entity listeners
         DbBackend *db_backend_ptr; ///< Pointer to database backend.
         CacheMap entity_cache; ///< Cache of entities, organized by site.
-        ValidSiteIdsSet valid_site_ids; ///< Set of valid site IDs
+        SiteIdToInfo site_id_to_info_cache; ///< All known existing site IDs and their info
         boost::mutex mutex; ///< Enforces single access at a time.
     };
 }

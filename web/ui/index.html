@@ -237,7 +237,8 @@
             authenticationMessage : '',
             username : '',
             password : '',
-            site : -1
+            site : -1,
+            siteName : ''
         };
     var entityDescription =
         {
@@ -265,6 +266,7 @@
         };
     // The initial title of this HTML Document
     var origTitle = document.title;
+    var siteName = "";
     var playerName = "";
     var locationName = "";
     // Frontmost item (index 0) is where user input goes to.
@@ -297,7 +299,16 @@
      */
     var setTitlePlayerName = function(newPlayerName) {
         playerName = newPlayerName;
-        setTitle(playerName + "  /  " + locationName);
+        setTitle(siteName + ": " + playerName + "  /  " + locationName);
+    };
+
+    /**
+     * Sets the site name on the title.
+     * @param {string} newSiteName The new name of the site
+     */
+    var setTitleSiteName = function(newSiteName) {
+        siteName = newSiteName;
+        setTitle(siteName + ": " + playerName + "  /  " + locationName);
     };
 
     /**
@@ -306,7 +317,7 @@
      */
     var setTitleLocationName = function(newLocationName) {
         locationName = newLocationName;
-        setTitle(playerName + "  /  " + locationName);
+        setTitle(siteName + ": " + playerName + "  /  " + locationName);
     };
 
     /**
@@ -537,6 +548,7 @@
         connectionState.authenticationInProgress = false;
         connectionState.authenticationMessage = "";
 
+        setTitleSiteName(connectionState.siteName);
         setTitlePlayerName(connectionState.username);
 
         connectionState.username = "";
@@ -698,6 +710,17 @@
                     this.connectionState.authenticationInProgress = true;
                     this.connectionState.authenticationMessage =
                         "Authenticating...";
+
+                    // Find the site name and set it
+                    //
+                    connectionState.siteName = '';
+
+                    for (var index = 0; index < siteList.length; ++index) {
+                        if (siteList[index].id == connectionState.site) {
+                            connectionState.siteName = siteList[index].name ;
+                            break;
+                        }
+                    }
 
                     // Once connected, it will automatically send the credentials
                     protocol.connect(connectionUrl);
