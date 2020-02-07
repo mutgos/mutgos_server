@@ -402,6 +402,7 @@ namespace dbdump
     {
         // Supports these commands:
         // mksite
+        // setsitedesc
         // setsite
         // mkentity
         // modify
@@ -416,6 +417,14 @@ namespace dbdump
             if (not db.make_site(parsed_input, current_site))
             {
                 set_error("Unable to make site " + parsed_input);
+            }
+        }
+        else if (command == "setsitedesc")
+        {
+            if (not db.set_site_description(parsed_input))
+            {
+                set_error("Unable to set site description to "
+                    + parsed_input);
             }
         }
         else if (command == "setsite")

@@ -76,18 +76,48 @@ namespace dbdump
         else
         {
             result = db->new_site(current_site_id)
-                     == dbinterface::DBRESULTCODE_OK;
+                 == dbinterface::DBRESULTCODE_OK;
 
             site_valid = result;
 
             if (result)
             {
                 site_id = current_site_id;
+
+                result = db->set_site_name(current_site_id, site_name)
+                    == dbinterface::DBRESULTCODE_OK;
             }
 
             LOG(debug, "dbdump", "make_site",
                 "Made new site, ID " + text::to_string(site_id)
-                + "  result: " + text::to_string(result));
+                + "  name " + site_name
+                + ",  result: " + text::to_string(result));
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool DumpReaderInterface::set_site_description(
+        const std::string &description)
+    {
+        bool result = false;
+
+        if (not site_valid)
+        {
+            LOG(error, "dbdump", "set_site_description",
+                "Tried to set a site description when no site is active!");
+        }
+        else
+        {
+            result = db->set_site_description(current_site_id, description)
+                 == dbinterface::DBRESULTCODE_OK;
+
+            LOG(debug, "dbdump", "set_site_description",
+                "Set site description, ID "
+                + text::to_string(current_site_id)
+                + "  description " + description
+                + ",  result: " + text::to_string(result));
         }
 
         return result;

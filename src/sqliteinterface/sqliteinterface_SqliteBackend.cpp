@@ -42,16 +42,20 @@ namespace sqliteinterface
         find_name_type_in_db_stmt(0),
         find_exact_name_type_in_db_stmt(0),
         get_entity_type_stmt(0),
+        get_site_name_stmt(0),
+        get_site_description_stmt(0),
         undelete_site_stmt(0),
         next_site_id_stmt(0),
         insert_first_next_site_id_stmt(0),
         update_next_site_id_stmt(0),
         insert_new_site_stmt(0),
         insert_first_site_entity_id_stmt(0),
-        update_entity_stmt(0),
-        get_entity_stmt(0),
         delete_site_entities_stmt(0),
         delete_site_display_names_stmt(0),
+        set_site_name_stmt(0),
+        set_site_description_stmt(0),
+        update_entity_stmt(0),
+        get_entity_stmt(0),
         get_next_deleted_entity_id_stmt(0),
         mark_deleted_id_used_stmt(0),
         get_next_entity_id_stmt(0),
@@ -159,6 +163,12 @@ namespace sqliteinterface
             sqlite3_finalize(get_entity_type_stmt);
             get_entity_type_stmt = 0;
 
+            sqlite3_finalize(get_site_name_stmt);
+            get_site_name_stmt = 0;
+
+            sqlite3_finalize(get_site_description_stmt);
+            get_site_description_stmt = 0;
+
             sqlite3_finalize(undelete_site_stmt);
             undelete_site_stmt = 0;
 
@@ -177,17 +187,23 @@ namespace sqliteinterface
             sqlite3_finalize(insert_first_site_entity_id_stmt);
             insert_first_site_entity_id_stmt = 0;
 
-            sqlite3_finalize(update_entity_stmt);
-            update_entity_stmt = 0;
-
-            sqlite3_finalize(get_entity_stmt);
-            get_entity_stmt = 0;
-
             sqlite3_finalize(delete_site_entities_stmt);
             delete_site_entities_stmt = 0;
 
             sqlite3_finalize(delete_site_display_names_stmt);
             delete_site_display_names_stmt = 0;
+
+            sqlite3_finalize(set_site_name_stmt);
+            set_site_name_stmt = 0;
+
+            sqlite3_finalize(set_site_description_stmt);
+            set_site_description_stmt = 0;
+
+            sqlite3_finalize(update_entity_stmt);
+            update_entity_stmt = 0;
+
+            sqlite3_finalize(get_entity_stmt);
+            get_entity_stmt = 0;
 
             sqlite3_finalize(get_next_deleted_entity_id_stmt);
             get_next_deleted_entity_id_stmt = 0;
@@ -1002,6 +1018,37 @@ namespace sqliteinterface
                         "For insert_new_site_stmt, could not bind $SITEID");
                 }
 
+                const std::string default_site_name =
+                    "Untitled Site " + text::to_string(site_id);
+
+                if (sqlite3_bind_text(
+                    insert_new_site_stmt,
+                    sqlite3_bind_parameter_index(
+                        insert_new_site_stmt,
+                        "$SITENAME"),
+                    default_site_name.c_str(),
+                    default_site_name.size(),
+                    SQLITE_TRANSIENT) != SQLITE_OK)
+                {
+                    LOG(error, "sqliteinterface", "new_site_in_db",
+                        "For insert_new_site_stmt, could not bind $SITENAME");
+                }
+
+                const std::string empty_description;
+
+                if (sqlite3_bind_text(
+                    insert_new_site_stmt,
+                    sqlite3_bind_parameter_index(
+                        insert_new_site_stmt,
+                        "$SITEDESCRIPTION"),
+                    empty_description.c_str(),
+                    empty_description.size(),
+                    SQLITE_TRANSIENT) != SQLITE_OK)
+                {
+                    LOG(error, "sqliteinterface", "new_site_in_db",
+                        "For insert_new_site_stmt, could not bind $SITEDESCRIPTION");
+                }
+
                 rc = sqlite3_step(insert_new_site_stmt);
 
                 if (rc != SQLITE_DONE)
@@ -1148,6 +1195,192 @@ namespace sqliteinterface
     }
 
     // ----------------------------------------------------------------------
+    bool SqliteBackend::get_site_name_in_db(
+        const dbtype::Id::SiteIdType site_id,
+        std::string &site_name)
+    {
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        bool success = false;
+        int rc = SQLITE_OK;
+
+        site_name.clear();
+
+        if (sqlite3_bind_int(
+            get_site_name_stmt,
+            sqlite3_bind_parameter_index(get_site_name_stmt, "$SITEID"),
+            site_id) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "get_site_name_in_db",
+                "For get_site_name_stmt, could not bind $SITEID");
+        }
+
+        // Should be 0 or 1 lines
+        //
+        if (sqlite3_step(get_site_name_stmt) == SQLITE_ROW)
+        {
+            // Site exists.  Get the name.
+            //
+            success = true;
+            const char *name_char_ptr = (const char *)
+                sqlite3_column_text(get_site_name_stmt, 0);
+            const int name_char_size =
+                sqlite3_column_bytes(get_site_name_stmt, 0);
+
+            if (name_char_size)
+            {
+                site_name.assign(name_char_ptr, name_char_size);
+            }
+        }
+
+        reset(get_site_name_stmt);
+
+        return success;
+    }
+
+    // ----------------------------------------------------------------------
+    bool SqliteBackend::set_site_name_in_db(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &site_name)
+    {
+        bool success = false;
+        int rc = SQLITE_OK;
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        if (sqlite3_bind_int(
+            set_site_name_stmt,
+            sqlite3_bind_parameter_index(set_site_name_stmt, "$SITEID"),
+            site_id) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "set_site_name_in_db",
+                "For set_site_name_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_text(
+            set_site_name_stmt,
+            sqlite3_bind_parameter_index(
+                set_site_name_stmt,
+                "$SITENAME"),
+            site_name.c_str(),
+            site_name.size(),
+            SQLITE_TRANSIENT) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "set_site_name_in_db",
+                "For set_site_name_stmt, could not bind $SITENAME");
+        }
+
+        rc = sqlite3_step(set_site_name_stmt);
+
+        if (rc == SQLITE_DONE)
+        {
+            success = true;
+        }
+        else
+        {
+            LOG(error, "sqliteinterface", "set_site_name_in_db",
+                "Could not set site name: " + std::string(sqlite3_errstr(rc)));
+        }
+
+        reset(set_site_name_stmt);
+
+        return success;
+    }
+
+    // ----------------------------------------------------------------------
+    bool SqliteBackend::get_site_description_in_db(
+        const dbtype::Id::SiteIdType site_id,
+        std::string &site_description)
+    {
+        bool success = false;
+
+        boost::lock_guard<boost::mutex> guard(mutex);
+        int rc = SQLITE_OK;
+
+        site_description.clear();
+
+        if (sqlite3_bind_int(
+            get_site_description_stmt,
+            sqlite3_bind_parameter_index(get_site_description_stmt, "$SITEID"),
+            site_id) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "get_site_description_in_db",
+                "For get_site_description_stmt, could not bind $SITEID");
+        }
+
+        // Should be 0 or 1 lines
+        //
+        if (sqlite3_step(get_site_description_stmt) == SQLITE_ROW)
+        {
+            // Site exists.  Get the description.
+            //
+            success = true;
+            const char *description_char_ptr = (const char *)
+                sqlite3_column_text(get_site_description_stmt, 0);
+            const int description_char_size =
+                sqlite3_column_bytes(get_site_description_stmt, 0);
+
+            if (description_char_size)
+            {
+                site_description.assign(
+                    description_char_ptr,
+                    description_char_size);
+            }
+        }
+
+        reset(get_site_description_stmt);
+
+        return success;
+    }
+
+    // ----------------------------------------------------------------------
+    bool SqliteBackend::set_site_description_in_db(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &site_description)
+    {
+        bool success = false;
+        int rc = SQLITE_OK;
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        if (sqlite3_bind_int(
+            set_site_description_stmt,
+            sqlite3_bind_parameter_index(set_site_description_stmt, "$SITEID"),
+            site_id) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "set_site_description_in_db",
+                "For set_site_description_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_text(
+            set_site_description_stmt,
+            sqlite3_bind_parameter_index(
+                set_site_description_stmt,
+                "$SITEDESCRIPTION"),
+            site_description.c_str(),
+            site_description.size(),
+            SQLITE_TRANSIENT) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "set_site_description_in_db",
+                "For set_site_description_stmt, could not bind $SITEDESCRIPTION");
+        }
+
+        rc = sqlite3_step(set_site_description_stmt);
+
+        if (rc == SQLITE_DONE)
+        {
+            success = true;
+        }
+        else
+        {
+            LOG(error, "sqliteinterface", "set_site_description_in_db",
+                "Could not set site description: " + std::string(sqlite3_errstr(rc)));
+        }
+
+        reset(set_site_description_stmt);
+
+        return success;
+    }
+
+    // ----------------------------------------------------------------------
     bool SqliteBackend::create_tables(void)
     {
         const std::string create_tables_str =
@@ -1165,6 +1398,8 @@ namespace sqliteinterface
          "CREATE TABLE IF NOT EXISTS sites("
             "site_id INTEGER NOT NULL,"
             "deleted INTEGER NOT NULL,"
+            "site_name TEXT NOT NULL,"
+            "site_description TEXT NOT NULL,"
             "PRIMARY KEY(site_id, deleted)) WITHOUT ROWID;"
 
          "CREATE TABLE IF NOT EXISTS id_reuse("
@@ -1318,6 +1553,32 @@ namespace sqliteinterface
 
         if (sqlite3_prepare_v2(
             dbhandle_ptr,
+            "SELECT site_name FROM sites WHERE site_id = $SITEID;",
+            -1,
+            &get_site_name_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for getting a Site's name.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT site_description FROM sites WHERE site_id = $SITEID;",
+            -1,
+            &get_site_description_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for getting a Site's description.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
             "UPDATE sites SET deleted = 0 WHERE site_id = $SITEID;",
             -1,
             &undelete_site_stmt,
@@ -1371,7 +1632,8 @@ namespace sqliteinterface
 
         if (sqlite3_prepare_v2(
             dbhandle_ptr,
-            "INSERT INTO sites(site_id, deleted) VALUES ($SITEID, 0);",
+            "INSERT INTO sites(site_id, site_name, site_description, deleted) "
+                "VALUES ($SITEID, $SITENAME, $SITEDESCRIPTION, 0);",
             -1,
             &insert_new_site_stmt,
             0) != SQLITE_OK)
@@ -1419,6 +1681,33 @@ namespace sqliteinterface
 
             LOG(fatal, "sqliteinterface", "sql_init",
                 "Failed prepared statement for delete a site's display names.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "UPDATE sites SET site_name = $SITENAME WHERE site_id = $SITEID;",
+            -1,
+            &set_site_name_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for setting a site's name.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "UPDATE sites SET site_description = $SITEDESCRIPTION "
+                "WHERE site_id = $SITEID;",
+            -1,
+            &set_site_description_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for setting a site's description.");
         }
 
         if (sqlite3_prepare_v2(

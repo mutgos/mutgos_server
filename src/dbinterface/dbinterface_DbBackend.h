@@ -25,7 +25,6 @@ namespace dbinterface
     // TODO Enhanced player searching
     // TODO Enhanced searched ('filter by player', plugin filter)
     // TODO ID 'valid' check
-    // TODO Sites need a name
 
     /**
      * Class that a database backend must implement for MUTGOS
@@ -201,6 +200,47 @@ namespace dbinterface
          * @return True if success, false if the site ID cannot be found.
          */
         virtual bool delete_site_in_db(const dbtype::Id::SiteIdType site_id) =0;
+
+        /**
+         * Gets the name for a site.
+         * @param site_id[in] The existing site ID to get the name for.
+         * @param site_name[out] The site name, or empty if error or none.
+         * @return True if successfully retrieved the site name.
+         */
+        virtual bool get_site_name_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_name) =0;
+
+        /**
+         * Sets the name for a site.
+         * @param site_id[in] The existing site ID to set the name for.
+         * @param site_name[in] The site's new name.
+         * @return True if successfully set the site name.
+         */
+        virtual bool set_site_name_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_name) =0;
+
+        /**
+         * Gets the description for a site.
+         * @param site_id[in] The existing site ID to get the description for.
+         * @param site_description[out] The site description, or empty if
+         * error or none.
+         * @return True if successfully retrieved the site description.
+         */
+        virtual bool get_site_description_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            std::string &site_description) =0;
+
+        /**
+         * Sets the description for a site.
+         * @param site_id[in] The existing site ID to set the description for.
+         * @param site_description[in] The site's new description.
+         * @return True if successfully set the site description.
+         */
+        virtual bool set_site_description_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &site_description) =0;
 
     protected:
         /**

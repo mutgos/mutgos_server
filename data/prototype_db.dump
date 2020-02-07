@@ -4,7 +4,8 @@ MUTGOS DUMP VERSION 1
 # and better comments at some point.
 
 # Contains programs and such global to all sites
-mksite global_site
+mksite SYSTEM
+setsitedesc Global site - not for general use
 
 # Room #0, basically
 mkentity region $global_root_region
@@ -539,7 +540,8 @@ end site
 
 
 # First actual site
-mksite desk_site
+mksite Desk World!
+setsitedesc Experience life on a desk!
 
 # Room #0, basically
 mkentity region $root_region

@@ -5,12 +5,15 @@
 #include "sqliteinterface/sqliteinterface_SqliteBackend.h"
 
 #include "dbtypes/dbtype_Entity.h"
+#include "dbinterface/dbinterface_SiteInfo.h"
 
 #include "concurrency/concurrency_WriterLockToken.h"
 #include "concurrency/concurrency_ReaderLockToken.h"
 
 #include "text/text_StringConversion.h"
+#include "text/text_Utf8Tools.h"
 
+#include "utilities/mutgos_config.h"
 #include "logging/log_Logger.h"
 
 namespace mutgos
@@ -65,7 +68,13 @@ namespace dbinterface
                 const dbtype::Id::SiteIdVector site_ids =
                     db_backend_ptr->get_site_ids_in_db();
 
-                valid_site_ids.insert(site_ids.begin(), site_ids.end());
+                for (dbtype::Id::SiteIdVector::const_iterator site_iter =
+                        site_ids.begin();
+                    site_iter != site_ids.end();
+                    ++site_iter)
+                {
+                    add_site_info_to_cache(*site_iter);
+                }
             }
         }
 
@@ -475,7 +484,175 @@ namespace dbinterface
     // ----------------------------------------------------------------------
     dbtype::Id::SiteIdVector DatabaseAccess::get_all_site_ids(void)
     {
-        return db_backend_ptr->get_site_ids_in_db();
+        dbtype::Id::SiteIdVector sites;
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        sites.reserve(site_id_to_info_cache.size());
+
+        for (SiteIdToInfo::const_iterator site_iter =
+            site_id_to_info_cache.begin();
+            site_iter != site_id_to_info_cache.end();
+            ++site_iter)
+        {
+            sites.push_back(site_iter->first);
+        }
+
+        return sites;
+    }
+
+    // ----------------------------------------------------------------------
+    DatabaseAccess::SiteInfoVector DatabaseAccess::get_all_site_info(void)
+    {
+        SiteInfoVector result;
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        result.reserve(site_id_to_info_cache.size());
+
+        for (SiteIdToInfo::const_iterator site_iter =
+                site_id_to_info_cache.begin();
+            site_iter != site_id_to_info_cache.end();
+            ++site_iter)
+        {
+            result.push_back(site_iter->second);
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::get_site_name(
+        const dbtype::Id::SiteIdType site_id,
+        std::string &site_name)
+    {
+        DbResultCode rc = DBRESULTCODE_BAD_SITE_ID;
+        boost::lock_guard<boost::mutex> guard(mutex);
+        SiteIdToInfo::const_iterator site_iter =
+            site_id_to_info_cache.find(site_id);
+
+        site_name.clear();
+
+        if (site_iter != site_id_to_info_cache.end())
+        {
+            rc = DBRESULTCODE_OK;
+            site_name = site_iter->second.get_site_name();
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::set_site_description(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &site_description)
+    {
+        DbResultCode rc = DBRESULTCODE_BAD_SITE_ID;
+        const std::string site_desc_trimmed = text::trim_copy(site_description);
+
+        if (site_desc_trimmed.empty() or
+            (text::utf8_size(site_desc_trimmed) > config::db::limits_string_size()))
+        {
+            rc = DBRESULTCODE_BAD_NAME;
+        }
+        else
+        {
+            boost::lock_guard<boost::mutex> guard(mutex);
+            SiteIdToInfo::iterator site_iter =
+                site_id_to_info_cache.find(site_id);
+
+            if (site_iter != site_id_to_info_cache.end())
+            {
+                if (db_backend_ptr->set_site_description_in_db(
+                    site_id,
+                    site_desc_trimmed))
+                {
+                    rc = DBRESULTCODE_OK;
+                    site_iter->second.set_site_description(site_desc_trimmed);
+                }
+                else
+                {
+                    rc = DBRESULTCODE_ERROR;
+                }
+            }
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::get_site_description(
+        const dbtype::Id::SiteIdType site_id,
+        std::string &site_description)
+    {
+        DbResultCode rc = DBRESULTCODE_BAD_SITE_ID;
+        boost::lock_guard<boost::mutex> guard(mutex);
+        SiteIdToInfo::const_iterator site_iter =
+            site_id_to_info_cache.find(site_id);
+
+        site_description.clear();
+
+        if (site_iter != site_id_to_info_cache.end())
+        {
+            rc = DBRESULTCODE_OK;
+            site_description = site_iter->second.get_site_description();
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::set_site_name(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &site_name)
+    {
+        DbResultCode rc = DBRESULTCODE_BAD_SITE_ID;
+        const std::string site_name_trimmed = text::trim_copy(site_name);
+
+        if (site_name_trimmed.empty() or
+            (text::utf8_size(site_name_trimmed) > config::db::limits_entity_name()))
+        {
+            rc = DBRESULTCODE_BAD_NAME;
+        }
+        else
+        {
+            boost::lock_guard<boost::mutex> guard(mutex);
+
+            // Confirm name not in use
+            //
+            for (SiteIdToInfo::const_iterator site_check_iter =
+                    site_id_to_info_cache.begin();
+                site_check_iter != site_id_to_info_cache.end();
+                ++site_check_iter)
+            {
+                if (site_check_iter->second.get_site_name() == site_name_trimmed)
+                {
+                    rc = DBRESULTCODE_BAD_NAME;
+                    break;
+                }
+            }
+
+            if (rc != DBRESULTCODE_BAD_NAME)
+            {
+                SiteIdToInfo::iterator site_iter =
+                    site_id_to_info_cache.find(site_id);
+
+                if (site_iter != site_id_to_info_cache.end())
+                {
+                    if (db_backend_ptr->set_site_name_in_db(
+                        site_id,
+                        site_name_trimmed))
+                    {
+                        rc = DBRESULTCODE_OK;
+                        site_iter->second.set_site_name(site_name_trimmed);
+                    }
+                    else
+                    {
+                        rc = DBRESULTCODE_ERROR;
+                    }
+                }
+            }
+        }
+
+        return rc;
     }
 
     // ----------------------------------------------------------------------
@@ -487,7 +664,7 @@ namespace dbinterface
 
         if (db_backend_ptr->new_site_in_db(site_id))
         {
-            valid_site_ids.insert(site_id);
+            add_site_info_to_cache(site_id);
         }
         else
         {
@@ -542,7 +719,7 @@ namespace dbinterface
                 //
                 delete cache_ptr;
                 cache_ptr = 0;
-                valid_site_ids.erase(site_id);
+                site_id_to_info_cache.erase(site_id);
                 entity_cache.erase(site_id);
 
                 if (not db_backend_ptr->delete_site_in_db(site_id))
@@ -685,7 +862,7 @@ namespace dbinterface
 
         SiteCache *site_ptr = 0;
 
-        if (valid_site_ids.find(site_id) != valid_site_ids.end())
+        if (site_id_to_info_cache.find(site_id) != site_id_to_info_cache.end())
         {
             CacheMap::iterator cache_iter = entity_cache.find(site_id);
 
@@ -706,6 +883,36 @@ namespace dbinterface
         }
 
         return site_ptr;
+    }
+
+    // ----------------------------------------------------------------------
+    void DatabaseAccess::add_site_info_to_cache(
+        const mutgos::dbtype::Id::SiteIdType site_id)
+    {
+        std::string site_name;
+        std::string site_description;
+
+        if (not db_backend_ptr->get_site_name_in_db(site_id, site_name))
+        {
+            LOG(error, "dbinterface", "add_site_info_to_cache",
+                "Could not get name for site ID "
+                + text::to_string(site_id));
+        }
+
+        if (not db_backend_ptr->get_site_description_in_db(
+            site_id,
+            site_description))
+        {
+            LOG(error, "dbinterface", "add_site_info_to_cache",
+                "Could not get description for site ID "
+                + text::to_string(site_id));
+        }
+
+        SiteInfo site_info(site_id);
+        site_info.set_site_name(site_name);
+        site_info.set_site_description(site_description);
+
+        site_id_to_info_cache[site_id] = site_info;
     }
 }
 }

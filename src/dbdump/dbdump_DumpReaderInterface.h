@@ -77,7 +77,8 @@ namespace dbdump
 
         /**
          * Makes a new site to work on.  Must not have an existing site selected.
-         * @param site_name[in] The name of the site.
+         * @param site_name[in] The name of the site.  The name must not
+         * already be in use.
          * @param site_id[out] The newly created site ID, if success.
          * @return True if successfully created, false if error or site has
          * already been selected.
@@ -85,6 +86,14 @@ namespace dbdump
         bool make_site(
             const std::string &site_name,
             dbtype::Id::SiteIdType &site_id);
+
+        /**
+         * Sets the description for the current site.  Optional.
+         * @param description[in] The new description for the site.
+         * @return True if successfully set, false if error or site has
+         * not been selected.
+         */
+        bool set_site_description(const std::string &description);
 
         /**
          * Sets an existing site to work on.

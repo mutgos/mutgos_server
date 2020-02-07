@@ -744,24 +744,24 @@ namespace websocket
     {
         // TODO later, add site name and description
 
-        const dbtype::Id::SiteIdVector db_sites =
-            dbinterface::DatabaseAccess::instance()->get_all_site_ids();
+        const dbinterface::DatabaseAccess::SiteInfoVector db_sites =
+            dbinterface::DatabaseAccess::instance()->get_all_site_info();
         comm::RouterSessionManager * const router_ptr =
             driver_ptr->get_router();
         message::ClientSiteList site_message;
 
         // Got all the site IDs, now populate the site message.
         //
-        for (dbtype::Id::SiteIdVector::const_iterator site_iter =
-            db_sites.begin();
+        for (dbinterface::DatabaseAccess::SiteInfoVector::const_iterator
+                site_iter = db_sites.begin();
             site_iter != db_sites.end();
             ++site_iter)
         {
             site_message.add_site(
-                *site_iter,
-                "NOT IMPLEMENTED",
-                "NOT IMPLEMENTED",
-                router_ptr->get_session_online_count(*site_iter));
+                site_iter->get_site_id(),
+                site_iter->get_site_name(),
+                site_iter->get_site_description(),
+                router_ptr->get_session_online_count(site_iter->get_site_id()));
         }
 
         // Send the response back,
