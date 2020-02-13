@@ -29,8 +29,6 @@ namespace dbtype
         ENTITYFIELD_id,      ///< ID of entity.
         ENTITYFIELD_name,    ///< Name of entity.
         ENTITYFIELD_note,    ///< Note concerning the Entity
-        ENTITYFIELD_reg_name, ///< Registration name
-        ENTITYFIELD_reg_category, ///< Registration category
         ENTITYFIELD_security,///< Security flags
         ENTITYFIELD_instance,///< Instance # of Entity
         ENTITYFIELD_version, ///< Version # of Entity

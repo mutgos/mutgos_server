@@ -17,8 +17,6 @@ namespace
         "id",
         "name",
         "note",
-        "reg_name",
-        "reg_category",
         "security",
         "instance",
         "version",

@@ -390,8 +390,6 @@ namespace dbdump
             // String
             case dbtype::ENTITYFIELD_name:
             case dbtype::ENTITYFIELD_note:
-            case dbtype::ENTITYFIELD_reg_name:
-            case dbtype::ENTITYFIELD_reg_category:
             case dbtype::ENTITYFIELD_password:
             case dbtype::ENTITYFIELD_player_display_name:
             case dbtype::ENTITYFIELD_puppet_display_name:
@@ -492,20 +490,6 @@ namespace dbdump
                     case dbtype::ENTITYFIELD_note:
                     {
                         result = current_entity.get()->set_entity_note(value);
-                        break;
-                    }
-
-                    case dbtype::ENTITYFIELD_reg_name:
-                    {
-                        result = current_entity.get()->
-                            set_entity_registration_name(value);
-                        break;
-                    }
-
-                    case dbtype::ENTITYFIELD_reg_category:
-                    {
-                        result = current_entity.get()->
-                            set_entity_registration_category(value);
                         break;
                     }
 
