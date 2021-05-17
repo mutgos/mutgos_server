@@ -30,10 +30,10 @@ namespace
     const static std::string CONNECT_COMMAND_2 = "conn";
     const static std::string CONNECT_COMMAND_3 = "co";
 
-    const static char COMMAND_PREFIX = '!';
+    const static char COMMAND_PREFIX = '#';
     const static std::string ANSI_ON_COMMAND = "color on";
     const static std::string ANSI_OFF_COMMAND = "color off";
-    const static char SEND_TO_AGENT_COMMAND = '!';
+    const static char SEND_TO_AGENT_COMMAND = '#';
     const static std::string HELP_COMMAND = "help";
 }
 

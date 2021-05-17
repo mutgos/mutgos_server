@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include <boost/foreach.hpp>
+
 #include "osinterface/osinterface_OsTypes.h"
 
 #include "logging/log_Logger.h"
@@ -64,8 +66,8 @@ namespace
     const std::string CLIENT_DATA_CHANNEL_NAME = "ClientData";
 
     const std::string QUIT_COMMAND = "QUIT";
-    const std::string LIST_PROG_COMMAND = "@listprog";
-    const std::string EDIT_PROG_COMMAND = "@editprog";
+    const std::string LIST_PROG_COMMAND = "!listprog";
+    const std::string EDIT_PROG_COMMAND = "!editprog";
 
     const std::string SAVE_EDIT_STRING = ".save";
     const std::string ABORT_EDIT_STRING = ".abort";
@@ -254,7 +256,24 @@ namespace useragent
             // Note that it is possible we are never called with this method
             // directly by the executor if there are always messages waiting.
             //
-            send_plain_text("Welcome!", false);
+
+            // Get the splash screen if they have one.
+            //
+            primitives::DatabasePrims::DocumentContents splash_screen;
+            primitives::PrimitivesAccess::instance()->database_prims().
+                get_application_property(
+                    my_context,
+                    dbtype::Id(my_context.get_requester().get_site_id(), 1),
+                    "/splash_screen/welcome",
+                    splash_screen,
+                    false);
+
+            BOOST_FOREACH(const std::string &line, splash_screen)
+            {
+                send_plain_text(line, false);
+            }
+
+            send_plain_text(std::string(), false);
 
             if (data_output_channel_ptr)
             {

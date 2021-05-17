@@ -22,6 +22,9 @@ namespace mutgos
 {
 namespace dbinterface
 {
+    // TODO Might need a primitive to allow programs/commands to wait until
+    //   next commit cycle has finished. -- Need to find a way to avoid this!!
+
     /**
      * Basically, this listens to all Entity updates and deletes, and commits
      * them to the database.  In the case of deletes, it will also delete
@@ -94,6 +97,37 @@ namespace dbinterface
             const dbtype::Entity::EntityFieldSet &fields_changed,
             const dbtype::Entity::FlagsRemovedAdded &flags_changed,
             const dbtype::Entity::ChangedIdFieldsMap &ids_changed);
+
+        /**
+         * Provides a chance to veto a change to a program's registration
+         * name.
+         * @param entity[in] The Program Entity that will be changed.  This
+         * will be in a write lock while this method is called.
+         * @param token[in] The write token for the entity, in case
+         * other attributes need to be read.
+         * @param old_name[in] The old registration name, or empty for none.
+         * @param new_name[in] The new registration name, or empty for none.
+         * @return True if registration name change allowed, false to
+         * veto (disallow) it.  If true is returned, the change will be
+         * made.  If false is returned, the change will not be made.
+         */
+        virtual bool check_program_registration_name(
+            dbtype::Entity *entity,
+            concurrency::WriterLockToken &token,
+            const std::string &old_name,
+            const std::string &new_name);
+
+        /**
+         * Given a site and registration name, see if any programs whose
+         * registration is being renamed match.
+         * @param site_id[in] The site ID to check.
+         * @param reg_name[in] The program registration name to look for.
+         * @return The ID of the program being renamed whose registration name
+         * matches, or default/invalid if none match.
+         */
+        dbtype::Id get_prog_reg_rename_id(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &reg_name);
 
         /**
          * Adds the given Entity IDs to the list of pending database deletes.
@@ -221,6 +255,30 @@ namespace dbinterface
             const dbtype::EntityField field);
 
         /**
+         * Assumes locking has been done.
+         * @param site_id[in] The site ID to check.
+         * @param reg_name[in] The reg name to check.
+         * @return True if program registration name is in the pending
+         * rename list (either current name or previous name), false
+         * if not.
+         */
+        bool is_prog_reg_name_in_progress(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &reg_name) const;
+
+        /**
+         * Assumes locking has been done.
+         * Will determine if an Entity is a program and if its
+         * program registration name matches whats in the DB.
+         * If it does match, it will be taken out of the pending renames
+         * data structures since the rename completed.
+         * @param entity_id[in] The ID of the updated Entity to process.
+         *
+         */
+        void process_prog_reg_rename_update(
+            const dbtype::Id &entity_id);
+
+        /**
          * Singleton constructor.
          */
         UpdateManager(void);
@@ -233,12 +291,17 @@ namespace dbinterface
         static UpdateManager *singleton_ptr; ///< Singleton pointer.
 
         typedef std::vector<EntityUpdate *> ImmediateUpdateQueue;
+        typedef std::pair<std::string, std::string> OldNewProgRegName;
+        typedef std::map<dbtype::Id::EntityIdType, OldNewProgRegName> IdRegInfo;
+        typedef std::map<dbtype::Id::SiteIdType , IdRegInfo> PendingProgReg;
 
         boost::mutex mutex; ///< Enforces single access at a time.
         boost::thread *thread_ptr; ///< Non-null when thread is running.
 
         PendingUpdatesMap pending_updates; ///< Updates to be committed
         ImmediateUpdateQueue immediate_update_queue; ///< Updates to be processed immediately
+        PendingProgReg pending_program_registrations; ///< Program registrations about to be committed.
+
         /** Semaphore associated with the immediate update queue so thread can
             easily block and wait for work. */
         boost::interprocess::interprocess_semaphore immediate_update_queue_sem;

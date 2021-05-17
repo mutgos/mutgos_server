@@ -236,8 +236,8 @@ namespace primitives
             const bool throw_on_violation = true);
 
         /**
-         * Converts an ID in the form of #12-345 (or #1234) into an
-         * dbtype::Id.
+         * Converts an ID in the form of #12-345 (or #1234) or a program
+         * reg name ($regname) into a dbtype::Id.
          * @param context[in] The security context.  Also used to fill in the
          * site if not specified.
          * @param id_as_string[in] The ID to convert, in string form.

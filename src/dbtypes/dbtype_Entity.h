@@ -510,78 +510,6 @@ namespace dbtype
         ///////////////////////////////
 
         /**
-         * @param token[in] The lock token.
-         * @return The Entity's registration name, or empty if none
-         * or error.
-         */
-        std::string get_entity_registration_name(
-            concurrency::ReaderLockToken &token);
-
-        /**
-         * This method automatically gets a lock.
-         * @return The Entity's registration name, or empty if none
-         * or error.
-         */
-        std::string get_entity_registration_name(void);
-
-        /**
-         * Sets the Entity's registration name.
-         * @param name[in] The name to set.
-         * @param token[in] The lock token.
-         * @return True if success.
-         */
-        bool set_entity_registration_name(
-            const std::string &name,
-            concurrency::WriterLockToken &token);
-
-        /**
-         * Sets the Entity's registration name.
-         * This method automatically gets a lock.
-         * @param name[in] The name to set.
-         * @return True if success.
-         */
-        bool set_entity_registration_name(
-            const std::string &name);
-
-        ///////////////////////////////
-
-        /**
-         * @param token[in] The lock token.
-         * @return The Entity's registration category, or empty if none
-         * or error.
-         */
-        std::string get_entity_registration_category(
-            concurrency::ReaderLockToken &token);
-
-        /**
-         * This method automatically gets a lock.
-         * @return The Entity's registration category, or empty if none
-         * or error.
-         */
-        std::string get_entity_registration_category(void);
-
-        /**
-         * Sets the Entity's registration category.
-         * @param category[in] The category to set.
-         * @param token[in] The lock token.
-         * @return True if success.
-         */
-        bool set_entity_registration_category(
-            const std::string &category,
-            concurrency::WriterLockToken &token);
-
-        /**
-         * Sets the Entity's registration category.
-         * This method automatically gets a lock.
-         * @param category[in] The category to set.
-         * @return True if success.
-         */
-        bool set_entity_registration_category(
-            const std::string &category);
-
-        ///////////////////////////////
-
-        /**
          * Gets the Entity's 'last updated' field.
          * @param token[in] The lock token.
          * @return A copy of the Entity's last updated timestamp or a default
@@ -1169,6 +1097,8 @@ namespace dbtype
 
     protected:
 
+        typedef std::vector<DatabaseEntityChangeListener *> DbListeners;
+
         /**
          * Constructs an Entity with a provided type.  Used by subclasses.
          * @param id[in] The ID of the entity.
@@ -1266,6 +1196,14 @@ namespace dbtype
          */
         void notify_db_listener(void);
 
+        /**
+         * @return The database listeners.
+         */
+        DbListeners &get_db_listeners(void)
+        {
+            return db_listeners;
+        }
+
         // Fields of Entity
         //
         EntityType entity_type; ///< The (sub)type of this Entity.
@@ -1277,9 +1215,6 @@ namespace dbtype
 
         std::string entity_name; ///< The name of this Entity.
         std::string entity_note; ///< Note concerning the Entity
-
-        std::string entity_reg_name; ///< Global identifier within category
-        std::string entity_reg_category; ///< Global namespace for reg name
 
         TimeStamp entity_created_timestamp;  ///< When created.
         TimeStamp entity_updated_timestamp;  ///< When updated
@@ -1312,8 +1247,6 @@ namespace dbtype
             ar & entity_version;
             ar & entity_name;
             ar & entity_note;
-            ar & entity_reg_name;
-            ar & entity_reg_category;
             ar & entity_security;
             ar & entity_created_timestamp;
             ar & entity_updated_timestamp;
@@ -1335,8 +1268,6 @@ namespace dbtype
             ar & entity_version;
             ar & entity_name;
             ar & entity_note;
-            ar & entity_reg_name;
-            ar & entity_reg_category;
             ar & entity_security;
             ar & entity_created_timestamp;
             ar & entity_updated_timestamp;
@@ -1353,7 +1284,6 @@ namespace dbtype
         BOOST_SERIALIZATION_SPLIT_MEMBER();
         ////
 
-        typedef std::vector<DatabaseEntityChangeListener *> DbListeners;
 
         /**
          * Clears entity_references_field.

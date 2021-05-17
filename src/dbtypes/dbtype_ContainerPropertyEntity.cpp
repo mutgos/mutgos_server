@@ -6,8 +6,10 @@
 
 #include "logging/log_Logger.h"
 
+#include "dbtypes/dbtype_Id.h"
 #include "dbtypes/dbtype_PropertyEntity.h"
 #include "dbtypes/dbtype_ContainerPropertyEntity.h"
+#include "dbtypes/dbtype_RegistrationDirectory.h"
 
 namespace mutgos
 {
@@ -15,19 +17,23 @@ namespace dbtype
 {
     // ----------------------------------------------------------------------
     ContainerPropertyEntity::ContainerPropertyEntity()
-      : PropertyEntity()
+      : PropertyEntity(),
+        registrations_ptr(0)
     {
     }
 
     // ----------------------------------------------------------------------
     ContainerPropertyEntity::ContainerPropertyEntity(const Id &id)
-      : PropertyEntity(id, ENTITYTYPE_container_property_entity, 0, 0)
+      : PropertyEntity(id, ENTITYTYPE_container_property_entity, 0, 0),
+        registrations_ptr(0)
     {
     }
 
     // ----------------------------------------------------------------------
     ContainerPropertyEntity::~ContainerPropertyEntity()
     {
+        delete registrations_ptr;
+        registrations_ptr = 0;
     }
 
     // ----------------------------------------------------------------------
@@ -66,6 +72,11 @@ namespace dbtype
         total_memory += (contained_by.mem_used() *
             (linked_programs.size() + 1)) + sizeof(bool);
 
+        if (registrations_ptr)
+        {
+            total_memory += registrations_ptr->mem_used();
+        }
+
         return total_memory;
     }
 
@@ -89,6 +100,12 @@ namespace dbtype
         }
 
         strstream << std::endl;
+
+        if (registrations_ptr)
+        {
+            strstream << registrations_ptr->to_string();
+            strstream << std::endl;
+        }
 
         return strstream.str();
     }
@@ -423,13 +440,365 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
+    Id ContainerPropertyEntity::get_registered_id(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        Id result;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                const Id * const registered_id_ptr =
+                    registrations_ptr->get_registered_id(path);
+
+                if (registered_id_ptr)
+                {
+                    result = *registered_id_ptr;
+                }
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_registered_id",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    Id ContainerPropertyEntity::get_registered_id(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return get_registered_id(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_next_registration_entry(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        PathString result;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->get_next_registration_entry(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_next_registration_entry",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_next_registration_entry(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return get_next_registration_entry(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_previous_registration_entry(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        PathString result;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->get_previous_registration_entry(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_previous_registration_entry",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_previous_registration_entry(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return get_previous_registration_entry(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_first_registration_entry(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        PathString result;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->get_first_registration_entry(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_first_registration_entry",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_first_registration_entry(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return get_first_registration_entry(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_last_registration_entry(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        PathString result;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->get_last_registration_entry(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_last_registration_entry",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    ContainerPropertyEntity::PathString
+    ContainerPropertyEntity::get_last_registration_entry(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return get_last_registration_entry(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::delete_registration(
+        const PathString &path,
+        concurrency::WriterLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                const bool did_delete =
+                    registrations_ptr->delete_registration(path);
+
+                if (did_delete)
+                {
+                    notify_field_changed(ENTITYFIELD_registrations);
+
+                    if (registrations_ptr->is_empty())
+                    {
+                        delete registrations_ptr;
+                        registrations_ptr = 0;
+                    }
+                }
+            }
+
+            result = true;
+        }
+        else
+        {
+            LOG(error, "dbtype", "delete_registration",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::delete_registration(const PathString &path)
+    {
+        concurrency::WriterLockToken token(*this);
+        return delete_registration(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::add_registration(
+        const mutgos::dbtype::ContainerPropertyEntity::PathString &path,
+        const mutgos::dbtype::Id &id,
+        mutgos::concurrency::WriterLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            if (not registrations_ptr)
+            {
+                // Doesn't exist, create.
+                registrations_ptr = new RegistrationDirectory();
+            }
+
+            result = registrations_ptr->add_registration(path, id);
+            notify_field_changed(ENTITYFIELD_registrations);
+
+            if ((not result) and registrations_ptr->is_empty())
+            {
+                delete registrations_ptr;
+                registrations_ptr = 0;
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "add_registration",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::add_registration(
+        const mutgos::dbtype::ContainerPropertyEntity::PathString &path,
+        const mutgos::dbtype::Id &id)
+    {
+        concurrency::WriterLockToken token(*this);
+        return add_registration(path, id, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::does_registration_exist(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->does_registration_exist(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "does_registration_exist",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::does_registration_exist(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return does_registration_exist(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::is_registration_path_directory(
+        const ContainerPropertyEntity::PathString &path,
+        concurrency::ReaderLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            if (registrations_ptr)
+            {
+                result = registrations_ptr->is_path_directory(path);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "is_path_directory",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::is_registration_path_directory(
+        const ContainerPropertyEntity::PathString &path)
+    {
+        concurrency::ReaderLockToken token(*this);
+        return is_registration_path_directory(path, token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::clear_registrations(
+        concurrency::WriterLockToken &token)
+    {
+        bool result = false;
+
+        if (token.has_lock(*this))
+        {
+            result = true;
+
+            if (registrations_ptr)
+            {
+                delete registrations_ptr;
+                registrations_ptr = 0;
+                notify_field_changed(ENTITYFIELD_registrations);
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "clear_registrations",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool ContainerPropertyEntity::clear_registrations(void)
+    {
+        concurrency::WriterLockToken token(*this);
+        return clear_registrations(token);
+    }
+
+    // ----------------------------------------------------------------------
     ContainerPropertyEntity::ContainerPropertyEntity(
         const Id &id,
         const EntityType &type,
         const VersionType version,
         const InstanceType instance,
         const bool restoring)
-        : PropertyEntity(id, type, version, instance, restoring)
+        : PropertyEntity(id, type, version, instance, restoring),
+          registrations_ptr(0)
     {
     }
 
@@ -474,6 +843,15 @@ namespace dbtype
                     ENTITYFIELD_linked_programs,
                     *add_iter);
                 cast_ptr->notify_field_changed(ENTITYFIELD_linked_programs);
+            }
+
+            delete cast_ptr->registrations_ptr;
+            cast_ptr->registrations_ptr = 0;
+
+            if (registrations_ptr)
+            {
+                cast_ptr->registrations_ptr = registrations_ptr->clone();
+                cast_ptr->notify_field_changed(ENTITYFIELD_registrations);
             }
         }
     }

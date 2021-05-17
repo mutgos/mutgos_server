@@ -318,8 +318,6 @@ namespace dbtype
           << "Version:   " << entity_version << std::endl
           << "Instance:  " << entity_instance << std::endl
           << "Note:      " << entity_note << std::endl
-          << "Reg name:  " << entity_reg_name << std::endl
-          << "Reg cat:   " << entity_reg_category << std::endl
           << "Security:  " << entity_security.to_string() << std::endl
           << "Created:   " << entity_created_timestamp.to_string() << std::endl
           << "Updated:   " << entity_updated_timestamp.to_string() << std::endl
@@ -608,128 +606,6 @@ namespace dbtype
         concurrency::WriterLockToken token(*this);
 
         return set_entity_note(note, token);
-    }
-
-    // -----------------------------------------------------------------------
-    std::string Entity::get_entity_registration_name(
-        concurrency::ReaderLockToken &token)
-    {
-        std::string result;
-
-        if (token.has_lock(*this))
-        {
-            result = entity_reg_name;
-        }
-        else
-        {
-            LOG(error, "dbtype", "get_entity_registration_name",
-                "Using the wrong lock token!");
-        }
-
-        return result;
-    }
-
-    // -----------------------------------------------------------------------
-    std::string Entity::get_entity_registration_name(void)
-    {
-        concurrency::ReaderLockToken token(*this);
-
-        return get_entity_registration_name(token);
-    }
-
-    // -----------------------------------------------------------------------
-    bool Entity::set_entity_registration_name(
-        const std::string &name,
-        concurrency::WriterLockToken &token)
-    {
-        if (text::utf8_size(name) > config::db::limits_string_size())
-        {
-            // Exceeds size.
-            return false;
-        }
-
-        if (token.has_lock(*this))
-        {
-            // Limit size of the name
-            entity_reg_name = name.substr(0, MAX_STRING_LENGTH);
-            notify_field_changed(ENTITYFIELD_reg_name);
-            return true;
-        }
-        else
-        {
-            LOG(error, "dbtype", "set_entity_registration_name",
-                "Using the wrong lock token!");
-            return false;
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    bool Entity::set_entity_registration_name(const std::string &name)
-    {
-        concurrency::WriterLockToken token(*this);
-
-        return set_entity_registration_name(name, token);
-    }
-
-    // -----------------------------------------------------------------------
-    std::string Entity::get_entity_registration_category(
-        concurrency::ReaderLockToken &token)
-    {
-        std::string result;
-
-        if (token.has_lock(*this))
-        {
-            result = entity_reg_category;
-        }
-        else
-        {
-            LOG(error, "dbtype", "get_entity_registration_category",
-                "Using the wrong lock token!");
-        }
-
-        return result;
-    }
-
-    // -----------------------------------------------------------------------
-    std::string Entity::get_entity_registration_category(void)
-    {
-        concurrency::ReaderLockToken token(*this);
-
-        return get_entity_registration_category(token);
-    }
-
-    // -----------------------------------------------------------------------
-    bool Entity::set_entity_registration_category(
-        const std::string &category,
-        concurrency::WriterLockToken &token)
-    {
-        if (text::utf8_size(category) > config::db::limits_string_size())
-        {
-            // Exceeds size.
-            return false;
-        }
-
-        if (token.has_lock(*this))
-        {
-            // Limit size of the category
-            entity_reg_category = category.substr(0, MAX_STRING_LENGTH);
-            notify_field_changed(ENTITYFIELD_reg_category);
-            return true;
-        }
-        else
-        {
-            LOG(error, "dbtype", "set_entity_registration_category",
-                "Using the wrong lock token!");
-            return false;
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    bool Entity::set_entity_registration_category(const std::string &category)
-    {
-        concurrency::WriterLockToken token(*this);
-
-        return set_entity_registration_category(category, token);
     }
 
     // -----------------------------------------------------------------------
@@ -1750,12 +1626,6 @@ namespace dbtype
             entity_ptr->entity_note = entity_note;
             entity_ptr->notify_field_changed(ENTITYFIELD_note);
 
-            entity_ptr->entity_reg_name = entity_reg_name;
-            entity_ptr->notify_field_changed(ENTITYFIELD_reg_name);
-
-            entity_ptr->entity_reg_category = entity_reg_category;
-            entity_ptr->notify_field_changed(ENTITYFIELD_reg_category);
-
             entity_ptr->entity_security = entity_security;
             entity_ptr->notify_field_changed(ENTITYFIELD_security);
 
@@ -1854,8 +1724,6 @@ namespace dbtype
             + entity_security.mem_used()
             + sizeof(entity_name) + entity_name.size()
             + sizeof(entity_note) + entity_note.size()
-            + sizeof(entity_reg_name) + entity_reg_name.size()
-            + sizeof(entity_reg_category) + entity_reg_category.size()
             + entity_created_timestamp.mem_used()
             + entity_updated_timestamp.mem_used()
             + entity_accessed_timestamp.mem_used()

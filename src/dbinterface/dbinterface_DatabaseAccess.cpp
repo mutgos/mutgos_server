@@ -482,6 +482,35 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::find_program_by_reg_name(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &regname,
+        dbtype::Id &prog_id)
+    {
+        DbResultCode rc = DBRESULTCODE_OK;
+
+        if (not get_site_cache(site_id))
+        {
+            rc = DBRESULTCODE_BAD_SITE_ID;
+            prog_id = dbtype::Id();
+        }
+        else
+        {
+            prog_id = UpdateManager::instance()->
+                get_prog_reg_rename_id(site_id, regname);
+
+            if (prog_id.is_default())
+            {
+                // Didn't find in active renames, check database.
+                prog_id =
+                    db_backend_ptr->find_program_reg_in_db(site_id, regname);
+            }
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
     dbtype::Id::SiteIdVector DatabaseAccess::get_all_site_ids(void)
     {
         dbtype::Id::SiteIdVector sites;
@@ -747,7 +776,7 @@ namespace dbinterface
 
     // ----------------------------------------------------------------------
     DbResultCode DatabaseAccess::internal_delete_entity(
-        const dbtype::Id entity_id)
+        const dbtype::Id &entity_id)
     {
         DbResultCode rc = DBRESULTCODE_OK;
 
@@ -780,6 +809,47 @@ namespace dbinterface
                     }
                 }
             }
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::internal_get_prog_by_regname(
+        const dbtype::Id::SiteIdType &site_id,
+        const std::string &regname,
+        dbtype::Id &prog_id)
+    {
+        DbResultCode rc = DBRESULTCODE_OK;
+
+        if (not get_site_cache(site_id))
+        {
+            rc = DBRESULTCODE_BAD_SITE_ID;
+            prog_id = dbtype::Id();
+        }
+        else
+        {
+            prog_id = db_backend_ptr->find_program_reg_in_db(site_id, regname);
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::internal_get_prog_regname_by_id(
+        const dbtype::Id &prog_id,
+        std::string &regname)
+    {
+        DbResultCode rc = DBRESULTCODE_OK;
+
+        if (not get_site_cache(prog_id.get_site_id()))
+        {
+            rc = DBRESULTCODE_BAD_SITE_ID;
+            regname.clear();
+        }
+        else
+        {
+            regname = db_backend_ptr->find_program_reg_name_in_db(prog_id);
         }
 
         return rc;
