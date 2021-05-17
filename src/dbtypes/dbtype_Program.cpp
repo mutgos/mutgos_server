@@ -1,4 +1,4 @@
-/*
+ /*
  * dbtype_Program.cpp
  */
 
@@ -19,6 +19,8 @@
 #include "concurrency/concurrency_ReaderLockToken.h"
 #include "concurrency/concurrency_WriterLockToken.h"
 #include "concurrency/concurrency_LockableObject.h"
+
+#include "dbtypes/dbtype_DatabaseEntityChangeListener.h"
 
 #include "utilities/mutgos_config.h"
 #include "text/text_Utf8Tools.h"
@@ -86,6 +88,8 @@ namespace dbtype
         strstream << PropertyEntity::to_string()
                   << "Total runtime (secs): " << program_runtime_sec
                   << std::endl
+                  << "Registration name: " << program_reg_name
+                  << std::endl
                   << "Source code (lines): "
                   << program_source_code.get_number_lines()  << std::endl
                   << "Compiled code (bytes): " << program_compiled_code.size()
@@ -134,6 +138,97 @@ namespace dbtype
         concurrency::WriterLockToken token(*this);
 
         return increment_runtime(seconds, token);
+    }
+
+    // ----------------------------------------------------------------------
+    std::string Program::get_program_reg_name(
+        concurrency::ReaderLockToken &token)
+    {
+        if (token.has_lock(*this))
+        {
+            return program_reg_name;
+        }
+        else
+        {
+            LOG(error, "dbtype", "get_program_reg_name",
+                "Using the wrong lock token!");
+        }
+
+        return std::string();
+    }
+
+    // ----------------------------------------------------------------------
+    std::string Program::get_program_reg_name(void)
+    {
+        concurrency::ReaderLockToken token(*this);
+
+        return get_program_reg_name(token);
+    }
+
+    // ----------------------------------------------------------------------
+    bool Program::set_program_reg_name(
+        const std::string &reg_name,
+        concurrency::WriterLockToken &token)
+    {
+        bool result = false;
+
+        // Remove excess spacing so the name is consistent.
+        const std::string trim_reg_name = text::trim_copy(reg_name);
+
+        // See if there are embedded spaces
+        //
+        if (trim_reg_name.find_first_of(' ') != std::string::npos)
+        {
+            return false;
+        }
+
+        if (text::utf8_size(trim_reg_name) > config::db::limits_entity_name())
+        {
+            // Exceeds size.
+            return result;
+        }
+
+        if (token.has_lock(*this))
+        {
+            // We need to give listeners a chance to veto the change.
+            //
+            bool ok_to_change = true;
+            DbListeners &listeners = get_db_listeners();
+
+            for (DbListeners::iterator listener_iter = listeners.begin();
+                    listener_iter != listeners.end();
+                    ++listener_iter)
+            {
+                if (not (*listener_iter)->check_program_registration_name(
+                    this,
+                    token,
+                    program_reg_name,
+                    trim_reg_name))
+                {
+                    ok_to_change = false;
+                    break;
+                }
+            }
+
+            result = true;
+            program_reg_name = trim_reg_name;
+            notify_field_changed(ENTITYFIELD_program_reg_name);
+        }
+        else
+        {
+            LOG(error, "dbtype", "set_program_reg_name",
+                "Using the wrong lock token!");
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    bool Program::set_program_reg_name(const std::string &reg_name)
+    {
+        concurrency::WriterLockToken token(*this);
+
+        return set_program_reg_name(reg_name, token);
     }
 
     // ----------------------------------------------------------------------
@@ -648,6 +743,7 @@ namespace dbtype
     {
         size_t field_sizes = PropertyEntity::mem_used_fields()
             + sizeof(program_runtime_sec)
+            + program_reg_name.size() + sizeof(program_reg_name)
             + program_source_code.mem_used()
             + program_compiled_code.size() + sizeof(program_compiled_code)
             + program_language.size() + sizeof(program_language)
@@ -676,6 +772,9 @@ namespace dbtype
         {
             cast_ptr->program_runtime_sec = program_runtime_sec;
             cast_ptr->notify_field_changed(ENTITYFIELD_program_runtime_sec);
+
+            cast_ptr->program_reg_name = program_reg_name;
+            cast_ptr->notify_field_changed(ENTITYFIELD_program_reg_name);
 
             cast_ptr->program_source_code.set(program_source_code.get());
             cast_ptr->notify_field_changed(ENTITYFIELD_program_source_code);

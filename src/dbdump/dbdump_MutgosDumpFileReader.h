@@ -242,11 +242,25 @@ namespace dbdump
         bool is_variable(const std::string &input) const;
 
         /**
+         * Does not check to see if reg name exists.
+         * @param input[in] The reg name to test.
+         * @return True if input is a program reg name (in correct format).
+         */
+        bool is_prog_reg_name(const std::string &input) const;
+
+        /**
          * @param variable[in] The variable to get.
          * @return The ID represented by the variable, or default ID if not
          * found.
          */
         const dbtype::Id &get_variable(const std::string &variable) const;
+
+        /**
+         * @param regname[in] The program reg name to get.
+         * @return The ID of the program represented by the program reg name,
+         * or default ID if not found.
+         */
+        const dbtype::Id get_prog_reg(const std::string &regname);
 
         /**
          * Existing definitions are overwritten.

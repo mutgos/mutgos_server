@@ -213,6 +213,22 @@ namespace dbinterface
             const dbtype::Id::SiteIdType site_id);
 
         /**
+         * Tries to find a program with the given registration name
+         * in the given site.
+         * @param site_id[in] The ID of the site to check.
+         * @param regname[in] The program registration name to look for.
+         * @param prog_id[out] The ID of the found program, or default/invalid
+         * if not found.
+         * @return The status code.  Can return
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode find_program_by_reg_name(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &regname,
+            dbtype::Id &prog_id);
+
+        /**
          * @return A list of all known site IDs in the database.
          */
         dbtype::Id::SiteIdVector get_all_site_ids(void);
@@ -320,7 +336,41 @@ namespace dbinterface
          * DBRESULTCODE_BAD_ID,
          * DBRESULTCODE_ERROR_ENTITY_IN_USE
          */
-        DbResultCode internal_delete_entity(const dbtype::Id entity_id);
+        DbResultCode internal_delete_entity(const dbtype::Id &entity_id);
+
+        /**
+         * ** Internal namespace use only **
+         * Finds a program's ID by regname.  Checks the database only;
+         * renames in progress will not be found.
+         * @param site_id[in] The site ID to check.
+         * @param regname[in] The registration name to look for.
+         * @param prog_id[out] The ID of the found program.  If the
+         * regname is not found, this will be set to default/invalid.
+         * @return The status code.  Can return:
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode internal_get_prog_by_regname(
+            const dbtype::Id::SiteIdType &site_id,
+            const std::string &regname,
+            dbtype::Id &prog_id);
+
+        /**
+         * ** Internal namespace use only **
+         * Finds a program's regname by ID.  Checks the database only;
+         * renames in progress will not be found.
+         * @param prog_id[in] The ID of the program whose registration name
+         * is to be looked up.
+         * @param regname[out] The found registration name.  Will be
+         * empty if program doesn't exist, doesn't have a registration, or
+         * there is an error.
+         * @return The status code.  Can return:
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode internal_get_prog_regname_by_id(
+            const dbtype::Id &prog_id,
+            std::string &regname);
 
     private:
         /**

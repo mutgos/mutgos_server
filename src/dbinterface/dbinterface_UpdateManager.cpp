@@ -20,6 +20,7 @@
 #include "dbtypes/dbtype_Vehicle.h"
 #include "dbtypes/dbtype_Program.h"
 #include "dbtypes/dbtype_Player.h"
+#include "dbtypes/dbtype_Program.h"
 #include "dbtypes/dbtype_Thing.h"
 #include "dbtypes/dbtype_ContainerPropertyEntity.h"
 #include "dbtypes/dbtype_ActionEntity.h"
@@ -188,6 +189,186 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    // There is some inefficiency with the pending_program_registrations
+    // data structure when it comes to finding a registration name
+    // within it, but the number of programs actively being created within
+    // the span of the periodic commit is expected to be small.  Program
+    // registration names are not supposed to be frequently looked up.
+    // The only time this becomes an issue is during initial DB load when
+    // hundreds of programs are loaded at once; a few extra seconds during
+    // that time is not (currently) a big deal.
+    bool UpdateManager::check_program_registration_name(
+        dbtype::Entity *entity,
+        concurrency::WriterLockToken &token,
+        const std::string &old_name,
+        const std::string &new_name)
+    {
+        if (old_name == new_name)
+        {
+            // Not changing name; this is always OK
+            return true;
+        }
+
+        if (new_name.find(' ') != std::string::npos)
+        {
+            // Spaces are not allowed
+            return false;
+        }
+
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        // See if rename is currently in progress that matches.
+        //
+        DatabaseAccess * const db = DatabaseAccess::instance();
+        const dbtype::Id::SiteIdType site_id =
+            entity->get_entity_id().get_site_id();
+        const dbtype::Id::EntityIdType entity_id =
+            entity->get_entity_id().get_entity_id();
+
+        PendingProgReg::iterator site_reg_iter =
+            pending_program_registrations.find(site_id);
+
+        if (site_reg_iter == pending_program_registrations.end())
+        {
+            // Site does not exist, just need to confirm new name is not in
+            // use.
+            dbtype::Id found_id;
+            db->internal_get_prog_by_regname(site_id, new_name, found_id);
+
+            if (not found_id.is_default())
+            {
+                // Already in use.  Veto.
+                return false;
+            }
+            else
+            {
+                // Add to structures and approve.
+                //
+                pending_program_registrations[site_id][entity_id] =
+                    OldNewProgRegName(old_name, new_name);
+                return true;
+            }
+        }
+        else
+        {
+            // Site exists, see if entity is already being renamed.  If so,
+            // confirm it is being renamed to something new and then see if
+            // that new name is available.  Update the structure to match
+            // the new name.
+            //
+            IdRegInfo::iterator existing_reg_iter =
+                site_reg_iter->second.find(entity_id);
+
+            if (existing_reg_iter != site_reg_iter->second.end())
+            {
+                if (new_name == existing_reg_iter->second.second)
+                {
+                    // No change.
+                    return true;
+                }
+                else
+                {
+                    // We are renaming while a rename is already in
+                    // progress.  If we're naming it back to the
+                    // original then remove from structures and approve.
+                    // If we're changing it to something else, then update
+                    // and approve if not in use.
+                    //
+                    if (new_name == existing_reg_iter->second.first)
+                    {
+                        // Undoing rename
+                        //
+                        site_reg_iter->second.erase(existing_reg_iter);
+
+                        if (site_reg_iter->second.empty())
+                        {
+                            pending_program_registrations.erase(site_reg_iter);
+                        }
+
+                        return true;
+                    }
+                    else
+                    {
+                        // Determine if new name is in use.
+                        //
+                        dbtype::Id found_prog;
+                        db->internal_get_prog_by_regname(
+                            site_id,
+                            new_name,
+                            found_prog);
+
+                        if ((not found_prog.is_default()) or
+                            is_prog_reg_name_in_progress(site_id, new_name))
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            // Safe to update to new name
+                            existing_reg_iter->second.second = new_name;
+                            return true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Entity is not currently being renamed.  Confirm name is
+                // not in use then add entry.
+                //
+                dbtype::Id found_prog;
+                db->internal_get_prog_by_regname(site_id, new_name,found_prog);
+
+                if ((not found_prog.is_default()) or
+                    is_prog_reg_name_in_progress(site_id, new_name))
+                {
+                    return false;
+                }
+                else
+                {
+                    // Safe to rename
+                    (site_reg_iter->second)[entity_id] =
+                        OldNewProgRegName(old_name, new_name);
+                    return true;
+                }
+            }
+        }
+
+        // Should never get here.
+        return false;
+    }
+
+    // ----------------------------------------------------------------------
+    dbtype::Id UpdateManager::get_prog_reg_rename_id(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &reg_name)
+    {
+        dbtype::Id result;
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        PendingProgReg::const_iterator pending_site_reg_iter =
+            pending_program_registrations.find(site_id);
+
+        if (pending_site_reg_iter != pending_program_registrations.end())
+        {
+            for (IdRegInfo::const_iterator reg_iter =
+                pending_site_reg_iter->second.begin();
+                 reg_iter != pending_site_reg_iter->second.end();
+                 ++reg_iter)
+            {
+                if ((reg_name == reg_iter->second.first) or
+                    (reg_name == reg_iter->second.second))
+                {
+                    result = dbtype::Id(site_id, reg_iter->first);
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
     void UpdateManager::entities_deleted(const dbtype::Entity::IdSet &entities)
     {
         boost::lock_guard<boost::mutex> guard(mutex);
@@ -226,8 +407,6 @@ namespace dbinterface
         //
         while (not do_shutdown)
         {
-            // TODO Deleted entities need deleted flag set and saved in case of crash
-
             // Wait on the immediate update queue
             //
             try
@@ -458,6 +637,87 @@ namespace dbinterface
              ++update_iter)
         {
             delete update_iter->second;
+        }
+
+        {
+            boost::lock_guard<boost::mutex> guard(mutex);
+
+            if (not pending_program_registrations.empty())
+            {
+                PendingProgReg::iterator site_iter;
+
+                // Delete all deleted sites from the pending prog renames
+                //
+                for (dbtype::Id::SiteIdVector::const_iterator site_iter =
+                    site_deletes_copy.begin();
+                     site_iter != site_deletes_copy.end();
+                     ++site_iter)
+                {
+                    pending_program_registrations.erase(*site_iter);
+                }
+
+                // Delete all deleted entities from the pending prog reg
+                // renames
+                //
+                for (dbtype::Entity::IdSet::const_iterator delete_iter =
+                    deletes_copy.begin();
+                     delete_iter != deletes_copy.end();
+                     ++delete_iter)
+                {
+                    site_iter = pending_program_registrations.find(
+                        delete_iter->get_site_id());
+
+                    if (site_iter != pending_program_registrations.end())
+                    {
+                        site_iter->second.erase(delete_iter->get_entity_id());
+                    }
+                }
+
+                site_iter = pending_program_registrations.end();
+
+                // Remove all completed program reg renames
+                //
+
+                for (PendingUpdatesMap::const_iterator update_iter =
+                    updates_copy.begin();
+                     update_iter != updates_copy.end();
+                     ++update_iter)
+                {
+                    if (pending_program_registrations.count(
+                            update_iter->first.get_site_id()) and
+                        update_iter->second->fields_changed.count(
+                            dbtype::ENTITYFIELD_program_reg_name))
+                    {
+                        process_prog_reg_rename_update(
+                            update_iter->second->entity_id);
+                    }
+                }
+
+                // Remove all empty sites in pending program registration.
+                // This means the renames are completed.
+                //
+                if (not pending_program_registrations.empty())
+                {
+                    std::vector<PendingProgReg::iterator> to_delete;
+
+                    for (PendingProgReg::iterator reg_iter =
+                        pending_program_registrations.begin();
+                        reg_iter != pending_program_registrations.end();
+                        ++reg_iter)
+                    {
+                        if (reg_iter->second.empty())
+                        {
+                            to_delete.push_back(reg_iter);
+                        }
+                    }
+
+                    while (not to_delete.empty())
+                    {
+                        pending_program_registrations.erase(to_delete.back());
+                        to_delete.pop_back();
+                    }
+                }
+            }
         }
 
         updates_copy.clear();
@@ -956,6 +1216,96 @@ namespace dbinterface
             if (entity.valid())
             {
                 entity.get()->remove_entity_reference(source, field);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    bool UpdateManager::is_prog_reg_name_in_progress(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &reg_name) const
+    {
+        bool in_use = false;
+
+        if (reg_name.empty())
+        {
+            return in_use;
+        }
+
+        PendingProgReg::const_iterator pending_site_reg_iter =
+            pending_program_registrations.find(site_id);
+
+        if (pending_site_reg_iter != pending_program_registrations.end())
+        {
+            for (IdRegInfo::const_iterator reg_iter =
+                    pending_site_reg_iter->second.begin();
+                reg_iter != pending_site_reg_iter->second.end();
+                ++reg_iter)
+            {
+                if ((reg_name == reg_iter->second.first) or
+                    (reg_name == reg_iter->second.second))
+                {
+                    in_use = true;
+                    break;
+                }
+            }
+        }
+
+        return in_use;
+    }
+
+    // ----------------------------------------------------------------------
+    void UpdateManager::process_prog_reg_rename_update(
+        const dbtype::Id &entity_id)
+    {
+        DatabaseAccess * const db = DatabaseAccess::instance();
+
+        // Since this update changed the program registration name, look up the
+        // name in the actual database and confirm it matches this ID and new
+        // name in our 'pending' map.  If so, the update occurred and it is
+        // safe to delete.  If not, the update has not yet occurred and needs
+        // to stay in place.
+        //
+        bool found_rename = false;
+        std::string new_reg_name;
+        PendingProgReg::iterator site_iter = pending_program_registrations.find(
+            entity_id.get_site_id());
+        IdRegInfo::iterator id_iter;
+
+        if (site_iter != pending_program_registrations.end())
+        {
+            id_iter = site_iter->second.find(entity_id.get_entity_id());
+
+            if (id_iter != site_iter->second.end())
+            {
+                new_reg_name = id_iter->second.second;
+                found_rename = true;
+            }
+        }
+
+        if (found_rename)
+        {
+            dbtype::Id prog_id;
+
+            db->internal_get_prog_by_regname(
+                entity_id.get_site_id(),
+                new_reg_name,
+                prog_id);
+
+            if (prog_id.is_default())
+            {
+                if (new_reg_name.empty())
+                {
+                    // Registration was removed.  Pending update complete;
+                    // just remove from the pending structure
+                    site_iter->second.erase(id_iter);
+                }
+            }
+            else if (entity_id == prog_id)
+            {
+                // Since ID in database matches our ID, the registration
+                // rename was complete.  Remove from the pending structure.
+                site_iter->second.erase(id_iter);
             }
         }
     }

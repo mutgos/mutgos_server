@@ -5,11 +5,13 @@
 #ifndef MUTGOS_DBTYPE_DATABASEENTITYCHANGELISTENER_H_
 #define MUTGOS_DBTYPE_DATABASEENTITYCHANGELISTENER_H_
 
+#include <string>
 #include <set>
 #include <map>
 
 #include "dbtypes/dbtype_EntityField.h"
 #include "dbtypes/dbtype_Entity.h"
+#include "concurrency/concurrency_WriterLockToken.h"
 
 namespace mutgos
 {
@@ -52,6 +54,28 @@ namespace dbtype
             const Entity::EntityFieldSet &fields,
             const Entity::FlagsRemovedAdded &flags_changed,
             const Entity::ChangedIdFieldsMap &ids_changed) =0;
+
+        /**
+         * Provides a chance to veto a change to a program's registration
+         * name.
+         * @param entity[in] The Program Entity that will be changed.  This
+         * will be in a write lock while this method is called.
+         * @param token[in] The write token for the entity, in case
+         * other attributes need to be read.
+         * @param old_name[in] The old registration name, or empty for none.
+         * @param new_name[in] The new registration name, or empty for none.
+         * @return True if registration name change allowed, false to
+         * veto (disallow) it.  If true is returned, the change will be
+         * made.  If false is returned, the change will not be made.
+         */
+        virtual bool check_program_registration_name(
+            Entity *entity,
+            concurrency::WriterLockToken &token,
+            const std::string &old_name,
+            const std::string &new_name);
+        // TODO: Implement check_program_registration_name() callback on program.
+
+        // TODO: have veto ability for player name.
     };
 
 } /* namespace dbtype */

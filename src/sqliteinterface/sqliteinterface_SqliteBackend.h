@@ -103,8 +103,12 @@ namespace sqliteinterface
          * previously brought into memory via get_entity_db() or new_entity()
          * and not  have been deleted from memory.
          * The dirty flag on the Entity will be cleared if success.
+         * For Programs, this assumes the program registation name is
+         * already known to be unique.
          * @param entity_ptr[in] The Entity to save.
-         * @return True if success.
+         * @return True if success.  Will return false if failed
+         * to update program registration name lookup table, but
+         * update will otherwise have succeeded.
          */
         virtual bool save_entity_db(dbtype::Entity *entity_ptr);
 
@@ -160,6 +164,28 @@ namespace sqliteinterface
          */
         virtual dbtype::Entity::IdVector find_in_db(
             const dbtype::Id::SiteIdType site_id);
+
+        /**
+         * Searches the given site for the program registration name.
+         * @param site_id[in] The site ID to search for the program
+         * registration name.
+         * @param registration_name[in] The program registration name to
+         * find.
+         * @return The ID of the Program found, or default/invalid if none
+         * found matching or the site is invalid.
+         */
+        virtual dbtype::Id find_program_reg_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &registration_name);
+
+        /**
+         * Searches for the given ID and determines if a registration
+         * is associated with it.
+         * @param id[in] The ID to search for.
+         * @return The registration name of the Program found, or empty if none
+         * found matching or the ID is invalid.
+         */
+        virtual std::string find_program_reg_name_in_db(const dbtype::Id &id);
 
         /**
          * @return A list of all known site IDs in the database.
@@ -274,6 +300,31 @@ namespace sqliteinterface
             sqlite3_stmt *stmt);
 
         /**
+         * Deletes the program registration name in the fast lookup table.
+         * It is safe to call this if ID is not a program or even if the
+         * registration does not exist.
+         * It is assumed the mutex has already been locked.
+         * @param id[in] The ID of the program registration to delete.
+         */
+        void delete_program_reg(const dbtype::Id &id);
+
+        /**
+         * Inserts a program registration name into the fast lookup table.
+         * It is assumed the registration name is unique for the given
+         * site, or else update will fail.
+         * It is assumed the mutex has already been locked.
+         * @param id[in] The ID for the program whose registration is being
+         * inserted.
+         * @param registration_name[in] The registration name for the program
+         * being inserted.  The name must be unique for the site.
+         * @return True if successfully inserted, false if error
+         * (program registration name already exists in site).
+         */
+        bool insert_program_reg(
+            const dbtype::Id &id,
+            const std::string &registration_name);
+
+        /**
          * Resets and clears bindings for a statement.
          * @param stmt_ptr[in,out] Prepared statement to reset.
          */
@@ -292,6 +343,8 @@ namespace sqliteinterface
         sqlite3_stmt *get_entity_type_stmt; ///< Gets the type for an Entity
         sqlite3_stmt *get_site_name_stmt; ///< Gets a site's name.
         sqlite3_stmt *get_site_description_stmt; ///< Gets a site's description.
+        sqlite3_stmt *find_program_reg_stmt; ///< Find a program by registration name
+        sqlite3_stmt *find_program_reg_id_stmt; ///< Find a program by registration by ID
 
         // Create, edit, delete sites
         //
@@ -329,6 +382,10 @@ namespace sqliteinterface
         sqlite3_stmt *mark_site_deleted_stmt; ///< Mark site as deleted
         sqlite3_stmt *delete_all_site_entity_id_reuse_stmt; ///< Delete site ent ID reuse
         sqlite3_stmt *delete_site_next_entity_id_stmt; ///< Delete site next ent ID
+
+        // Program registration fast lookup management
+        sqlite3_stmt *insert_program_reg_stmt; // Adds a new program registration entry
+        sqlite3_stmt *delete_program_reg_stmt; // Deletes an existing program registration entry
 
         boost::mutex mutex; ///< Enforces single access at a time.
     };

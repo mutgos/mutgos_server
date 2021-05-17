@@ -22,6 +22,7 @@
 
 #include "dbtypes/dbtype_Id.h"
 #include "dbtypes/dbtype_Entity.h"
+#include "dbtypes/dbtype_Program.h"
 #include "dbtypes/dbtype_EntityType.h"
 #include "concurrency/concurrency_WriterLockToken.h"
 
@@ -44,6 +45,8 @@ namespace sqliteinterface
         get_entity_type_stmt(0),
         get_site_name_stmt(0),
         get_site_description_stmt(0),
+        find_program_reg_stmt(0),
+        find_program_reg_id_stmt(0),
         undelete_site_stmt(0),
         next_site_id_stmt(0),
         insert_first_next_site_id_stmt(0),
@@ -65,7 +68,9 @@ namespace sqliteinterface
         add_reuse_entity_id_stmt(0),
         mark_site_deleted_stmt(0),
         delete_all_site_entity_id_reuse_stmt(0),
-        delete_site_next_entity_id_stmt(0)
+        delete_site_next_entity_id_stmt(0),
+        insert_program_reg_stmt(0),
+        delete_program_reg_stmt(0)
     {
     }
 
@@ -169,6 +174,12 @@ namespace sqliteinterface
             sqlite3_finalize(get_site_description_stmt);
             get_site_description_stmt = 0;
 
+            sqlite3_finalize(find_program_reg_stmt);
+            find_program_reg_stmt = 0;
+
+            sqlite3_finalize(find_program_reg_id_stmt);
+            find_program_reg_id_stmt = 0;
+
             sqlite3_finalize(undelete_site_stmt);
             undelete_site_stmt = 0;
 
@@ -234,6 +245,12 @@ namespace sqliteinterface
 
             sqlite3_finalize(delete_site_next_entity_id_stmt);
             delete_site_next_entity_id_stmt = 0;
+
+            sqlite3_finalize(insert_program_reg_stmt);
+            insert_program_reg_stmt = 0;
+
+            sqlite3_finalize(delete_program_reg_stmt);
+            delete_program_reg_stmt = 0;
 
             success = (sqlite3_close(dbhandle_ptr) == SQLITE_OK);
 
@@ -588,6 +605,30 @@ namespace sqliteinterface
                 }
                 else
                 {
+                    // For now, brute force update program registration
+                    // cache, since updates are expected to be rare and cheap.
+                    //
+                    dbtype::Program * const program_ptr =
+                        dynamic_cast<dbtype::Program *>(entity_ptr);
+
+                    if (program_ptr)
+                    {
+                        delete_program_reg(program_ptr->get_entity_id());
+
+                        const std::string reg_name =
+                            program_ptr->get_program_reg_name(token);
+
+                        if (not reg_name.empty())
+                        {
+                            if (not insert_program_reg(
+                                program_ptr->get_entity_id(),
+                                reg_name))
+                            {
+                                success = false;
+                            }
+                        }
+                    }
+
                     entity_ptr->clear_dirty(token);
                 }
             }
@@ -634,7 +675,11 @@ namespace sqliteinterface
 
             rc = sqlite3_step(delete_entity_stmt);
 
-            if (rc != SQLITE_DONE)
+            if (rc == SQLITE_DONE)
+            {
+                delete_good = sqlite3_changes(dbhandle_ptr) > 0;
+            }
+            else
             {
                 LOG(error, "sqliteinterface", "delete_entity_db",
                     "Could not delete Entity: "
@@ -676,6 +721,9 @@ namespace sqliteinterface
                 }
 
                 reset(add_reuse_entity_id_stmt);
+
+                // Delete from program registration if present.
+                delete_program_reg(id);
             }
         }
 
@@ -842,6 +890,113 @@ namespace sqliteinterface
         add_entity_ids(list_all_entities_site_stmt, site_id, result);
 
         reset(list_all_entities_site_stmt);
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    dbtype::Id SqliteBackend::find_program_reg_in_db(
+        const dbtype::Id::SiteIdType site_id,
+        const std::string &registration_name)
+    {
+        boost::lock_guard<boost::mutex> guard(mutex);
+        dbtype::Id result;
+
+        if (sqlite3_bind_int(
+            find_program_reg_stmt,
+            sqlite3_bind_parameter_index(find_program_reg_stmt, "$SITEID"),
+            site_id) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_in_db",
+                "For find_program_reg_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_text(
+            find_program_reg_stmt,
+            sqlite3_bind_parameter_index(find_program_reg_stmt, "$REGNAME"),
+            registration_name.c_str(),
+            registration_name.size(),
+            SQLITE_TRANSIENT) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_in_db",
+                "For find_program_reg_stmt, could not bind $REGNAME");
+        }
+
+        const int rc = sqlite3_step(find_program_reg_stmt);
+
+        // Expecting 0 or 1 results.
+        //
+        if (rc == SQLITE_ROW)
+        {
+            // Found a registration
+            //
+            result =
+                dbtype::Id(
+                    site_id,
+                    (dbtype::Id::EntityIdType)
+                        sqlite3_column_int64(find_program_reg_stmt, 0));
+        }
+        else if (rc != SQLITE_DONE)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_in_db",
+                "Error getting registration info for program.");
+        }
+
+        reset (find_program_reg_stmt);
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    std::string SqliteBackend::find_program_reg_name_in_db(
+        const dbtype::Id &id)
+    {
+        boost::lock_guard<boost::mutex> guard(mutex);
+        std::string result;
+
+        if (sqlite3_bind_int(
+            find_program_reg_id_stmt,
+            sqlite3_bind_parameter_index(find_program_reg_id_stmt, "$SITEID"),
+            id.get_site_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_name_in_db",
+                "For find_program_reg_id_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_int(
+            find_program_reg_id_stmt,
+            sqlite3_bind_parameter_index(find_program_reg_id_stmt, "$ENTITYID"),
+            id.get_entity_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_name_in_db",
+                "For find_program_reg_id_stmt, could not bind $REGNAME");
+        }
+
+        const int rc = sqlite3_step(find_program_reg_id_stmt);
+
+        // Expecting 0 or 1 results.
+        //
+        if (rc == SQLITE_ROW)
+        {
+            // Found a registration
+            //
+            const char *reg_char_ptr = (const char *)
+                sqlite3_column_text(find_program_reg_id_stmt, 0);
+            const int reg_char_size =
+                sqlite3_column_bytes(find_program_reg_id_stmt, 0);
+
+            if (reg_char_size)
+            {
+                result.assign(reg_char_ptr, reg_char_size);
+            }
+        }
+        else if (rc != SQLITE_DONE)
+        {
+            LOG(error, "sqliteinterface", "find_program_reg_name_in_db",
+                "Error getting registration info for program.");
+        }
+
+        reset (find_program_reg_id_stmt);
 
         return result;
     }
@@ -1395,6 +1550,13 @@ namespace sqliteinterface
          "PRIMARY KEY(site_id, entity_id)) WITHOUT ROWID;"
          "CREATE INDEX IF NOT EXISTS entity_type_idx ON entities(site_id, name, type);"
 
+         "CREATE TABLE IF NOT EXISTS program_registrations("
+            "site_id INTEGER NOT NULL,"
+            "entity_id INTEGER NOT NULL,"
+            "registration_name TEXT NOT NULL COLLATE NOCASE,"
+         "PRIMARY KEY(site_id, registration_name)) WITHOUT ROWID;"
+         "CREATE INDEX IF NOT EXISTS program_registrations_idx ON program_registrations(site_id, entity_id);"
+
          "CREATE TABLE IF NOT EXISTS sites("
             "site_id INTEGER NOT NULL,"
             "deleted INTEGER NOT NULL,"
@@ -1575,6 +1737,34 @@ namespace sqliteinterface
 
             LOG(fatal, "sqliteinterface", "sql_init",
                 "Failed prepared statement for getting a Site's description.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM program_registrations WHERE "
+              "site_id = $SITEID AND registration_name = $REGNAME;",
+            -1,
+            &find_program_reg_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for finding a program registration.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT registration_name FROM program_registrations WHERE "
+            "site_id = $SITEID AND entity_id = $ENTITYID;",
+            -1,
+            &find_program_reg_id_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for finding a program registration by ID.");
         }
 
         if (sqlite3_prepare_v2(
@@ -1873,6 +2063,34 @@ namespace sqliteinterface
                 "Failed prepared statement for deleting site next Entity ID.");
         }
 
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "INSERT INTO program_registrations(site_id, entity_id, registration_name) VALUES "
+            "($SITEID, $ENTITYID, $REGNAME);",
+            -1,
+            &insert_program_reg_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for inserting a program registration.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "DELETE FROM program_registrations WHERE "
+              "site_id = $SITEID AND entity_id = $ENTITYID;",
+            -1,
+            &delete_program_reg_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for deleting  a program registration.");
+        }
+
         return success;
     }
 
@@ -1969,6 +2187,91 @@ namespace sqliteinterface
                     + std::string(sqlite3_errstr(rc)));
             }
         }
+    }
+
+    // ----------------------------------------------------------------------
+    void SqliteBackend::delete_program_reg(const mutgos::dbtype::Id &id)
+    {
+        if (sqlite3_bind_int(
+            delete_program_reg_stmt,
+            sqlite3_bind_parameter_index(delete_program_reg_stmt, "$SITEID"),
+            id.get_site_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "delete_program_reg",
+                "For delete_program_reg_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_int64(
+            delete_program_reg_stmt,
+            sqlite3_bind_parameter_index(delete_program_reg_stmt, "$ENTITYID"),
+            id.get_entity_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "delete_program_reg",
+                "For delete_program_reg_stmt, could not bind $ENTITYID");
+        }
+
+        const int rc = sqlite3_step(delete_program_reg_stmt);
+
+        if (rc != SQLITE_DONE)
+        {
+            LOG(error, "sqliteinterface", "delete_program_reg",
+                "Could not delete Entity program registration: "
+                + std::string(sqlite3_errstr(rc)));
+        }
+
+        reset(delete_program_reg_stmt);
+    }
+
+    // ----------------------------------------------------------------------
+    bool SqliteBackend::insert_program_reg(
+        const mutgos::dbtype::Id &id,
+        const std::string &registration_name)
+    {
+        bool result = true;
+
+        if (sqlite3_bind_int(
+            insert_program_reg_stmt,
+            sqlite3_bind_parameter_index(insert_program_reg_stmt, "$SITEID"),
+            id.get_site_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "insert_program_reg",
+                "For insert_program_reg_stmt, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_int64(
+            insert_program_reg_stmt,
+            sqlite3_bind_parameter_index(insert_program_reg_stmt, "$ENTITYID"),
+            id.get_entity_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "insert_program_reg",
+                "For insert_program_reg_stmt, could not bind $ENTITYID");
+        }
+
+        if (sqlite3_bind_text(
+            insert_program_reg_stmt,
+            sqlite3_bind_parameter_index(insert_program_reg_stmt, "$REGNAME"),
+            registration_name.c_str(),
+            registration_name.size(),
+            SQLITE_TRANSIENT) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "insert_program_reg",
+                "For insert_program_reg_stmt, could not bind $REGNAME");
+        }
+
+        const int rc = sqlite3_step(insert_program_reg_stmt);
+
+        if (rc != SQLITE_DONE)
+        {
+            LOG(error, "sqliteinterface", "insert_program_reg",
+                "Could not insert Program registration: "
+                + std::string(sqlite3_errstr(rc)));
+
+            result = false;
+        }
+
+        reset(insert_program_reg_stmt);
+
+        return result;
     }
 
     // ----------------------------------------------------------------------

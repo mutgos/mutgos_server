@@ -8,101 +8,102 @@ mksite SYSTEM
 setsitedesc Global site - not for general use
 
 # Room #0, basically
-mkentity region $global_root_region
+mkentity region {global_root_region}
   name Root Region
 end entity
-mkentity room $global_root_room
+mkentity room {global_root_room}
   name Root Room
   fields
-    contained_by=$global_root_region
+    contained_by={global_root_region}
   end fields  
 end entity
 
 # System and Admin players
-mkentity player $global_system_player
+mkentity player {global_system_player}
   name SYSTEM
   fields
     password=xyzzy
     player_display_name=SYSTEM ACCOUNT
-    player_home=$global_root_room
-    contained_by=$global_root_room
+    player_home={global_root_room}
+    contained_by={global_root_room}
   end fields
 end entity
 
-mkentity player $global_admin_player
+mkentity player {global_admin_player}
   name root
   fields
     password=xyzzy
     player_display_name=Root
-    player_home=$global_root_room
-    contained_by=$global_root_room
+    player_home={global_root_room}
+    contained_by={global_root_room}
   end fields
 end entity
 
 # Go back and assign Room #0 to be owned by system
-modentity $global_root_region
-  owner $global_system_player
+modentity {global_root_region}
+  owner {global_system_player}
 end entity
-modentity $global_root_room
-  owner $global_system_player
+modentity {global_root_room}
+  owner {global_system_player}
 end entity
 
 # Make all the capabilities
-mkentity capability $global_cap_admin
+mkentity capability {global_cap_admin}
   name ADMIN
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_create_player
+mkentity capability {global_cap_create_player}
   name CREATE_PLAYER
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_builder
+mkentity capability {global_cap_builder}
   name BUILDER
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_send_text_room
+mkentity capability {global_cap_send_text_room}
   name SEND_TEXT_ROOM_UNRESTRICTED
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_send_text_entity
+mkentity capability {global_cap_send_text_entity}
   name SEND_TEXT_ENTITY
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_find_by_name
+mkentity capability {global_cap_find_by_name}
   name FIND_BY_NAME_AFAR
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_id_to_name
+mkentity capability {global_cap_id_to_name}
   name ANY_ID_TO_NAME
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_connection_check
+mkentity capability {global_cap_connection_check}
   name CONNECTION_CHECK
-  owner $global_system_player
+  owner {global_system_player}
 end entity
-mkentity capability $global_cap_run_as_user
+mkentity capability {global_cap_run_as_user}
   name RUN_AS_USER
-  owner $global_system_player
+  owner {global_system_player}
 end entity
 
-mkentity program $hello_prog
+mkentity program {hello_prog}
   name hello.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
   end security
   fields
+  program_reg_name=helloprog
 @@INCLUDE programs/hello_prog.dump
   end fields
 end entity
 
 
 
-#### @ps
-mkentity program $ps_prog
+#### !ps
+mkentity program {ps_prog}
   name ps.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -111,27 +112,27 @@ mkentity program $ps_prog
 @@INCLUDE programs/ps_prog.dump
   end fields
 end entity
-modentity $global_cap_admin
+modentity {global_cap_admin}
   fields
-    group_ids=$ps_prog
+    group_ids={ps_prog}
   end fields
 end entity
-mkentity command $ps_command
-  name @ps
-  owner $global_admin_player
+mkentity command {ps_command}
+  name !ps
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$ps_prog
-    action_commands=@ps
+    action_contained_by={global_root_region}
+    action_targets={ps_prog}
+    action_commands=!ps
   end fields
 end entity
 ####
 
 
 #### who
-mkentity program $who_prog
+mkentity program {who_prog}
   name who.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -140,22 +141,22 @@ mkentity program $who_prog
 @@INCLUDE programs/who_prog.dump
   end fields
 end entity
-modentity $global_cap_connection_check
+modentity {global_cap_connection_check}
   fields
-    group_ids=$who_prog
+    group_ids={who_prog}
   end fields
 end entity
-modentity $global_cap_id_to_name
+modentity {global_cap_id_to_name}
   fields
-    group_ids=$who_prog
+    group_ids={who_prog}
   end fields
 end entity
-mkentity command $who_command
+mkentity command {who_command}
   name who
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$who_prog
+    action_contained_by={global_root_region}
+    action_targets={who_prog}
     action_commands=who
   end fields
 end entity
@@ -165,9 +166,9 @@ end entity
 
 
 #### examine
-mkentity program $examine_prog
+mkentity program {examine_prog}
   name examine.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -176,12 +177,12 @@ mkentity program $examine_prog
 @@INCLUDE programs/examine_prog.dump
   end fields
 end entity
-mkentity command $examine_command
+mkentity command {examine_command}
   name examine
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$examine_prog
+    action_contained_by={global_root_region}
+    action_targets={examine_prog}
     action_commands=ex
     action_commands=exam
     action_commands=examine
@@ -192,9 +193,9 @@ end entity
 
 
 #### say
-mkentity program $say_prog
+mkentity program {say_prog}
   name say.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -203,12 +204,12 @@ mkentity program $say_prog
 @@INCLUDE programs/say_prog.dump
   end fields
 end entity
-mkentity command $say_command
+mkentity command {say_command}
   name say
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$say_prog
+    action_contained_by={global_root_region}
+    action_targets={say_prog}
     action_commands=say
     action_commands="
   end fields
@@ -218,9 +219,9 @@ end entity
 
 
 #### pose
-mkentity program $pose_prog
+mkentity program {pose_prog}
   name pose.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -229,12 +230,12 @@ mkentity program $pose_prog
 @@INCLUDE programs/pose_prog.dump
   end fields
 end entity
-mkentity command $pose_command
+mkentity command {pose_command}
   name pose
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$pose_prog
+    action_contained_by={global_root_region}
+    action_targets={pose_prog}
     action_commands=pose
     action_commands=:
   end fields
@@ -243,9 +244,9 @@ end entity
 
 
 #### Look
-mkentity program $look_prog
+mkentity program {look_prog}
   name look.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -254,17 +255,17 @@ mkentity program $look_prog
 @@INCLUDE programs/look_prog.dump
   end fields
 end entity
-modentity $global_cap_id_to_name
+modentity {global_cap_id_to_name}
   fields
-    group_ids=$look_prog
+    group_ids={look_prog}
   end fields
 end entity
-mkentity command $look_command
+mkentity command {look_command}
   name look
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$look_prog
+    action_contained_by={global_root_region}
+    action_targets={look_prog}
     action_commands=look
   end fields
 end entity
@@ -273,10 +274,10 @@ end entity
 
 
 
-#### @desc
-mkentity program $desc_prog
+#### !desc
+mkentity program {desc_prog}
   name desc.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -285,16 +286,16 @@ mkentity program $desc_prog
 @@INCLUDE programs/desc_prog.dump
   end fields
 end entity
-mkentity command $desc_command
-  name @description
-  owner $global_admin_player
+mkentity command {desc_command}
+  name !description
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$desc_prog
-    action_commands=@description
-    action_commands=@desc
-    action_commands=@setdesc
-    action_commands=@setdescription
+    action_contained_by={global_root_region}
+    action_targets={desc_prog}
+    action_commands=!description
+    action_commands=!desc
+    action_commands=!setdesc
+    action_commands=!setdescription
   end fields
 end entity
 ####
@@ -302,9 +303,9 @@ end entity
 
 
 #### inventory
-mkentity program $inventory_prog
+mkentity program {inventory_prog}
   name inventory.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -313,12 +314,12 @@ mkentity program $inventory_prog
 @@INCLUDE programs/inventory_prog.dump
   end fields
 end entity
-mkentity command $inventory_command
+mkentity command {inventory_command}
   name inventory
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$inventory_prog
+    action_contained_by={global_root_region}
+    action_targets={inventory_prog}
     action_commands=i
     action_commands=inv
     action_commands=inventory
@@ -328,10 +329,10 @@ end entity
 
 
 
-#### create
-mkentity program $create_prog
+#### !create
+mkentity program {create_prog}
   name create.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -340,13 +341,13 @@ mkentity program $create_prog
 @@INCLUDE programs/create_prog.dump
   end fields
 end entity
-mkentity command $create_command
-  name @create
-  owner $global_admin_player
+mkentity command {create_command}
+  name !create
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$create_prog
-    action_commands=@create
+    action_contained_by={global_root_region}
+    action_targets={create_prog}
+    action_commands=!create
   end fields
 end entity
 ####
@@ -354,10 +355,10 @@ end entity
 
 
 
-#### delete
-mkentity program $delete_prog
+#### !delete
+mkentity program {delete_prog}
   name delete.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -366,15 +367,15 @@ mkentity program $delete_prog
 @@INCLUDE programs/delete_prog.dump
   end fields
 end entity
-mkentity command $delete_command
-  name @delete
-  owner $global_admin_player
+mkentity command {delete_command}
+  name !delete
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$delete_prog
-    action_commands=@delete
-    action_commands=@recycle
-    action_commands=@rec
+    action_contained_by={global_root_region}
+    action_targets={delete_prog}
+    action_commands=!delete
+    action_commands=!recycle
+    action_commands=!rec
   end fields
 end entity
 ####
@@ -382,9 +383,9 @@ end entity
 
 
 #### drop
-mkentity program $drop_prog
+mkentity program {drop_prog}
   name drop.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -393,12 +394,12 @@ mkentity program $drop_prog
 @@INCLUDE programs/drop_prog.dump
   end fields
 end entity
-mkentity command $drop_command
+mkentity command {drop_command}
   name drop
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$drop_prog
+    action_contained_by={global_root_region}
+    action_targets={drop_prog}
     action_commands=drop
   end fields
 end entity
@@ -407,9 +408,9 @@ end entity
 
 
 #### get
-mkentity program $get_prog
+mkentity program {get_prog}
   name get.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -418,12 +419,12 @@ mkentity program $get_prog
 @@INCLUDE programs/get_prog.dump
   end fields
 end entity
-mkentity command $get_command
+mkentity command {get_command}
   name get
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$get_prog
+    action_contained_by={global_root_region}
+    action_targets={get_prog}
     action_commands=get
     action_commands=pickup
   end fields
@@ -433,9 +434,9 @@ end entity
 
 
 #### Page
-mkentity program $page_prog
+mkentity program {page_prog}
   name page.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -444,27 +445,27 @@ mkentity program $page_prog
 @@INCLUDE programs/page_prog.dump
   end fields
 end entity
-modentity $global_cap_id_to_name
+modentity {global_cap_id_to_name}
   fields
-    group_ids=$page_prog
+    group_ids={page_prog}
   end fields
 end entity
-modentity $global_cap_send_text_entity
+modentity {global_cap_send_text_entity}
   fields
-    group_ids=$page_prog
+    group_ids={page_prog}
   end fields
 end entity
-modentity $global_cap_find_by_name
+modentity {global_cap_find_by_name}
   fields
-    group_ids=$page_prog
+    group_ids={page_prog}
   end fields
 end entity
-mkentity command $page_command
+mkentity command {page_command}
   name page
-  owner $global_admin_player
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$page_prog
+    action_contained_by={global_root_region}
+    action_targets={page_prog}
     action_commands=page
     action_commands=p
   end fields
@@ -473,10 +474,10 @@ end entity
 
 
 
-#### @security
-mkentity program $security_prog
+#### !security
+mkentity program {security_prog}
   name security.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -485,28 +486,28 @@ mkentity program $security_prog
 @@INCLUDE programs/security_prog.dump
   end fields
 end entity
-modentity $global_cap_find_by_name
+modentity {global_cap_find_by_name}
   fields
-    group_ids=$security_prog
+    group_ids={security_prog}
   end fields
 end entity
-mkentity command $security_command
-  name @security
-  owner $global_admin_player
+mkentity command {security_command}
+  name !security
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$security_prog
-    action_commands=@security
+    action_contained_by={global_root_region}
+    action_targets={security_prog}
+    action_commands=!security
   end fields
 end entity
 ####
 
 
 
-#### @looksecurity
-mkentity program $looksecurity_prog
+#### !looksecurity
+mkentity program {looksecurity_prog}
   name looksecurity.prog
-  owner $global_admin_player
+  owner {global_admin_player}
   security
     flag other R
     flag other B
@@ -515,18 +516,18 @@ mkentity program $looksecurity_prog
 @@INCLUDE programs/looksecurity_prog.dump
   end fields
 end entity
-modentity $global_cap_find_by_name
+modentity {global_cap_find_by_name}
   fields
-    group_ids=$looksecurity_prog
+    group_ids={looksecurity_prog}
   end fields
 end entity
-mkentity command $looksecurity_command
-  name @looksecurity
-  owner $global_admin_player
+mkentity command {looksecurity_command}
+  name !looksecurity
+  owner {global_admin_player}
   fields
-    action_contained_by=$global_root_region
-    action_targets=$looksecurity_prog
-    action_commands=@looksecurity
+    action_contained_by={global_root_region}
+    action_targets={looksecurity_prog}
+    action_commands=!looksecurity
   end fields
 end entity
 ####
@@ -544,49 +545,75 @@ mksite Desk World!
 setsitedesc Experience life on a desk!
 
 # Room #0, basically
-mkentity region $root_region
+mkentity region {root_region}
   name Root Region
   fields
-    contained_by=$global_root_region
+    contained_by={global_root_region}
   end fields
 end entity
-mkentity room $root_room
+mkentity room {root_room}
   name Root Room
   fields
-    contained_by=$root_region
-  end fields  
+    contained_by={root_region}
+  end fields
 end entity
 
 # System and Admin players
-mkentity player $system_player
+mkentity player {system_player}
   name SYSTEM
   fields
     password=xyzzy
     player_display_name=SYSTEM ACCOUNT
-    player_home=$root_room
-    contained_by=$root_room
+    player_home={root_room}
+    contained_by={root_room}
   end fields
 end entity
 
-mkentity player $admin_player
+mkentity player {admin_player}
   name Root
   fields
     password=xyzzy
     player_display_name=Root
-    player_home=$root_room
-    contained_by=$root_room
+    player_home={root_room}
+    contained_by={root_room}
   end fields
   properties
-    security look $admin_player
+    security look {admin_player}
       flag other R
     end security
     string /look/shortdesc=The root of all this mess.
   end properties
 end entity
 
-mkentity program $admin_player_prog
+# Add the splash screen
+modentity {root_region}
+  properties
+    security splash_screen {system_player}
+      flag other R
+    end security
+    document /splash_screen/welcome=lines 3
+-----------------------------------------------------------------------------
+Welcome to the Desk!
+-----------------------------------------------------------------------------
+end lines
+  end properties
+end entity
+
+# Test program registrations, sort of
+mkentity command {test_hello_command}
+  name testhello
+  owner {admin_player}
+  fields
+    action_contained_by={root_region}
+    action_targets=$helloprog
+    action_commands=test_hello
+  end fields
+end entity
+
+
+mkentity program {admin_player_prog}
   name admin_player.prog
-  owner $admin_player
+  owner {admin_player}
   security
     flag other R
     flag other B
@@ -595,73 +622,73 @@ mkentity program $admin_player_prog
 @@INCLUDE programs/admin_player_prog.dump
   end fields
 end entity
-mkentity command $admin_player_action
+mkentity command {admin_player_action}
   name runprog
-  owner $admin_player
+  owner {admin_player}
   fields
-    action_contained_by=$admin_player
-    action_targets=$admin_player_prog
+    action_contained_by={admin_player}
+    action_targets={admin_player_prog}
     action_commands=runprog
   end fields
 end entity
 
 
 # Go back and assign Room #0 to be owned by system
-modentity $root_region
-  owner $system_player
+modentity {root_region}
+  owner {system_player}
 end entity
-modentity $root_room
-  owner $system_player
+modentity {root_room}
+  owner {system_player}
 end entity
 
 # Make all the capabilities
-mkentity capability $cap_admin
+mkentity capability {cap_admin}
   name ADMIN
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_create_player
+mkentity capability {cap_create_player}
   name CREATE_PLAYER
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_builder
+mkentity capability {cap_builder}
   name BUILDER
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_send_text_room
+mkentity capability {cap_send_text_room}
   name SEND_TEXT_ROOM_UNRESTRICTED
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_send_text_entity
+mkentity capability {cap_send_text_entity}
   name SEND_TEXT_ENTITY
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_find_by_name
+mkentity capability {cap_find_by_name}
   name FIND_BY_NAME_AFAR
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_id_to_name
+mkentity capability {cap_id_to_name}
   name ANY_ID_TO_NAME
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_connection_check
+mkentity capability {cap_connection_check}
   name CONNECTION_CHECK
-  owner $system_player
+  owner {system_player}
 end entity
-mkentity capability $cap_run_as_user
+mkentity capability {cap_run_as_user}
   name RUN_AS_USER
-  owner $system_player
+  owner {system_player}
 end entity
 
 
 # The room most will see
-mkentity room $desktop_room
-  owner $admin_player
+mkentity room {desktop_room}
+  owner {admin_player}
   name Desktop
   fields
-    contained_by=$root_region
+    contained_by={root_region}
   end fields
   properties
-    security look $admin_player
+    security look {admin_player}
       flag other R
     end security
     string /look/shortdesc=This is a plain desktop, with a light, monitor, and some speakers.
@@ -673,14 +700,14 @@ end lines
 end entity
 
 # Northern part of desktop
-mkentity room $north_desktop_room
-  owner $admin_player
+mkentity room {north_desktop_room}
+  owner {admin_player}
   name North Desktop
   fields
-    contained_by=$root_region
+    contained_by={root_region}
   end fields
   properties
-    security look $admin_player
+    security look {admin_player}
       flag other R
     end security
     string /look/shortdesc=You're at the edge of the desktop.  The floor stretches out far beneath you.
@@ -688,12 +715,12 @@ mkentity room $north_desktop_room
 end entity
 
 # Exit out of root room
-mkentity exit $room1_exit
-  owner $admin_player
+mkentity exit {room1_exit}
+  owner {admin_player}
   name [O]ut
   fields
-    action_contained_by=$root_room
-    action_targets=$desktop_room
+    action_contained_by={root_room}
+    action_targets={desktop_room}
     action_succ_msg=You head to the light!
     action_succ_room_msg=heads out to the light.
     exit_arrive_room_msg=arrives from the root of everything.
@@ -703,24 +730,24 @@ mkentity exit $room1_exit
 end entity
 
 # First program ever
-mkentity command $run_prog_command
-  owner $admin_player
+mkentity command {run_prog_command}
+  owner {admin_player}
   name [H]ello
   fields
-    action_contained_by=$root_region
-    action_targets=$hello_prog
+    action_contained_by={root_region}
+    action_targets={hello_prog}
     action_commands=h
     action_commands=hello
   end fields
 end entity
 
 # Exit to north
-mkentity exit $north_exit
-  owner $admin_player
+mkentity exit {north_exit}
+  owner {admin_player}
   name [N]orth
   fields
-    action_contained_by=$desktop_room
-    action_targets=$north_desktop_room
+    action_contained_by={desktop_room}
+    action_targets={north_desktop_room}
     action_succ_msg=You head north.
     action_succ_room_msg=heads north.
     exit_arrive_room_msg=arrives from the southern part of the desktop.
@@ -730,12 +757,12 @@ mkentity exit $north_exit
 end entity
 
 # Exit to south
-mkentity exit $south_exit
-  owner $admin_player
+mkentity exit {south_exit}
+  owner {admin_player}
   name [S]outh
   fields
-    action_contained_by=$north_desktop_room
-    action_targets=$desktop_room
+    action_contained_by={north_desktop_room}
+    action_targets={desktop_room}
     action_succ_msg=You head south.
     action_succ_room_msg=heads south.
     exit_arrive_room_msg=arrives from the northern part of the desktop.
@@ -745,31 +772,31 @@ mkentity exit $south_exit
 end entity
 
 # A normal player
-mkentity player $normal_player
+mkentity player {normal_player}
   name Player
   fields
     password=password
     player_display_name=Normal Player
-    player_home=$desktop_room
-    contained_by=$desktop_room
+    player_home={desktop_room}
+    contained_by={desktop_room}
   end fields
   properties
-    security look $normal_player
+    security look {normal_player}
       flag other R
     end security
     string /look/shortdesc=A standard, average, ordinary player.
   end properties
 end entity
 
-modentity $cap_builder
+modentity {cap_builder}
   fields
-    group_ids=$normal_player
+    group_ids={normal_player}
   end fields
 end entity
 
-mkentity program $normal_player_prog
+mkentity program {normal_player_prog}
   name normal_player.prog
-  owner $normal_player
+  owner {normal_player}
   security
     flag other R
     flag other B
@@ -778,12 +805,12 @@ mkentity program $normal_player_prog
 @@INCLUDE programs/normal_player_prog.dump
   end fields
 end entity
-mkentity command $normal_player_action
+mkentity command {normal_player_action}
   name runprog
-  owner $normal_player
+  owner {normal_player}
   fields
-    action_contained_by=$normal_player
-    action_targets=$normal_player_prog
+    action_contained_by={normal_player}
+    action_targets={normal_player_prog}
     action_commands=runprog
   end fields
 end entity
@@ -791,16 +818,16 @@ end entity
 
 
 # An unprivileged player
-mkentity player $bad_player
+mkentity player {bad_player}
   name BadPlayer
   fields
     password=password
     player_display_name=Bad Player
-    player_home=$desktop_room
-    contained_by=$desktop_room
+    player_home={desktop_room}
+    contained_by={desktop_room}
   end fields
   properties
-    security look $bad_player
+    security look {bad_player}
       flag other R
     end security
     string /look/shortdesc=A player with no permissions.

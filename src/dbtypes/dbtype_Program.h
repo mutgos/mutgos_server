@@ -94,6 +94,48 @@ namespace dbtype
 
         /**
          * @param token[in] The lock token.
+         * @return A copy of the program registration name (if a global
+         * library), or empty if none or error.
+         */
+        std::string get_program_reg_name(concurrency::ReaderLockToken &token);
+
+        /**
+         * This method automatically gets a lock.
+         * @return A copy of the program registration name (if a global
+         * library), or default if none or error.
+         */
+        std::string get_program_reg_name(void);
+
+        /**
+         * Sets the global registration name for the program; typically this
+         * is used for shared libraries.
+         * There can only be one program per site with the same reg name,
+         * unless the name is empty (none assigned).
+         * @param reg_name[in] The global registation name.  Not case sensitive.
+         * Excess spaces will be trimmed.
+         * Spaces embedded in the name are not allowed.
+         * @param token[in] The lock token.
+         * @return True if success, false if name already in use, has embedded
+         * spaces, etc.
+         */
+        bool set_program_reg_name(
+            const std::string &reg_name,
+            concurrency::WriterLockToken &token);
+
+        /**
+         * Sets the global registration name for the program; typically this
+         * is used for shareed libraries.
+         * This method automatically gets a lock.
+         * @param reg_name[in] The global registation name.  Not case sensitive.
+         * Excess spaces will be trimmed.
+         * Spaces embedded in the name are not allowed.
+         * @return True if success, false if name already in use, has embedded
+         * spaces, etc.
+         */
+        bool set_program_reg_name(const std::string &reg_name);
+
+        /**
+         * @param token[in] The lock token.
          * @return A copy of the source code, or default if none or error.
          */
         DocumentProperty get_source_code(concurrency::ReaderLockToken &token);
@@ -396,6 +438,7 @@ namespace dbtype
 // TODO This needs to be significantly enhanced later with regards to not loading the source and how to transfer max length around.
 
         osinterface::OsTypes::Double program_runtime_sec;///< Cumulative runtime
+        std::string program_reg_name; ///< Global registration name, if a library.  Not case sensitive.
         DocumentProperty program_source_code; ///< Source code
         CompiledCode program_compiled_code; ///< Optional compiled opaque binary
         std::string program_language; ///< Code language program is in
@@ -412,6 +455,7 @@ namespace dbtype
             ar & boost::serialization::base_object<PropertyEntity>(*this);
 
             ar & program_runtime_sec;
+            ar & program_reg_name;
             ar & program_source_code;
             ar & program_compiled_code;
             ar & program_language;
@@ -424,6 +468,7 @@ namespace dbtype
             ar & boost::serialization::base_object<PropertyEntity>(*this);
 
             ar & program_runtime_sec;
+            ar & program_reg_name;
             ar & program_source_code;
             ar & program_compiled_code;
             ar & program_language;

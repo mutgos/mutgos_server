@@ -1097,6 +1097,8 @@ namespace dbtype
 
     protected:
 
+        typedef std::vector<DatabaseEntityChangeListener *> DbListeners;
+
         /**
          * Constructs an Entity with a provided type.  Used by subclasses.
          * @param id[in] The ID of the entity.
@@ -1194,6 +1196,14 @@ namespace dbtype
          */
         void notify_db_listener(void);
 
+        /**
+         * @return The database listeners.
+         */
+        DbListeners &get_db_listeners(void)
+        {
+            return db_listeners;
+        }
+
         // Fields of Entity
         //
         EntityType entity_type; ///< The (sub)type of this Entity.
@@ -1274,7 +1284,6 @@ namespace dbtype
         BOOST_SERIALIZATION_SPLIT_MEMBER();
         ////
 
-        typedef std::vector<DatabaseEntityChangeListener *> DbListeners;
 
         /**
          * Clears entity_references_field.

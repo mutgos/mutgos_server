@@ -18,7 +18,10 @@
 #include "dbtypes/dbtype_EntityField.h"
 #include "dbtypes/dbtype_Lock.h"
 
-#define VAR_PREFIX '$'
+#define VAR_OPEN_PREFIX '{'
+#define VAR_CLOSE_PREFIX '}'
+#define PROG_REG_PREFIX '$'
+#define OBJ_REG_PREFIX '%'
 #define COMMENT_PREFIX '#'
 #define FILE_STACK_LIMIT 16
 
@@ -27,7 +30,7 @@ namespace
     const std::string INCLUDE_COMMAND = "@@INCLUDE ";
 }
 
-// TODO: Review changes, test every program out again
+// TODO: Need a way to clear out a site
 
 namespace mutgos
 {
@@ -479,16 +482,11 @@ namespace dbdump
         {
             if (parsed_input.empty())
             {
-                set_error("modentity: missing variable");
+                set_error("modentity: missing variable or regname");
             }
             else
             {
-                if (not is_variable(parsed_input))
-                {
-                    set_error("modentity: invalid variable declaration "
-                              + parsed_input);
-                }
-                else
+                if (is_variable(parsed_input))
                 {
                     const dbtype::Id &var_id = get_variable(parsed_input);
 
@@ -509,6 +507,32 @@ namespace dbdump
                               + var_id.to_string(true));
                         }
                     }
+                }
+                else if (is_prog_reg_name(parsed_input))
+                {
+                    const dbtype::Id id = get_prog_reg(parsed_input);
+
+                    if (id.is_default())
+                    {
+                        set_error("modentity: Program reg name does "
+                                  "not exist: " + parsed_input);
+                    }
+                    else
+                    {
+                        if (db.set_entity(id))
+                        {
+                            parser_mode = PARSER_ENTITY;
+                        }
+                        else
+                        {
+                            set_error("modentity: unable to set Entity "
+                                      + id.to_string(true));
+                        }
+                    }
+                }
+                else
+                {
+                    set_error("modentity: Unknown ID type");
                 }
             }
         }
@@ -844,12 +868,7 @@ namespace dbdump
                     case DumpReaderInterface::METHOD_id:
                     case DumpReaderInterface::METHOD_id_multiple:
                     {
-                        if (not is_variable(value))
-                        {
-                            set_error(
-                                "entity field (id): Value is not a variable");
-                        }
-                        else
+                        if (is_variable(value))
                         {
                             const dbtype::Id &id = get_variable(value);
 
@@ -866,6 +885,41 @@ namespace dbdump
                                       "set ID " + id.to_string(true));
                                 }
                             }
+                        }
+                        else if (is_prog_reg_name(value))
+                        {
+                            switch (field)
+                            {
+                                case dbtype::ENTITYFIELD_linked_programs:
+                                case dbtype::ENTITYFIELD_action_targets:
+                                {
+                                    const dbtype::Id id = get_prog_reg(value);
+
+                                    if (id.is_default())
+                                    {
+                                        set_error("entity field (id): "
+                                            "Program reg name does "
+                                            "not exist: " + value);
+                                    }
+                                    else
+                                    {
+                                        db.set_entity_field(field, id);
+                                    }
+
+                                    break;
+                                }
+
+                                default:
+                                {
+                                    set_error("entity field (id): "
+                                        "Cannot use program reg names with "
+                                        "this field");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            set_error("entity field (id): Unknown ID type");
                         }
 
                         break;
@@ -1582,7 +1636,14 @@ namespace dbdump
     // ----------------------------------------------------------------------
     bool MutgosDumpFileReader::is_variable(const std::string &input) const
     {
-        return (input.size() > 1) and (input[0] == VAR_PREFIX);
+        return (input.size() > 2) and (input[0] == VAR_OPEN_PREFIX) and
+            (input[input.size() - 1] == VAR_CLOSE_PREFIX);
+    }
+
+    // ----------------------------------------------------------------------
+    bool MutgosDumpFileReader::is_prog_reg_name(const std::string &input) const
+    {
+        return (input.size() > 1) and (input[0] == PROG_REG_PREFIX);
     }
 
     // ----------------------------------------------------------------------
@@ -1592,7 +1653,7 @@ namespace dbdump
         if (is_variable(variable))
         {
             VariableMap::const_iterator var_iter =
-                variables.find(variable.substr(1));
+                variables.find(variable.substr(1, variable.size() - 2));
 
             if (var_iter != variables.end())
             {
@@ -1601,6 +1662,32 @@ namespace dbdump
         }
 
         return default_id;
+    }
+
+    // ----------------------------------------------------------------------
+    const dbtype::Id MutgosDumpFileReader::get_prog_reg(
+        const std::string &regname)
+    {
+        dbtype::Id result;
+
+        if (is_prog_reg_name(regname))
+        {
+            db.get_dbinterface()->find_program_by_reg_name(
+                current_site,
+                regname.substr(1),
+                result);
+
+            if (result.is_default() and (current_site > 1))
+            {
+                // Could not find in current site... try site 1
+                db.get_dbinterface()->find_program_by_reg_name(
+                    1,
+                    regname.substr(1),
+                    result);
+            }
+        }
+
+        return result;
     }
 
     // ----------------------------------------------------------------------
@@ -1613,10 +1700,9 @@ namespace dbdump
         if (is_variable(variable))
         {
             const std::string variable_name =
-                variable.substr(1);
+                variable.substr(1, variable.size() - 2);
 
-            variables.erase(variable_name);
-            variables.insert(std::make_pair(variable_name, id));
+            variables[variable_name] = id;
             result = true;
         }
 

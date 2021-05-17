@@ -1,85 +1,87 @@
 /*
- * dbtype_PropertyDirectory.cpp
+ * dbtype_RegistrationDirectory.cpp
  */
 
+#include <map>
 #include <string>
 #include <stddef.h>
-#include <vector>
-#include <map>
-#include <sstream>
-#include <ostream>
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/trim.hpp>
 
 #include "logging/log_Logger.h"
 #include "osinterface/osinterface_OsTypes.h"
+#include "dbtypes/dbtype_Id.h"
 #include "text/text_Utf8Tools.h"
 #include "utilities/mutgos_config.h"
 
-#include "dbtypes/dbtype_PropertyDirectory.h"
-#include "dbtypes/dbtype_PropertyData.h"
+#include "dbtype_RegistrationDirectory.h"
 
 namespace
 {
-    // @see PropertyEntity
+    // @see RegistrationEntity
     /** Currently this can only be one character */
     static const std::string PATH_SEPARATOR = "/";
     static const std::string LISTING_SEPARATOR = ": ";
     static const MG_UnsignedInt MAX_TO_STRING_BYTES = 1024000;
 }
 
+// TODO Add depth limit?
+
 namespace mutgos
 {
 namespace dbtype
 {
     // ----------------------------------------------------------------------
-    PropertyDirectory::PropertyDirectory()
-      : last_accessed_name_ptr(0),
-        last_accessed_entry_ptr(0)
+    RegistrationDirectory::RegistrationDirectory()
+        : last_accessed_name_ptr(0),
+          last_accessed_entry_ptr(0)
     {
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory::~PropertyDirectory()
-    {
-        clear();
-    }
-
-    // ----------------------------------------------------------------------
-    PropertyDirectory::PropertyDirectory(const PropertyDirectory &rhs)
-      : last_accessed_name_ptr(0),
-        last_accessed_entry_ptr(0)
+    RegistrationDirectory::RegistrationDirectory(
+        const RegistrationDirectory &rhs)
+        : last_accessed_name_ptr(0),
+          last_accessed_entry_ptr(0)
     {
         operator=(rhs);
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory &PropertyDirectory::operator=(
-        const PropertyDirectory &rhs)
+    RegistrationDirectory::~RegistrationDirectory()
+    {
+        clear();
+    }
+
+    // ----------------------------------------------------------------------
+    RegistrationDirectory &RegistrationDirectory::operator=(
+        const RegistrationDirectory &rhs)
     {
         if (&rhs != this)
         {
             clear();
 
-            PropertyDirectoryMap::iterator insert_iter;
+            RegistrationDirectoryMap::iterator insert_iter;
 
-            for (PropertyDirectoryMap::const_iterator
-                    copy_iter = rhs.property_map.begin();
-                copy_iter != rhs.property_map.end();
-                ++copy_iter)
+            for (RegistrationDirectoryMap::const_iterator
+                     copy_iter = rhs.registration_map.begin();
+                 copy_iter != rhs.registration_map.end();
+                 ++copy_iter)
             {
-                insert_iter = property_map.insert(
-                    std::make_pair(copy_iter->first, DirectoryEntry(0,0))).first;
+                insert_iter = registration_map.insert(
+                    std::make_pair(copy_iter->first, RegistrationEntry(0, 0)))
+                                              .first;
 
                 if (copy_iter->second.first)
                 {
-                    insert_iter->second.first = copy_iter->second.first->clone();
+                    insert_iter->second.first = new Id(
+                        *copy_iter->second.first);
                 }
-
-                if (copy_iter->second.second)
+                else if (copy_iter->second.second)
                 {
-                    insert_iter->second.second = copy_iter->second.second->clone();
+                    insert_iter->second.second = copy_iter->second.second
+                                                          ->clone();
                 }
             }
         }
@@ -88,35 +90,36 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory *PropertyDirectory::clone(void) const
+    RegistrationDirectory *RegistrationDirectory::clone(void) const
     {
-        return new PropertyDirectory(*this);
+        return new RegistrationDirectory(*this);
     }
 
     // ----------------------------------------------------------------------
     // TODO Rewrite later so not recursive
-    bool PropertyDirectory::operator==(const PropertyDirectory &rhs) const
+    bool
+    RegistrationDirectory::operator==(const RegistrationDirectory &rhs) const
     {
         if (this == &rhs)
         {
             return true;
         }
 
-        if (property_map.size() != rhs.property_map.size())
+        if (registration_map.size() != rhs.registration_map.size())
         {
             return false;
         }
 
         // Exactly the same size, so do a entry-by-entry deep comparison.
         //
-        PropertyDirectoryMap::const_iterator equal_iter =
-            property_map.begin();
-        PropertyDirectoryMap::const_iterator rhs_equal_iter =
-            rhs.property_map.begin();
+        RegistrationDirectoryMap::const_iterator equal_iter =
+            registration_map.begin();
+        RegistrationDirectoryMap::const_iterator rhs_equal_iter =
+            rhs.registration_map.begin();
 
-        for (; (equal_iter != property_map.end()) and
-             (rhs_equal_iter != rhs.property_map.end());
-             ++equal_iter, ++rhs_equal_iter)
+        for (; (equal_iter != registration_map.end()) and
+               (rhs_equal_iter != rhs.registration_map.end());
+               ++equal_iter, ++rhs_equal_iter)
         {
             // Entry name
             //
@@ -176,28 +179,29 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    bool PropertyDirectory::operator!=(const PropertyDirectory &rhs) const
+    bool RegistrationDirectory::operator!=(
+        const RegistrationDirectory &rhs) const
     {
         return not operator==(rhs);
     }
 
     // ----------------------------------------------------------------------
-    std::string PropertyDirectory::to_string(void) const
+    std::string RegistrationDirectory::to_string(void) const
     {
         std::ostringstream result;
 
-        std::vector<ToStringPosition> dir_stack;
+        std::vector<DepthPosition> dir_stack;
 
         // Prime the loop to start here.
         //
-        dir_stack.push_back(ToStringPosition(
+        dir_stack.push_back(DepthPosition(
             std::string(),
-            property_map.begin(),
-            &property_map));
+            registration_map.begin(),
+            &registration_map));
 
         while (not dir_stack.empty())
         {
-            ToStringPosition
+            DepthPosition
                 &current_position = dir_stack.back();
 
             if (current_position.path_iter == current_position.dir_ptr->end())
@@ -217,26 +221,26 @@ namespace dbtype
                            << current_position.path_iter->first
                            << LISTING_SEPARATOR
                            << current_position.path_iter->second.first->
-                             get_as_short_string()
+                               to_string(true)
                            << std::endl;
                 }
 
-                // If entry is a propdir, push back iterator and updated path to
-                // back.
+                // If entry is a directory, push back iterator and updated path
+                // to back.
                 //
                 if (current_position.path_iter->second.second and
-                        (not current_position.path_iter->second.second->
-                                property_map.empty()))
+                    (not current_position.path_iter->second.second->
+                        registration_map.empty()))
                 {
                     dir_stack.push_back(
-                            ToStringPosition(
-                                    current_position.path_prefix +
-                                      current_position.path_iter->first +
-                                      PATH_SEPARATOR,
-                                    current_position.path_iter->second.second->
-                                      property_map.begin(),
-                                    &current_position.path_iter->second.second->
-                                      property_map));
+                        DepthPosition(
+                            current_position.path_prefix +
+                            current_position.path_iter->first +
+                            PATH_SEPARATOR,
+                            current_position.path_iter->second.second->
+                                registration_map.begin(),
+                            &current_position.path_iter->second.second->
+                                registration_map));
                 }
 
                 ++current_position.path_iter;
@@ -254,10 +258,11 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    PropertyData *PropertyDirectory::get_property_data(const std::string &path)
+    Id *RegistrationDirectory::get_registered_id(
+        const RegistrationDirectory::PathString &path)
     {
-        PropertyData *result_ptr = 0;
-        DirectoryEntry *entry_ptr = parse_directory_path(path, false);
+        Id *result_ptr = 0;
+        RegistrationEntry *entry_ptr = parse_directory_path(path, false);
 
         if (entry_ptr)
         {
@@ -268,11 +273,11 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory *PropertyDirectory::get_property_directory(
-        const std::string &path)
+    RegistrationDirectory *RegistrationDirectory::get_registration_directory(
+        const RegistrationDirectory::PathString &path)
     {
-        PropertyDirectory *result_ptr = 0;
-        DirectoryEntry *entry_ptr = parse_directory_path(path, false);
+        RegistrationDirectory *result_ptr = 0;
+        RegistrationEntry *entry_ptr = parse_directory_path(path, false);
 
         if (entry_ptr)
         {
@@ -283,11 +288,13 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    std::string PropertyDirectory::get_next_property(const std::string &path)
+    RegistrationDirectory::PathString
+    RegistrationDirectory::get_next_registration_entry(
+        const RegistrationDirectory::PathString &path)
     {
         std::string result;
         DirectoryPath search_path;
-        DirectoryEntry *entry_ptr =
+        RegistrationEntry *entry_ptr =
             parse_directory_path(path, false, &search_path);
 
         if (entry_ptr)
@@ -296,16 +303,16 @@ namespace dbtype
             // forward one to find what's next.  Cache the result in case
             // the caller plans to look at the contents.
             //
-            PropertyDirectory *parent_ptr = search_path.back();
-            PropertyDirectoryMap::iterator parent_iter =
-                parent_ptr->property_map.find(
+            RegistrationDirectory *parent_ptr = search_path.back();
+            RegistrationDirectoryMap::iterator parent_iter =
+                parent_ptr->registration_map.find(
                     *parent_ptr->last_accessed_name_ptr);
 
-            if (parent_iter != parent_ptr->property_map.end())
+            if (parent_iter != parent_ptr->registration_map.end())
             {
                 ++parent_iter;
 
-                if (parent_iter != parent_ptr->property_map.end())
+                if (parent_iter != parent_ptr->registration_map.end())
                 {
                     // Not at the end, so cache it and build the return path.
                     //
@@ -316,12 +323,12 @@ namespace dbtype
                     // Build the path by using the last accessed cache.
                     //
                     for (DirectoryPath::iterator path_iter =
-                            search_path.begin();
-                        path_iter != search_path.end();
-                        ++path_iter)
+                        search_path.begin();
+                         path_iter != search_path.end();
+                         ++path_iter)
                     {
                         result += PATH_SEPARATOR +
-                            *(*path_iter)->last_accessed_name_ptr;
+                                  *(*path_iter)->last_accessed_name_ptr;
                     }
                 }
             }
@@ -331,12 +338,13 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    std::string PropertyDirectory::get_previous_property(
-        const std::string &path)
+    RegistrationDirectory::PathString
+        RegistrationDirectory::get_previous_registration_entry(
+        const RegistrationDirectory::PathString &path)
     {
         std::ostringstream result;
         DirectoryPath search_path;
-        DirectoryEntry *entry_ptr =
+        RegistrationEntry *entry_ptr =
             parse_directory_path(path, false, &search_path);
 
         if (entry_ptr)
@@ -345,17 +353,17 @@ namespace dbtype
             // forward one to find what's next.  Cache the result in case
             // the caller plans to look at the contents.
             //
-            PropertyDirectory *parent_ptr = search_path.back();
-            PropertyDirectoryMap::iterator parent_iter =
-                parent_ptr->property_map.find(
+            RegistrationDirectory *parent_ptr = search_path.back();
+            RegistrationDirectoryMap::iterator parent_iter =
+                parent_ptr->registration_map.find(
                     *parent_ptr->last_accessed_name_ptr);
 
             // Make sure the entry was found and not at the beginning.
             // If it's at the beginning, we can't go backwards any further so
             // we can just stop.
             //
-            if ((parent_iter != parent_ptr->property_map.end()) and
-                (parent_iter != parent_ptr->property_map.begin()))
+            if ((parent_iter != parent_ptr->registration_map.end()) and
+                (parent_iter != parent_ptr->registration_map.begin()))
             {
                 --parent_iter;
 
@@ -368,8 +376,8 @@ namespace dbtype
                 // Build the path by using the last accessed cache.
                 //
                 for (DirectoryPath::iterator path_iter = search_path.begin();
-                    path_iter != search_path.end();
-                    ++path_iter)
+                     path_iter != search_path.end();
+                     ++path_iter)
                 {
                     result << PATH_SEPARATOR
                            << *((*path_iter)->last_accessed_name_ptr);
@@ -381,92 +389,81 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    std::string PropertyDirectory::get_first_property(const std::string &path)
+    RegistrationDirectory::PathString
+        RegistrationDirectory::get_first_registration_entry(
+            const RegistrationDirectory::PathString &path)
     {
         std::string result;
 
-        get_property_edge(path, false, result);
+        get_registration_edge(path, false, result);
 
         return result;
     }
 
     // ----------------------------------------------------------------------
-    std::string PropertyDirectory::get_last_property(const std::string &path)
+    RegistrationDirectory::PathString
+        RegistrationDirectory::get_last_registration_entry(
+            const RegistrationDirectory::PathString &path)
     {
         std::string result;
 
-        get_property_edge(path, true, result);
+        get_registration_edge(path, true, result);
 
         return result;
     }
 
     // ----------------------------------------------------------------------
-    void PropertyDirectory::delete_property_data(const std::string &path)
+    bool RegistrationDirectory::delete_registration(
+        const RegistrationDirectory::PathString &path)
     {
-        DirectoryEntry *entry_ptr = parse_directory_path(path, false);
-
-        if (entry_ptr)
-        {
-            if (entry_ptr->second)
-            {
-                // A directory, so just delete the data.
-                delete entry_ptr->first;
-                entry_ptr->first = 0;
-            }
-            else
-            {
-                // This is a not directory, so delete the entire property.
-                delete_property(path);
-            }
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    void PropertyDirectory::delete_property(const std::string &path)
-    {
+        bool result = false;
         DirectoryPath search_path;
-        DirectoryEntry *entry_ptr =
+        RegistrationEntry *entry_ptr =
             parse_directory_path(path, false, &search_path);
 
         if (entry_ptr)
         {
-            // Delete the data
+            // Delete the registration
             //
             delete entry_ptr->first;
             entry_ptr->first = 0;
 
-            // Delete anything inside the directory
+            // Delete anything inside the directory, if it is one
             delete entry_ptr->second;
             entry_ptr->second = 0;
 
             // Remove it from the map and cache.
-            // A trick here: The property we need to delete is always the
-            // last accessed one in the parent.  So we use that for the
-            // property name.
+            // A trick here: The registration/directory we need to delete is
+            // always the last accessed one in the parent.  So we use that
+            // for the registration name.
             //
-            PropertyDirectory *parent_ptr = search_path.back();
+            RegistrationDirectory *parent_ptr = search_path.back();
 
             if (not parent_ptr->last_accessed_name_ptr)
             {
-                LOG(fatal, "dbtype", "delete_property",
+                LOG(fatal, "dbtype", "delete_registration",
                     "Cache is null!  Cannot delete " + path);
             }
             else
             {
-                parent_ptr->property_map.erase(
+                parent_ptr->registration_map.erase(
                     *(parent_ptr->last_accessed_name_ptr));
                 parent_ptr->last_accessed_name_ptr = 0;
                 parent_ptr->last_accessed_entry_ptr = 0;
             }
+
+            result = true;
         }
+
+        return result;
     }
 
     // ----------------------------------------------------------------------
-    bool PropertyDirectory::set_property(
-        const std::string &path,
-        const PropertyData &data)
+    bool RegistrationDirectory::add_registration(
+        const RegistrationDirectory::PathString &path,
+        const Id &id)
     {
-        DirectoryEntry *entry_ptr = parse_directory_path(path, true);
+        RegistrationEntry *entry_ptr = parse_directory_path(path, true);
 
         if (entry_ptr)
         {
@@ -480,32 +477,42 @@ namespace dbtype
 
             // Copy the new value in.
             //
-            entry_ptr->first = data.clone();
+            entry_ptr->first = new Id(id);
         }
 
         return entry_ptr;
     }
 
     // ----------------------------------------------------------------------
-    bool PropertyDirectory::does_property_exist(const std::string &path)
+    bool RegistrationDirectory::does_registration_exist(
+        const RegistrationDirectory::PathString &path)
     {
         return parse_directory_path(path, false);
     }
 
     // ----------------------------------------------------------------------
-    bool PropertyDirectory::is_property_directory(const std::string &path)
+    bool RegistrationDirectory::is_path_directory(
+        const RegistrationDirectory::PathString &path)
     {
-        DirectoryEntry *entry_ptr = parse_directory_path(path, false);
+        RegistrationEntry *entry_ptr = parse_directory_path(path, false);
 
         return (entry_ptr ? entry_ptr->second : 0);
     }
 
     // ----------------------------------------------------------------------
-    void PropertyDirectory::clear(void)
+    bool RegistrationDirectory::is_empty(void) const
     {
-        for (PropertyDirectoryMap::iterator delete_iter = property_map.begin();
-            delete_iter != property_map.end();
-            ++delete_iter)
+        return registration_map.empty();
+    }
+
+    // ----------------------------------------------------------------------
+    // TODO Rewrite later so not recursive
+    void RegistrationDirectory::clear(void)
+    {
+        for (RegistrationDirectoryMap::iterator delete_iter =
+                registration_map.begin();
+             delete_iter != registration_map.end();
+             ++delete_iter)
         {
             delete delete_iter->second.first;
             delete delete_iter->second.second;
@@ -513,20 +520,21 @@ namespace dbtype
             delete_iter->second.second = 0;
         }
 
-        property_map.clear();
+        registration_map.clear();
         last_accessed_entry_ptr = 0;
         last_accessed_name_ptr = 0;
     }
 
     // ----------------------------------------------------------------------
-    size_t PropertyDirectory::mem_used(void) const
+    // TODO Rewrite later so not recursive
+    size_t RegistrationDirectory::mem_used(void) const
     {
-        size_t memory_used = property_map.size();
+        size_t memory_used = registration_map.size();
 
-        for (PropertyDirectoryMap::const_iterator
-                mem_iter = property_map.begin();
-            mem_iter != property_map.end();
-            ++mem_iter)
+        for (RegistrationDirectoryMap::const_iterator
+                 mem_iter = registration_map.begin();
+             mem_iter != registration_map.end();
+             ++mem_iter)
         {
             memory_used += mem_iter->first.size();
             memory_used += sizeof(*mem_iter);
@@ -546,8 +554,8 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory::DirectoryEntry *PropertyDirectory::get_directory_entry(
-        const std::string &name,
+    RegistrationDirectory::RegistrationEntry *RegistrationDirectory::get_directory_entry(
+        const RegistrationDirectory::PathString &name,
         const bool create)
     {
         if (last_accessed_name_ptr)
@@ -561,9 +569,10 @@ namespace dbtype
             }
         }
 
-        PropertyDirectoryMap::iterator prop_iter = property_map.find(name);
+        RegistrationDirectoryMap::iterator reg_iter =
+            registration_map.find(name);
 
-        if (prop_iter == property_map.end())
+        if (reg_iter == registration_map.end())
         {
             // Not found.  See if we need to create it.
             if (not create)
@@ -573,10 +582,10 @@ namespace dbtype
             else
             {
                 // Create the entry, cache it, and return.
-                prop_iter = property_map.insert(
-                    std::make_pair(name, DirectoryEntry(0,0))).first;
-                last_accessed_name_ptr = &(prop_iter->first);
-                last_accessed_entry_ptr = &(prop_iter->second);
+                reg_iter = registration_map.insert(
+                    std::make_pair(name, RegistrationEntry(0,0))).first;
+                last_accessed_name_ptr = &(reg_iter->first);
+                last_accessed_entry_ptr = &(reg_iter->second);
 
                 return last_accessed_entry_ptr;
             }
@@ -585,8 +594,8 @@ namespace dbtype
         {
             // Found something.  Cache it and return.
             //
-            last_accessed_name_ptr = &(prop_iter->first);
-            last_accessed_entry_ptr = &(prop_iter->second);
+            last_accessed_name_ptr = &(reg_iter->first);
+            last_accessed_entry_ptr = &(reg_iter->second);
 
             return last_accessed_entry_ptr;
         }
@@ -595,13 +604,13 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    PropertyDirectory::DirectoryEntry *PropertyDirectory::parse_directory_path(
-        const std::string &path,
+    RegistrationDirectory::RegistrationEntry *RegistrationDirectory::parse_directory_path(
+        const RegistrationDirectory::PathString &path,
         const bool create,
-        PropertyDirectory::DirectoryPath *path_ptr)
+        RegistrationDirectory::DirectoryPath *path_ptr)
     {
-        DirectoryEntry *current_entry_ptr = 0;
-        PropertyDirectory *current_propdir_ptr = this;
+        RegistrationEntry *current_entry_ptr = 0;
+        RegistrationDirectory *current_regdir_ptr = this;
 
         std::string trimmed_path = boost::trim_copy(path);
 
@@ -643,12 +652,12 @@ namespace dbtype
             }
         }
 
-        // Go through the path one segment at a time, traversing the property
-        // directories until either the end is found, or a segment cannot
-        // be located.
+        // Go through the path one segment at a time, traversing the
+        // registration directories until either the end is found, or a
+        // segment cannot be located.
         //
         for (boost::tokenizer<boost::char_separator<char> >::iterator
-                tok_iter = tokens.begin();
+                 tok_iter = tokens.begin();
              tok_iter != tokens.end(); ++tok_iter)
         {
             // Skip empty tokens.  This might happen if there are multiple
@@ -656,7 +665,7 @@ namespace dbtype
             //
             if (not (*tok_iter).empty())
             {
-                if (not current_propdir_ptr)
+                if (not current_regdir_ptr)
                 {
                     current_entry_ptr = 0;
                     break;
@@ -664,10 +673,10 @@ namespace dbtype
 
                 if (path_ptr)
                 {
-                    path_ptr->push_back(current_propdir_ptr);
+                    path_ptr->push_back(current_regdir_ptr);
                 }
 
-                current_entry_ptr = current_propdir_ptr->get_directory_entry(
+                current_entry_ptr = current_regdir_ptr->get_directory_entry(
                     *tok_iter, create);
 
                 if (not current_entry_ptr)
@@ -677,7 +686,7 @@ namespace dbtype
                 }
                 else
                 {
-                    current_propdir_ptr = current_entry_ptr->second;
+                    current_regdir_ptr = current_entry_ptr->second;
                 }
             }
         }
@@ -692,10 +701,10 @@ namespace dbtype
     }
 
     // ----------------------------------------------------------------------
-    void PropertyDirectory::get_property_edge(
-        const std::string &path,
+    void RegistrationDirectory::get_registration_edge(
+        const RegistrationDirectory::PathString &path,
         const bool last,
-        std::string &edge_path)
+        RegistrationDirectory::PathString &edge_path)
     {
         std::string trimmed_path = boost::trim_copy(path);
 
@@ -715,10 +724,10 @@ namespace dbtype
 
             // Parse the path, then simply append the first entry at the end.
             //
-            DirectoryEntry *entry_ptr = parse_directory_path(path, false);
+            RegistrationEntry *entry_ptr = parse_directory_path(path, false);
 
             if (entry_ptr and entry_ptr->second and
-                (not entry_ptr->second->property_map.empty()))
+                (not entry_ptr->second->registration_map.empty()))
             {
                 edge_path = trimmed_path;
 
@@ -728,10 +737,10 @@ namespace dbtype
                 }
 
                 edge_path += (last ?
-                    entry_ptr->second->property_map.rbegin()->first :
-                    entry_ptr->second->property_map.begin()->first);
+                    entry_ptr->second->registration_map.rbegin()->first :
+                    entry_ptr->second->registration_map.begin()->first);
             }
         }
     }
-} /* namespace dbtype */
-} /* namespace mutgos */
+}
+}

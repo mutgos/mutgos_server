@@ -393,6 +393,7 @@ namespace dbdump
             case dbtype::ENTITYFIELD_password:
             case dbtype::ENTITYFIELD_player_display_name:
             case dbtype::ENTITYFIELD_puppet_display_name:
+            case dbtype::ENTITYFIELD_program_reg_name:
             case dbtype::ENTITYFIELD_program_language:
             case dbtype::ENTITYFIELD_action_succ_msg:
             case dbtype::ENTITYFIELD_action_succ_room_msg:
@@ -560,6 +561,7 @@ namespace dbdump
                         break;
                     }
 
+                    case dbtype::ENTITYFIELD_program_reg_name:
                     case dbtype::ENTITYFIELD_program_language:
                     {
                         dbtype::Program *program_ptr =
@@ -578,7 +580,27 @@ namespace dbdump
                         }
                         else
                         {
-                            result = program_ptr->set_program_language(value);
+                            switch (field)
+                            {
+                                case dbtype::ENTITYFIELD_program_reg_name:
+                                {
+                                    result = program_ptr->set_program_reg_name(
+                                        value);
+                                    break;
+                                }
+
+                                case dbtype::ENTITYFIELD_program_language:
+                                {
+                                    result = program_ptr->set_program_language(
+                                        value);
+                                    break;
+                                }
+
+                                default:
+                                {
+                                    break;
+                                }
+                            }
                         }
 
                         break;

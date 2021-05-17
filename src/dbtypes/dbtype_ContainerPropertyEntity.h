@@ -13,6 +13,7 @@
 #include "dbtypes/dbtype_Id.h"
 #include "dbtypes/dbtype_Group.h"
 #include "dbtypes/dbtype_PropertyEntity.h"
+#include "dbtypes/dbtype_RegistrationDirectory.h"
 
 #include "concurrency/concurrency_ReaderLockToken.h"
 #include "concurrency/concurrency_WriterLockToken.h"
@@ -33,6 +34,8 @@ namespace dbtype
     class ContainerPropertyEntity : public PropertyEntity
     {
     public:
+        typedef RegistrationDirectory::PathString PathString;
+
         /**
          * Constructor used for deserialization of a ContainerPropertyEntity.
          */
@@ -248,6 +251,227 @@ namespace dbtype
          */
         Id get_last_linked_program(void);
 
+
+        /**
+         * Uses the provided path to get the ID associated with the
+         * registration.
+         * @param path[in] The registration path to retrieve.
+         * @param token[in] The lock token.
+         * @return The ID pointer for a given registration, or invalid if the
+         * registration is a directory or not found.
+         */
+        Id get_registered_id(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Uses the provided path to get the ID associated with the
+         * registration.
+         * @param path[in] The registration path to retrieve.
+         * @return The ID pointer for a given registration, or invalid if the
+         * registration is a directory or not found.
+         */
+        Id get_registered_id(const PathString &path);
+
+
+        /**
+         * Returns the full path for the next entry in the deepest
+         * registration directory, or empty string if not found or at the end.
+         * This allows "walking" a directory.
+         * @param path[in] The full path to iterate with.
+         * @param token[in] The lock token.
+         * @return The full path to the next entry, or empty if none left or
+         * not found.
+         */
+        PathString get_next_registration_entry(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Returns the full path for the next entry in the deepest
+         * registration directory, or empty string if not found or at the end.
+         * This allows "walking" a directory.
+         * @param path[in] The full path to iterate with.
+         * @return The full path to the next entry, or empty if none left or
+         * not found.
+         */
+        PathString get_next_registration_entry(const PathString &path);
+
+
+        /**
+         * Returns the full path for the previous entry in the deepest
+         * registration directory, or empty string if not found or at the
+         * beginning.  This allows "walking" a directory.
+         * @param path[in] The full path to iterate with.
+         * @param token[in] The lock token.
+         * @return The full path to the previous entry, or empty if none left
+         * or not found.
+         */
+        PathString get_previous_registration_entry(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Returns the full path for the previous entry in the deepest
+         * registration directory, or empty string if not found or at the
+         * beginning.  This allows "walking" a directory.
+         * @param path[in] The full path to iterate with.
+         * @return The full path to the previous entry, or empty if none left
+         * or not found.
+         */
+        PathString get_previous_registration_entry(const PathString &path);
+
+
+        /**
+         * Returns the first entry in the given registration directory.
+         * @param path[in] The full path of the registration directory to get
+         * the first entry of.
+         * @param token[in] The lock token.
+         * @return The full path of the first registration entry in the
+         * directory given by path.  If there are no entries or the path is
+         * invalid, an empty string is returned.
+         */
+        PathString get_first_registration_entry(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Returns the first entry in the given registration directory.
+         * @param path[in] The full path of the registration directory to get
+         * the first entry of.
+         * @return The full path of the first registration entry in the
+         * directory given by path.  If there are no entries or the path is
+         * invalid, an empty string is returned.
+         */
+        PathString get_first_registration_entry(const PathString &path);
+
+
+        /**
+         * Returns the last entry in the given registration directory.
+         * @param path[in] The full path of the registration directory to get
+         * the last entry of.
+         * @param token[in] The lock token.
+         * @return The full path of the last registration entry in the
+         * directory given by path.  If there are no entries or the path is
+         * invalid, an empty string is returned.
+         */
+        PathString get_last_registration_entry(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Returns the last entry in the given registration directory.
+         * @param path[in] The full path of the registration directory to get
+         * the last entry of.
+         * @return The full path of the last registration entry in the
+         * directory given by path.  If there are no entries or the path is
+         * invalid, an empty string is returned.
+         */
+        PathString get_last_registration_entry(const PathString &path);
+
+
+        /**
+         * Deletes the given registration entry.  If the entry is a directory,
+         * everything underneath it will be recursively removed.
+         * @param path[in] The path whose registration data is to be deleted.
+         * @param token[in] The lock token.
+         * @returns True if success (even if entry doesn't exist), false if
+         * error.
+         */
+        bool delete_registration(
+            const PathString &path,
+            concurrency::WriterLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Deletes the given registration entry.  If the entry is a directory,
+         * everything underneath it will be recursively removed.
+         * @param path[in] The path whose registration data is to be deleted.
+         * @returns True if success (even if entry doesn't exist), false if
+         * error.
+         */
+        bool delete_registration(const PathString &path);
+
+
+        /**
+         * Adds or updates the registration entry.  If the directories
+         * in between do not exist, they will be created.
+         * @param path[in] The path to set the registration entry.
+         * @param id[in] The ID to be associated with the registration.
+         * @param token[in] The lock token.
+         * @return True if success, false if error.
+         */
+        bool add_registration(
+            const PathString &path,
+            const Id &id,
+            concurrency::WriterLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Adds or updates the registration entry.  If the directories
+         * in between do not exist, they will be created.
+         * @param path[in] The path to set the registration entry.
+         * @param id[in] The ID to be associated with the registration.
+         * @return True if success, false if error.
+         */
+        bool add_registration(const PathString &path, const Id &id);
+
+
+        /**
+         * @param path[in] The registration path to check.
+         * @param token[in] The lock token.
+         * @return True if the registration exists (and is not a directory),
+         * false if error, registration does not exist, or is a directory.
+         */
+        bool does_registration_exist(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * @param path[in] The registration path to check.
+         * @return True if the registration exists (and is not a directory),
+         * false if error, registration does not exist, or is a directory.
+         */
+        bool does_registration_exist(const PathString &path);
+
+
+        /**
+         * @param path[in] The registration path to check.
+         * @param token[in] The lock token.
+         * @return True if path is a valid directory, false otherwise.
+         */
+        bool is_registration_path_directory(
+            const PathString &path,
+            concurrency::ReaderLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * @param path[in] The registration path to check.
+         * @return True if path is a valid directory, false otherwise.
+         */
+        bool is_registration_path_directory(const PathString &path);
+
+
+        /**
+         * Removes all registrations.
+         * @param token[in] The lock token.
+         * @return True if success, false if error.
+         */
+        bool clear_registrations(concurrency::WriterLockToken &token);
+
+        /**
+         * This method will automatically get a lock.
+         * Removes all registrations.
+         * @return True if success, false if error.
+         */
+        bool clear_registrations(void);
+
     protected:
         /**
          * Constructs an Entity with a provided type.  Used by subclasses.
@@ -288,6 +512,7 @@ namespace dbtype
 
         Id contained_by; ///< Who contains this instance
         IdSet linked_programs; ///< Programs linked into this instance
+        RegistrationDirectory *registrations_ptr; ///< Optional registrations
 
         /**
          * Serialization using Boost Serialization.  MUST be locked externally,
@@ -301,6 +526,18 @@ namespace dbtype
 
             ar & contained_by;
             ar & linked_programs;
+
+            if (not registrations_ptr)
+            {
+                const bool has_reg = false;
+                ar & has_reg;
+            }
+            else
+            {
+                const bool has_reg = true;
+                ar & has_reg;
+                ar & *registrations_ptr;
+            }
         }
 
         template<class Archive>
@@ -310,6 +547,18 @@ namespace dbtype
 
             ar & contained_by;
             ar & linked_programs;
+
+            bool has_reg = false;
+            ar & has_reg;
+
+            delete registrations_ptr;
+            registrations_ptr = 0;
+
+            if (has_reg)
+            {
+                registrations_ptr = new RegistrationDirectory();
+                ar & *registrations_ptr;
+            }
         }
         BOOST_SERIALIZATION_SPLIT_MEMBER();
         ////

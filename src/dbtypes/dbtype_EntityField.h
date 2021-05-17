@@ -52,6 +52,7 @@ namespace dbtype
         ENTITYFIELD_BEGIN_CONTAINER_PROPERTY_ENTITY, ///< Marker for begin of C P E
         ENTITYFIELD_contained_by, ///< Used only by DB dump, generic contained by - runtime uses specific ones below // TODO remove??
         ENTITYFIELD_linked_programs, ///< Linked Programs
+        ENTITYFIELD_registrations, ///< Registration entries
         ENTITYFIELD_END_CONTAINER_PROPERTY_ENTITY, ///< Marker for end of C P E
         ENTITYFIELD_BEGIN_REGION, ///< Marker for beginning of Region
         ENTITYFIELD_END_REGION,  ///< Marker for ending of Region
@@ -76,6 +77,7 @@ namespace dbtype
         ENTITYFIELD_END_VEHICLE,  ///< Marker for ending of Vehicle
         ENTITYFIELD_BEGIN_PROGRAM, ///< Marker for beginning of Program
         ENTITYFIELD_program_runtime_sec, ///< Cumulative runtime of program
+        ENTITYFIELD_program_reg_name, ///< Global registration name of program library
         ENTITYFIELD_program_source_code, ///< Raw source code of program
         ENTITYFIELD_program_compiled_code, ///< Opaque compiled version
         ENTITYFIELD_program_language, ///< What code language it is written in

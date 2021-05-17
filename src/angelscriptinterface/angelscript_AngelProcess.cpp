@@ -455,9 +455,18 @@ namespace angelscript
             {
                 case asEXECUTION_ABORTED:
                 {
+                    // Get the row, column, etc of the abort
+                    const char *section_name = 0;
+                    int column = 0;
+                    const int line_number =
+                        context_ptr->GetLineNumber(0, &column, &section_name);
+
                     // External abort; this shouldn't happen yet.
                     error_messages.push_back(
-                        "Execution was aborted.");
+                        std::string("Execution was aborted.  Line ") +
+                        text::to_string(line_number) + "  Column " +
+                        text::to_string(column) + "  Section " +
+                        (section_name ? section_name : ""));
                     status = PROCESS_STATUS_ERROR;
                     break;
                 }
@@ -536,6 +545,21 @@ namespace angelscript
                     message += my_context.get_exception_reason();
                     message += ", from AngelScript: ";
                     message += context_ptr->GetExceptionString();
+
+                    // Get the row, column, etc where exception thrown
+                    //
+                    const char *section_name = 0;
+                    int column = 0;
+                    const int line_number =
+                        context_ptr->GetLineNumber(0, &column, &section_name);
+
+                    message += ", line " + text::to_string(line_number);
+                    message += "  column " + text::to_string(column);
+
+                    if (section_name)
+                    {
+                        message += std::string("  section ") + section_name;
+                    }
 
                     LOG(error, "angelscript", "run_script", message);
                     error_messages.push_back(message);

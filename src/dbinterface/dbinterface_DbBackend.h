@@ -181,6 +181,29 @@ namespace dbinterface
             const dbtype::Id::SiteIdType site_id) =0;
 
         /**
+         * Searches the given site for the program registration name.
+         * @param site_id[in] The site ID to search for the program
+         * registration name.
+         * @param registration_name[in] The program registration name to
+         * find.
+         * @return The ID of the Program found, or default/invalid if none
+         * found matching or the site is invalid.
+         */
+        virtual dbtype::Id find_program_reg_in_db(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &registration_name) =0;
+
+        /**
+         * Searches for the given ID and determines if a registration
+         * is associated with it.
+         * @param id[in] The ID to search for.
+         * @return The registration name of the Program found, or empty if none
+         * found matching or the ID is invalid.
+         */
+        virtual std::string find_program_reg_name_in_db(
+            const dbtype::Id &id) =0;
+
+        /**
          * @return A list of all known site IDs in the database.
          */
         virtual dbtype::Id::SiteIdVector get_site_ids_in_db(void) =0;

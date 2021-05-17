@@ -70,6 +70,12 @@ namespace dbdump
         ~DumpReaderInterface();
 
         /**
+         * @return Pointer to the underlying DbInterface instance.
+         */
+        dbinterface::DatabaseAccess *get_dbinterface(void) const
+          { return db; }
+
+        /**
          * Indicates the underlying parser found an error.  Clear any
          * references to pointers that may be deleted to avoid coredumps.
          */

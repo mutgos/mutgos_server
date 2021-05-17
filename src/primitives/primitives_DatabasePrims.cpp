@@ -47,6 +47,8 @@ namespace
     const std::string ID_SITE_SEPARATOR = "-";
     const std::string ID_PRINT_OPEN = "(";
     const std::string ID_PRINT_CLOSE = ")";
+
+    const mutgos::dbtype::Id::SiteIdType SHARED_SITE = 1;
 }
 
 namespace mutgos
@@ -511,6 +513,29 @@ namespace primitives
         dbtype::Id result;
 
         const std::string id_trimmed = text::trim_copy(id_as_string);
+
+        // See if this is a program regname. If so, try and find it and
+        // stop here success or fail.
+        //
+        if ((not id_trimmed.empty()) and (id_trimmed[0] == '$'))
+        {
+            dbinterface::DatabaseAccess * const db =
+                dbinterface::DatabaseAccess::instance();
+            const dbtype::Id::SiteIdType site_id =
+                context.get_requester().get_site_id();
+            const std::string regname_to_find = id_trimmed.substr(1);
+
+            db->find_program_by_reg_name(site_id, regname_to_find,result);
+
+            if (result.is_default() and (site_id > SHARED_SITE))
+            {
+                // Not found.  Try shared site
+                db->find_program_by_reg_name(SHARED_SITE, regname_to_find,result);
+            }
+
+            return result;
+        }
+
         const bool intermediate_spaces =
             (id_trimmed.find(' ') != std::string::npos);
 
