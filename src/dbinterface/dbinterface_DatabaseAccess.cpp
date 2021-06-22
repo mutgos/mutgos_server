@@ -16,6 +16,12 @@
 #include "utilities/mutgos_config.h"
 #include "logging/log_Logger.h"
 
+namespace
+{
+    // Always uppercase
+    const std::string TEMP_PLAYER_NAME_PREFIX = "PLRCRT-";
+}
+
 namespace mutgos
 {
 namespace dbinterface
@@ -226,6 +232,19 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    bool DatabaseAccess::entity_exists(const dbtype::Id &id)
+    {
+        bool exists = false;
+
+        if (not id.is_default())
+        {
+            exists = db_backend_ptr->entity_exists_db(id);
+        }
+
+        return exists;
+    }
+
+    // ----------------------------------------------------------------------
     DbResultCode DatabaseAccess::new_entity(
         const dbtype::EntityType type,
         const dbtype::Id::SiteIdType site_id,
@@ -290,30 +309,35 @@ namespace dbinterface
 
                 if (type == dbtype::ENTITYTYPE_player)
                 {
+                    // Do not allow anyone to use our temporary naming
+                    // scheme.
+                    //
+                    const std::string name_upper = text::to_upper_copy(name);
+
+                    if (name_upper.find(::TEMP_PLAYER_NAME_PREFIX) == 0)
+                    {
+                        rc = DBRESULTCODE_BAD_NAME;
+                        return rc;
+                    }
+
                     // Can only create new players if the name is not already
-                    // in use.
+                    // in use.  Due to how creation works, assign a random
+                    // name during the creation process then attempt to
+                    // rename once created. If the rename fails (due to
+                    // invalid name or already in use), delete the Player
+                    // and return an error code.
                     //
                     boost::lock_guard<boost::mutex> guard(mutex);
-                    dbtype::Entity::IdVector find_result =
-                        find(site_id, type, name, true);
 
-                    if (not find_result.empty())
-                    {
-                        // Name already in use.
-                        rc = DBRESULTCODE_BAD_NAME;
-                    }
-                    else
-                    {
-                        // Good name, create.  Code is duplicated here so
-                        // we remain under the mutex.
-                        //
-                        entity_ptr = db_backend_ptr->
-                            new_entity(type, site_id, owner, name);
+                    const std::string temp_name = ::TEMP_PLAYER_NAME_PREFIX +
+                        text::to_string(player_name_ser++);
 
-                        if (not entity_ptr)
-                        {
-                            rc = DBRESULTCODE_ERROR;
-                        }
+                    entity_ptr = db_backend_ptr->
+                        new_entity(type, site_id, owner, temp_name);
+
+                    if (not entity_ptr)
+                    {
+                        rc = DBRESULTCODE_ERROR;
                     }
                 }
                 else
@@ -333,7 +357,21 @@ namespace dbinterface
                     // channels so it's cached and provided as a ref.
                     entity_ref = get_entity(entity_ptr->get_entity_id());
 
-                    if (not entity_listeners.empty())
+                    if (type == dbtype::ENTITYTYPE_player)
+                    {
+                        // Attempt to set the actual name
+                        if (not entity_ref->set_entity_name(name))
+                        {
+                            // Failed, likely due to name in use.
+                            // Delete and exit
+                            delete_entity(entity_ptr->get_entity_id());
+                            rc = DBRESULTCODE_BAD_NAME;
+                            delete entity_ptr;
+                            entity_ptr = 0;
+                        }
+                    }
+
+                    if (entity_ptr and (not entity_listeners.empty()))
                     {
                         // Call listeners
                         //
@@ -463,7 +501,54 @@ namespace dbinterface
         const std::string &name,
         const bool exact)
     {
-        return db_backend_ptr->find_in_db(site_id, type, name, exact);
+        dbtype::Entity::IdVector result =
+            db_backend_ptr->find_in_db(site_id, type, name, exact);
+
+        // Check for renamed players if we're looking for players,
+        // AND if we're not searching exact, OR searching exact
+        // but had no results.
+        if ((type == dbtype::ENTITYTYPE_player) and
+            ((not exact) or (result.empty())))
+        {
+            dbtype::Entity::IdVector player_result;
+
+            UpdateManager::instance()->get_player_rename_id(
+                site_id, name, exact, player_result);
+
+            // If anything in player_result is not in result, add it
+            //
+            if (not player_result.empty())
+            {
+                bool found = false;
+
+                for (dbtype::Entity::IdVector::const_iterator player_iter =
+                        player_result.begin();
+                     player_iter != player_result.end();
+                     ++player_iter)
+                {
+                    found = false;
+
+                    for (dbtype::Entity::IdVector::const_iterator result_iter =
+                            result.begin();
+                         result_iter != result.end();
+                         ++result_iter)
+                    {
+                        if (*player_iter == *result_iter)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (not found)
+                    {
+                        result.push_back(*player_iter);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     // ----------------------------------------------------------------------
@@ -471,7 +556,46 @@ namespace dbinterface
         const dbtype::Id::SiteIdType site_id,
         const std::string &name)
     {
-        return db_backend_ptr->find_in_db(site_id, name);
+        dbtype::Entity::IdVector result =
+            db_backend_ptr->find_in_db(site_id, name);
+        dbtype::Entity::IdVector player_result;
+
+        UpdateManager::instance()->
+            get_player_rename_id(site_id, name, false, player_result);
+
+        // If anything in player_result is not in result, add it
+        //
+        if (not player_result.empty())
+        {
+            bool found = false;
+
+            for (dbtype::Entity::IdVector::const_iterator player_iter =
+                    player_result.begin();
+                 player_iter != player_result.end();
+                 ++player_iter)
+            {
+                found = false;
+
+                for (dbtype::Entity::IdVector::const_iterator result_iter =
+                        result.begin();
+                     result_iter != result.end();
+                     ++result_iter)
+                {
+                    if (*player_iter == *result_iter)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (not found)
+                {
+                    result.push_back(*player_iter);
+                }
+            }
+        }
+
+        return result;
     }
 
     // ----------------------------------------------------------------------
@@ -836,6 +960,37 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    DbResultCode DatabaseAccess::internal_get_player_by_name(
+        const dbtype::Id::SiteIdType &site_id,
+        const std::string &name,
+        dbtype::Id &player_id)
+    {
+        DbResultCode rc = DBRESULTCODE_OK;
+
+        if (not get_site_cache(site_id))
+        {
+            rc = DBRESULTCODE_BAD_SITE_ID;
+            player_id = dbtype::Id();
+        }
+        else
+        {
+            dbtype::Entity::IdVector result = db_backend_ptr->
+                find_in_db(site_id, dbtype::ENTITYTYPE_player, name, true);
+
+            if (result.empty())
+            {
+                player_id = dbtype::Id();
+            }
+            else
+            {
+                player_id = result.front();
+            }
+        }
+
+        return rc;
+    }
+
+    // ----------------------------------------------------------------------
     DbResultCode DatabaseAccess::internal_get_prog_regname_by_id(
         const dbtype::Id &prog_id,
         std::string &regname)
@@ -857,7 +1012,8 @@ namespace dbinterface
 
     // ----------------------------------------------------------------------
     DatabaseAccess::DatabaseAccess(void)
-      : db_backend_ptr(0)
+      : db_backend_ptr(0),
+        player_name_ser(0)
     {
     }
 

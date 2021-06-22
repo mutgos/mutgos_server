@@ -140,6 +140,26 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    bool SiteCache::is_entity_cached(const dbtype::Id &id)
+    {
+        bool cached = false;
+
+        if (id.get_site_id() == site_id)
+        {
+            boost::lock_guard<boost::mutex> guard(mutex);
+
+            // See if it's cached
+            //
+            EntityCacheMap::const_iterator find_iter =
+                cached_entities.find(id.get_entity_id());
+
+            cached = (find_iter != cached_entities.end());
+        }
+
+        return cached;
+    }
+
+    // ----------------------------------------------------------------------
     bool SiteCache::delete_entity_cache(const dbtype::Id &id)
     {
         bool deleted = true;

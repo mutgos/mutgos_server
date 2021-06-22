@@ -98,6 +98,13 @@ namespace sqliteinterface
         virtual dbtype::Entity *get_entity_db(const dbtype::Id &id);
 
         /**
+         * Determines if the given entity ID exists in the database.
+         * @param id[in] The ID to check.
+         * @return True if it exists, false if not.
+         */
+        virtual bool entity_exists_db(const dbtype::Id &id);
+
+        /**
          * Saves the given Entity to the database.  Existing Entity data for
          * that ID and version are overwritten.  The entity must have been
          * previously brought into memory via get_entity_db() or new_entity()
@@ -345,6 +352,7 @@ namespace sqliteinterface
         sqlite3_stmt *get_site_description_stmt; ///< Gets a site's description.
         sqlite3_stmt *find_program_reg_stmt; ///< Find a program by registration name
         sqlite3_stmt *find_program_reg_id_stmt; ///< Find a program by registration by ID
+        sqlite3_stmt *entity_exists_stmt; ///< Determine if an Entity exists
 
         // Create, edit, delete sites
         //
