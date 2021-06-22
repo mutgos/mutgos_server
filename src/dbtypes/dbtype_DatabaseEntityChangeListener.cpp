@@ -27,5 +27,15 @@ namespace dbtype
     {
         return true;
     }
+
+    // ----------------------------------------------------------------------
+    bool DatabaseEntityChangeListener::check_player_name(
+        Entity *entity,
+        concurrency::WriterLockToken &token,
+        const std::string &old_name,
+        const std::string &new_name)
+    {
+        return true;
+    }
 } /* namespace dbtype */
 } /* namespace mutgos */

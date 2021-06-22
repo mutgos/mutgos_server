@@ -73,9 +73,24 @@ namespace dbtype
             concurrency::WriterLockToken &token,
             const std::string &old_name,
             const std::string &new_name);
-        // TODO: Implement check_program_registration_name() callback on program.
 
-        // TODO: have veto ability for player name.
+        /**
+         * Provides a chance to veto a change to a player's name.
+         * @param entity[in] The Player Entity that will be changed.  This
+         * will be in a write lock while this method is called.
+         * @param token[in] The write token for the entity, in case
+         * other attributes need to be read.
+         * @param old_name[in] The old name, or empty for new player.
+         * @param new_name[in] The new name.
+         * @return True if name change allowed, false to
+         * veto (disallow) it.  If true is returned, the change will be
+         * made.  If false is returned, the change will not be made.
+         */
+        virtual bool check_player_name(
+            Entity *entity,
+            concurrency::WriterLockToken &token,
+            const std::string &old_name,
+            const std::string &new_name);
     };
 
 } /* namespace dbtype */

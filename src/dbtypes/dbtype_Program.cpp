@@ -210,9 +210,12 @@ namespace dbtype
                 }
             }
 
-            result = true;
-            program_reg_name = trim_reg_name;
-            notify_field_changed(ENTITYFIELD_program_reg_name);
+            if (ok_to_change)
+            {
+                result = true;
+                program_reg_name = trim_reg_name;
+                notify_field_changed(ENTITYFIELD_program_reg_name);
+            }
         }
         else
         {
@@ -773,8 +776,7 @@ namespace dbtype
             cast_ptr->program_runtime_sec = program_runtime_sec;
             cast_ptr->notify_field_changed(ENTITYFIELD_program_runtime_sec);
 
-            cast_ptr->program_reg_name = program_reg_name;
-            cast_ptr->notify_field_changed(ENTITYFIELD_program_reg_name);
+            // Reg name cannot be cloned as it needs to be unique
 
             cast_ptr->program_source_code.set(program_source_code.get());
             cast_ptr->notify_field_changed(ENTITYFIELD_program_source_code);

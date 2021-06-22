@@ -18,6 +18,8 @@
 #include "concurrency/concurrency_WriterLockToken.h"
 #include "concurrency/concurrency_LockableObject.h"
 
+#include "dbtypes/dbtype_DatabaseEntityChangeListener.h"
+
 namespace mutgos
 {
 namespace dbtype
@@ -48,6 +50,12 @@ namespace dbtype
         const InstanceType instance,
         concurrency::ReaderLockToken &token)
     {
+        LOG(error, "dbtype", "clone",
+            "Cannot clone a player!");
+
+        return 0;
+
+/** Currently cannot be cloned due to unique naming requirements
         if (token.has_lock(*this))
         {
             Entity *copy_ptr = new Player(
@@ -67,6 +75,7 @@ namespace dbtype
 
             return 0;
         }
+*/
     }
 
     // ----------------------------------------------------------------------
@@ -105,13 +114,56 @@ namespace dbtype
         const std::string &name,
         mutgos::concurrency::WriterLockToken &token)
     {
-        if (text::utf8_size(name) > config::db::limits_player_puppet_name())
+        // Remove excess spacing so the name is consistent.
+        const std::string trim_name = text::trim_copy(name);
+
+        // See if there are embedded spaces or it's empty.
+        //
+        if (trim_name.empty() or
+            (trim_name.find_first_of(' ') != std::string::npos))
+        {
+            return false;
+        }
+
+        if (text::utf8_size(trim_name) >
+            config::db::limits_player_puppet_name())
         {
             // Exceeds size.
             return false;
         }
 
-        return ContainerPropertyEntity::set_entity_name(name, token);
+        bool ok_to_change = true;
+
+        if (token.has_lock(*this))
+        {
+            // We need to give listeners a chance to veto the change.
+            //
+            DbListeners &listeners = get_db_listeners();
+
+            for (DbListeners::iterator listener_iter = listeners.begin();
+                 listener_iter != listeners.end();
+                 ++listener_iter)
+            {
+                if (not (*listener_iter)->check_player_name(
+                    this,
+                    token,
+                    entity_name,
+                    trim_name))
+                {
+                    ok_to_change = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            LOG(error, "dbtype", "set_entity_name",
+                "Using the wrong lock token!");
+        }
+
+        return (ok_to_change ?
+            ContainerPropertyEntity::set_entity_name(name, token) :
+            false);
     }
 
     // ----------------------------------------------------------------------

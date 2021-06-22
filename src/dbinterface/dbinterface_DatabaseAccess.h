@@ -25,7 +25,6 @@ namespace dbinterface
 {
     // TODO  Entity delete needs to be re-thought out.
     // TODO  Make sure site deletion is thread safe.
-    // TODO  How to override using site #1?  Sites should be able to disable global access
 
     // TODO  Need to have a 'get name' function, that can get an Entity's name without loading the entity (or using cache if loaded)
 
@@ -126,6 +125,14 @@ namespace dbinterface
          * valid if the ID is defaulted, not found, or has an error.
          */
         EntityRef get_entity_deleted(const dbtype::Id &id);
+
+        /**
+         * Determines if an Entity with the given ID exists at all, even
+         * if deleted.
+         * @param id[in] The ID to check.
+         * @return True if exists, false if not.
+         */
+        bool entity_exists(const dbtype::Id &id);
 
         /**
          * Creates a new Entity of the given type (version 0).
@@ -357,6 +364,23 @@ namespace dbinterface
 
         /**
          * ** Internal namespace use only **
+         * Finds a player's ID by exact name.  Checks the database only;
+         * renames in progress will not be found.
+         * @param site_id[in] The site ID to check.
+         * @param name[in] The player name to look for exactly.
+         * @param player_id[out] The ID of the found player.  If the
+         * name is not found, this will be set to default/invalid.
+         * @return The status code.  Can return:
+         * DBRESULTCODE_OK,
+         * DBRESULTCODE_BAD_SITE_ID
+         */
+        DbResultCode internal_get_player_by_name(
+            const dbtype::Id::SiteIdType &site_id,
+            const std::string &name,
+            dbtype::Id &player_id);
+
+        /**
+         * ** Internal namespace use only **
          * Finds a program's regname by ID.  Checks the database only;
          * renames in progress will not be found.
          * @param prog_id[in] The ID of the program whose registration name
@@ -425,6 +449,7 @@ namespace dbinterface
         DbBackend *db_backend_ptr; ///< Pointer to database backend.
         CacheMap entity_cache; ///< Cache of entities, organized by site.
         SiteIdToInfo site_id_to_info_cache; ///< All known existing site IDs and their info
+        unsigned short int player_name_ser; ///< Looping serial number for temporary player creation name
         boost::mutex mutex; ///< Enforces single access at a time.
     };
 }

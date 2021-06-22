@@ -120,6 +120,13 @@ namespace dbinterface
         virtual dbtype::Entity *get_entity_db(const dbtype::Id &id) =0;
 
         /**
+         * Determines if the given entity ID exists in the database.
+         * @param id[in] The ID to check.
+         * @return True if it exists, false if not.
+         */
+        virtual bool entity_exists_db(const dbtype::Id &id) =0;
+
+        /**
          * Saves the given Entity to the database.  Existing Entity data for
          * that ID and version are overwritten.
          * @param entity_ptr[in] The Entity to save.

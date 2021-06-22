@@ -118,16 +118,52 @@ namespace dbinterface
             const std::string &new_name);
 
         /**
+         * Provides a chance to veto a change to a player's name.
+         * @param entity[in] The Player Entity that will be changed.  This
+         * will be in a write lock while this method is called.
+         * @param token[in] The write token for the entity, in case
+         * other attributes need to be read.
+         * @param old_name[in] The old name, or empty for new player.
+         * @param new_name[in] The new name.
+         * @return True if name change allowed, false to
+         * veto (disallow) it.  If true is returned, the change will be
+         * made.  If false is returned, the change will not be made.
+         */
+        virtual bool check_player_name(
+            dbtype::Entity *entity,
+            concurrency::WriterLockToken &token,
+            const std::string &old_name,
+            const std::string &new_name);
+
+        /**
          * Given a site and registration name, see if any programs whose
-         * registration is being renamed match.
+         * registration is being committed/renamed match.
          * @param site_id[in] The site ID to check.
          * @param reg_name[in] The program registration name to look for.
-         * @return The ID of the program being renamed whose registration name
-         * matches, or default/invalid if none match.
+         * @return The ID of the program being committed/renamed whose
+         * registration name matches, or default/invalid if none match.
          */
         dbtype::Id get_prog_reg_rename_id(
             const dbtype::Id::SiteIdType site_id,
             const std::string &reg_name);
+
+        /**
+         * Given a site and player name, see if any players whose
+         * names are being committed/renamed match.  This checks the new
+         * name only; old names can be checked in the database.
+         * This is not case sensitive.
+         * @param site_id[in] The site ID to check.
+         * @param name[in] The player name to look for.
+         * @param exact[in] True if match must be the full string, false for
+         * a partial string match being OK.
+         * @param result[out] The IDs of the players being committed/renamed
+         * whose names match, or default/invalid if none match.
+         */
+        void get_player_rename_id(
+            const dbtype::Id::SiteIdType site_id,
+            const std::string &name,
+            const bool exact,
+            dbtype::Entity::IdVector &result);
 
         /**
          * Adds the given Entity IDs to the list of pending database deletes.
@@ -169,6 +205,9 @@ namespace dbinterface
     private:
 
         typedef std::list<dbtype::Id> IdList;
+        typedef std::pair<std::string, std::string> OldNewName;
+        typedef std::map<dbtype::Id::EntityIdType, OldNewName> RenameInfo;
+        typedef std::map<dbtype::Id::SiteIdType , RenameInfo> PendingRename;
 
         /**
          * Container class to hold all the updates pending for a given
@@ -202,8 +241,12 @@ namespace dbinterface
             dbtype::Entity::ChangedIdFieldsMap ids_changed; ///< ID Sets changed
         };
 
+        typedef std::vector<EntityUpdate *> ImmediateUpdateQueue;
         typedef std::map<dbtype::Id, EntityUpdate *> PendingUpdatesMap;
 
+        /**
+         * Handles anything waiting in the immediate update queue.
+         */
         void process_immediate_updates(void);
 
         /**
@@ -257,14 +300,15 @@ namespace dbinterface
         /**
          * Assumes locking has been done.
          * @param site_id[in] The site ID to check.
-         * @param reg_name[in] The reg name to check.
-         * @return True if program registration name is in the pending
-         * rename list (either current name or previous name), false
-         * if not.
+         * @param name[in] The name to check.
+         * @param pending_info[in] The pending info map to check.
+         * @return True if name is in the pending rename list (either current
+         * name or previous name), false if not.
          */
-        bool is_prog_reg_name_in_progress(
+        bool is_name_in_progress(
             const dbtype::Id::SiteIdType site_id,
-            const std::string &reg_name) const;
+            const std::string &name,
+            const PendingRename &pending_info) const;
 
         /**
          * Assumes locking has been done.
@@ -279,6 +323,17 @@ namespace dbinterface
             const dbtype::Id &entity_id);
 
         /**
+         * Assumes locking has been done.
+         * Will determine if an Entity is a player and if its
+         * name matches whats in the DB.
+         * If it does match, it will be taken out of the pending renames
+         * data structures since the rename completed.
+         * @param entity_id[in] The ID of the updated Entity to process.
+         *
+         */
+        void process_player_rename_update(const dbtype::Id &entity_id);
+
+        /**
          * Singleton constructor.
          */
         UpdateManager(void);
@@ -290,17 +345,13 @@ namespace dbinterface
 
         static UpdateManager *singleton_ptr; ///< Singleton pointer.
 
-        typedef std::vector<EntityUpdate *> ImmediateUpdateQueue;
-        typedef std::pair<std::string, std::string> OldNewProgRegName;
-        typedef std::map<dbtype::Id::EntityIdType, OldNewProgRegName> IdRegInfo;
-        typedef std::map<dbtype::Id::SiteIdType , IdRegInfo> PendingProgReg;
-
         boost::mutex mutex; ///< Enforces single access at a time.
         boost::thread *thread_ptr; ///< Non-null when thread is running.
 
         PendingUpdatesMap pending_updates; ///< Updates to be committed
         ImmediateUpdateQueue immediate_update_queue; ///< Updates to be processed immediately
-        PendingProgReg pending_program_registrations; ///< Program registrations about to be committed.
+        PendingRename pending_program_registrations; ///< Program registrations about to be committed.
+        PendingRename pending_player_names; ///< Player names about to be committed.
 
         /** Semaphore associated with the immediate update queue so thread can
             easily block and wait for work. */

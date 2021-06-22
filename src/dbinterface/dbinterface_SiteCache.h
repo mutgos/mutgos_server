@@ -69,6 +69,13 @@ namespace dbinterface
         DbResultCode get_entity_ref(const dbtype::Id &id, EntityRef &ref);
 
         /**
+         * Determines if an entity is currently cached.
+         * @param id[in] The ID to check.
+         * @return True if cached, false if not.
+         */
+        bool is_entity_cached(const dbtype::Id &id);
+
+        /**
          * Removes the given Entity from the cache.
          * @param id[in] The ID of the Entity to remove from the cache.
          * @return True if removed or not found, false if cannot be removed

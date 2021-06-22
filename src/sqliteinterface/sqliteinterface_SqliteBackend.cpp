@@ -47,6 +47,7 @@ namespace sqliteinterface
         get_site_description_stmt(0),
         find_program_reg_stmt(0),
         find_program_reg_id_stmt(0),
+        entity_exists_stmt(0),
         undelete_site_stmt(0),
         next_site_id_stmt(0),
         insert_first_next_site_id_stmt(0),
@@ -104,6 +105,12 @@ namespace sqliteinterface
                     0,
                     0,
                     0) == SQLITE_OK) and
+                    (sqlite3_exec(
+                        dbhandle_ptr,
+                        "PRAGMA main.CACHE_SIZE=4000;",
+                        0,
+                        0,
+                        0) == SQLITE_OK) and
                     (sqlite3_exec(
                         dbhandle_ptr,
                         "PRAGMA journal_mode=WAL;",
@@ -179,6 +186,9 @@ namespace sqliteinterface
 
             sqlite3_finalize(find_program_reg_id_stmt);
             find_program_reg_id_stmt = 0;
+
+            sqlite3_finalize(entity_exists_stmt);
+            entity_exists_stmt = 0;
 
             sqlite3_finalize(undelete_site_stmt);
             undelete_site_stmt = 0;
@@ -292,149 +302,162 @@ namespace sqliteinterface
         const dbtype::Id &owner,
         const std::string &name)
     {
-        boost::lock_guard<boost::mutex> guard(mutex);
-
         dbtype::Entity *entity_ptr = 0;
         dbtype::Id::EntityIdType entity_id = 0;
         int rc = SQLITE_OK;
         bool fatal_error = false;
 
-        // See if there is a deleted ID we can reuse.
-        // If so, remove from deleted list
-        //
-        if (sqlite3_bind_int(
-            get_next_deleted_entity_id_stmt,
-            sqlite3_bind_parameter_index(get_next_deleted_entity_id_stmt, "$SITEID"),
-            site_id) != SQLITE_OK)
+        // Do this in an inner scope so we can lock just this section
         {
-            LOG(error, "sqliteinterface", "new_entity",
-                "For get_next_deleted_entity_id_stmt, could not bind $SITEID");
-        }
+            boost::lock_guard<boost::mutex> guard(mutex);
 
-        // Only stepping once since we just need one.
-        rc = sqlite3_step(get_next_deleted_entity_id_stmt);
-
-        if (rc == SQLITE_ROW )
-        {
-            // There is an ID we can use!
-            //
-            entity_id = sqlite3_column_int64(get_next_deleted_entity_id_stmt, 0);
-
-            fatal_error = not entity_id;
-
-            // Remove ID from the reuse table, since we are now using it.
+            // See if there is a deleted ID we can reuse.
+            // If so, remove from deleted list
             //
             if (sqlite3_bind_int(
-                mark_deleted_id_used_stmt,
-                sqlite3_bind_parameter_index(mark_deleted_id_used_stmt, "$SITEID"),
+                get_next_deleted_entity_id_stmt,
+                sqlite3_bind_parameter_index(get_next_deleted_entity_id_stmt,
+                    "$SITEID"),
                 site_id) != SQLITE_OK)
             {
                 LOG(error, "sqliteinterface", "new_entity",
-                    "For mark_deleted_id_used_stmt, could not bind $SITEID");
+              "For get_next_deleted_entity_id_stmt, could not bind $SITEID");
             }
 
-            if (sqlite3_bind_int64(
-                mark_deleted_id_used_stmt,
-                sqlite3_bind_parameter_index(mark_deleted_id_used_stmt, "$ENTITYID"),
-                entity_id) != SQLITE_OK)
+            // Only stepping once since we just need one.
+            rc = sqlite3_step(get_next_deleted_entity_id_stmt);
+
+            if (rc == SQLITE_ROW)
             {
-                LOG(error, "sqliteinterface", "new_entity",
-                    "For mark_deleted_id_used_stmt, could not bind $ENTITYID");
-            }
-
-            rc = sqlite3_step(mark_deleted_id_used_stmt);
-
-            if (rc != SQLITE_DONE)
-            {
-                LOG(error, "sqliteinterface", "new_entity",
-                    "Could not remove selected ID from reuse list: "
-                    + std::string(sqlite3_errstr(rc)));
-
-                fatal_error = true;
-            }
-        }
-        else if (rc != SQLITE_DONE)
-        {
-            // An error occurred.
-            //
-            LOG(error, "sqliteinterface", "new_entity",
-                "Could not get next available recycled ID: "
-                + std::string(sqlite3_errstr(rc)));
-
-            fatal_error = true;
-        }
-
-        reset(get_next_deleted_entity_id_stmt);
-        reset(mark_deleted_id_used_stmt);
-
-        // If no existing ID, get a fresh one
-        //
-        if (not fatal_error and (not entity_id))
-        {
-            if (sqlite3_bind_int(
-                get_next_entity_id_stmt,
-                sqlite3_bind_parameter_index(get_next_entity_id_stmt, "$SITEID"),
-                site_id) != SQLITE_OK)
-            {
-                LOG(error, "sqliteinterface", "new_entity",
-                    "For get_next_entity_id_stmt, could not bind $SITEID");
-            }
-
-            rc = sqlite3_step(get_next_entity_id_stmt);
-
-            if (rc != SQLITE_ROW)
-            {
-                LOG(error, "sqliteinterface", "new_entity",
-                    "Could not get next fresh ID: "
-                    + std::string(sqlite3_errstr(rc)));
-
-                fatal_error = true;
-            }
-            else
-            {
-                entity_id =
-                    (dbtype::Id::EntityIdType) sqlite3_column_int64(
-                        get_next_entity_id_stmt, 0);
+                // There is an ID we can use!
+                //
+                entity_id = sqlite3_column_int64(
+                    get_next_deleted_entity_id_stmt, 0);
 
                 fatal_error = not entity_id;
-            }
 
-            if (not fatal_error)
-            {
+                // Remove ID from the reuse table, since we are now using it.
+                //
                 if (sqlite3_bind_int(
-                    update_next_entity_id_stmt,
-                    sqlite3_bind_parameter_index(update_next_entity_id_stmt, "$SITEID"),
+                    mark_deleted_id_used_stmt,
+                    sqlite3_bind_parameter_index(mark_deleted_id_used_stmt,
+                        "$SITEID"),
                     site_id) != SQLITE_OK)
                 {
                     LOG(error, "sqliteinterface", "new_entity",
-                        "For update_next_entity_id_stmt, could not bind $SITEID");
+                  "For mark_deleted_id_used_stmt, could not bind $SITEID");
                 }
 
                 if (sqlite3_bind_int64(
-                    update_next_entity_id_stmt,
-                    sqlite3_bind_parameter_index(update_next_entity_id_stmt, "$NEXTID"),
-                    entity_id + 1) != SQLITE_OK)
+                    mark_deleted_id_used_stmt,
+                    sqlite3_bind_parameter_index(mark_deleted_id_used_stmt,
+                        "$ENTITYID"),
+                    entity_id) != SQLITE_OK)
                 {
                     LOG(error, "sqliteinterface", "new_entity",
-                        "For update_next_entity_id_stmt, could not bind $NEXTID");
+                  "For mark_deleted_id_used_stmt, could not bind $ENTITYID");
                 }
 
-                rc = sqlite3_step(update_next_entity_id_stmt);
+                rc = sqlite3_step(mark_deleted_id_used_stmt);
 
                 if (rc != SQLITE_DONE)
                 {
                     LOG(error, "sqliteinterface", "new_entity",
-                        "Could not update next fresh ID: "
+                        "Could not remove selected ID from reuse list: "
                         + std::string(sqlite3_errstr(rc)));
 
                     fatal_error = true;
                 }
             }
+            else if (rc != SQLITE_DONE)
+            {
+                // An error occurred.
+                //
+                LOG(error, "sqliteinterface", "new_entity",
+                    "Could not get next available recycled ID: "
+                    + std::string(sqlite3_errstr(rc)));
+
+                fatal_error = true;
+            }
+
+            reset(get_next_deleted_entity_id_stmt);
+            reset(mark_deleted_id_used_stmt);
+
+            // If no existing ID, get a fresh one
+            //
+            if (not fatal_error and (not entity_id))
+            {
+                if (sqlite3_bind_int(
+                    get_next_entity_id_stmt,
+                    sqlite3_bind_parameter_index(get_next_entity_id_stmt,
+                        "$SITEID"),
+                    site_id) != SQLITE_OK)
+                {
+                    LOG(error, "sqliteinterface", "new_entity",
+                        "For get_next_entity_id_stmt, could not bind $SITEID");
+                }
+
+                rc = sqlite3_step(get_next_entity_id_stmt);
+
+                if (rc != SQLITE_ROW)
+                {
+                    LOG(error, "sqliteinterface", "new_entity",
+                        "Could not get next fresh ID: "
+                        + std::string(sqlite3_errstr(rc)));
+
+                    fatal_error = true;
+                }
+                else
+                {
+                    entity_id =
+                        (dbtype::Id::EntityIdType) sqlite3_column_int64(
+                            get_next_entity_id_stmt, 0);
+
+                    fatal_error = not entity_id;
+                }
+
+                if (not fatal_error)
+                {
+                    if (sqlite3_bind_int(
+                        update_next_entity_id_stmt,
+                        sqlite3_bind_parameter_index(
+                            update_next_entity_id_stmt, "$SITEID"),
+                        site_id) != SQLITE_OK)
+                    {
+                        LOG(error, "sqliteinterface", "new_entity",
+                     "For update_next_entity_id_stmt, could not bind $SITEID");
+                    }
+
+                    if (sqlite3_bind_int64(
+                        update_next_entity_id_stmt,
+                        sqlite3_bind_parameter_index(
+                            update_next_entity_id_stmt, "$NEXTID"),
+                        entity_id + 1) != SQLITE_OK)
+                    {
+                        LOG(error, "sqliteinterface", "new_entity",
+                     "For update_next_entity_id_stmt, could not bind $NEXTID");
+                    }
+
+                    rc = sqlite3_step(update_next_entity_id_stmt);
+
+                    if (rc != SQLITE_DONE)
+                    {
+                        LOG(error, "sqliteinterface", "new_entity",
+                            "Could not update next fresh ID: "
+                            + std::string(sqlite3_errstr(rc)));
+
+                        fatal_error = true;
+                    }
+                }
+            }
+
+            reset(get_next_entity_id_stmt);
+            reset(update_next_entity_id_stmt);
         }
 
-        reset(get_next_entity_id_stmt);
-        reset(update_next_entity_id_stmt);
-
+        // Don't lock ourselves here to avoid recursive locking
+        // due to callbacks elsewhere wanting to call into us (creating new
+        // player with unique name, etc).
         entity_ptr = fatal_error ? 0 : make_new_entity(
             type,
             dbtype::Id(site_id, entity_id),
@@ -444,6 +467,7 @@ namespace sqliteinterface
 
         if (entity_ptr)
         {
+            boost::lock_guard<boost::mutex> guard(mutex);
             concurrency::WriterLockToken token(*entity_ptr);
 
             fatal_error = not bind_entity_update_params(
@@ -484,6 +508,8 @@ namespace sqliteinterface
                     fatal_error = true;
                 }
             }
+
+            reset(add_entity_stmt);
         }
 
         if (fatal_error)
@@ -491,8 +517,6 @@ namespace sqliteinterface
             delete entity_ptr;
             entity_ptr = 0;
         }
-
-        reset(add_entity_stmt);
 
         return entity_ptr;
     }
@@ -568,6 +592,44 @@ namespace sqliteinterface
         }
 
         return entity_ptr;
+    }
+
+    // ----------------------------------------------------------------------
+    bool SqliteBackend::entity_exists_db(const dbtype::Id &id)
+    {
+        boost::lock_guard<boost::mutex> guard(mutex);
+
+        bool exists = get_entity_pointer(id);
+
+        if (not exists)
+        {
+            // Not in memory, try and get it from the database
+            //
+            if (sqlite3_bind_int(
+                entity_exists_stmt,
+                sqlite3_bind_parameter_index(entity_exists_stmt, "$SITEID"),
+                id.get_site_id()) != SQLITE_OK)
+            {
+                LOG(error, "sqliteinterface", "entity_exists_db",
+                    "For entity_exists_stmt, could not bind $SITEID");
+            }
+
+            if (sqlite3_bind_int64(
+                entity_exists_stmt,
+                sqlite3_bind_parameter_index(entity_exists_stmt, "$ENTITYID"),
+                id.get_entity_id()) != SQLITE_OK)
+            {
+                LOG(error, "sqliteinterface", "entity_exists_db",
+                    "For entity_exists_stmt, could not bind $ENTITYID");
+            }
+
+            // Should be 0 or 1 lines
+            exists = (sqlite3_step(entity_exists_stmt) == SQLITE_ROW);
+
+            reset(entity_exists_stmt);
+        }
+
+        return exists;
     }
 
     // ----------------------------------------------------------------------
@@ -749,7 +811,7 @@ namespace sqliteinterface
             //
             if (sqlite3_bind_int(
                 get_entity_type_stmt,
-                sqlite3_bind_parameter_index(get_entity_stmt, "$SITEID"),
+                sqlite3_bind_parameter_index(get_entity_type_stmt, "$SITEID"),
                 id.get_site_id()) != SQLITE_OK)
             {
                 LOG(error, "sqliteinterface", "get_entity_type_db",
@@ -758,7 +820,7 @@ namespace sqliteinterface
 
             if (sqlite3_bind_int64(
                 get_entity_type_stmt,
-                sqlite3_bind_parameter_index(get_entity_stmt, "$ENTITYID"),
+                sqlite3_bind_parameter_index(get_entity_type_stmt, "$ENTITYID"),
                 id.get_entity_id()) != SQLITE_OK)
             {
                 LOG(error, "sqliteinterface", "get_entity_type_db",
@@ -1357,7 +1419,6 @@ namespace sqliteinterface
         boost::lock_guard<boost::mutex> guard(mutex);
 
         bool success = false;
-        int rc = SQLITE_OK;
 
         site_name.clear();
 
@@ -1449,7 +1510,6 @@ namespace sqliteinterface
         bool success = false;
 
         boost::lock_guard<boost::mutex> guard(mutex);
-        int rc = SQLITE_OK;
 
         site_description.clear();
 
@@ -1765,6 +1825,20 @@ namespace sqliteinterface
 
             LOG(fatal, "sqliteinterface", "sql_init",
                 "Failed prepared statement for finding a program registration by ID.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT type FROM entities WHERE site_id = $SITEID "
+            "and entity_id = $ENTITYID;",
+            -1,
+            &entity_exists_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for checking Entity existence.");
         }
 
         if (sqlite3_prepare_v2(
