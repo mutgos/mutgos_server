@@ -7,6 +7,7 @@
 
 #include <string>
 #include <memory>
+#include <map>
 #include <vector>
 #include <deque>
 #include <map>
@@ -57,10 +58,10 @@ namespace socket
      * only send one command at a time, and wait for the response before
      * issuing another request.
      *
-     * !! is used to send the text after it to the lowest input channel on
+     * ## is used to send the text after it to the lowest input channel on
      * the stack, which should be the user's agent process.
      *
-     * ! is used to send a command directly to this class, like for turning
+     * # is used to send a command directly to this class, like for turning
      * color on and off.
      *
      * This is a bit different than a typical raw socket driver in that it
@@ -435,6 +436,7 @@ namespace socket
         comm::ChannelId channel_main_input_id; ///< Represents the 'main input' channel, to the command processor
         ChannelStack channel_input_stack; ///< Stack of open input (from client) channels, with latest having a higher index
         ChannelStack channel_output_stack; ///< Stack of open output (to client) channels, with latest having a higher index
+        std::map<comm::ChannelId, std::string> puppet_channel_info; ///< Maps puppet channel to puppet name.  Temporary for demo
 
         comm::ClientSession *client_session_ptr; ///< Pointer to client session, when authenticated.
         SocketDriver * const driver_ptr; ///< Pointer to driver.

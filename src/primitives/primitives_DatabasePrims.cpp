@@ -11,6 +11,7 @@
 
 #include "primitives_DatabasePrims.h"
 #include "primitives_Result.h"
+#include "primitives/primitives_NameRegistry.h"
 
 #include "comminterface/comm_CommAccess.h"
 
@@ -370,7 +371,6 @@ namespace primitives
     }
 
     // ----------------------------------------------------------------------
-    // TODO This will likely need to be significantly expanded post-demo to support more types, action priorities, puppets, etc
     // TODO Will need to implement action 'priorities' so certain top level actions cannot be overridden
     Result DatabasePrims::match_name_to_id(
         security::Context &context,
@@ -406,6 +406,7 @@ namespace primitives
         {
             case dbtype::ENTITYTYPE_entity:
             case dbtype::ENTITYTYPE_player:
+            case dbtype::ENTITYTYPE_puppet:
             case dbtype::ENTITYTYPE_action:
             {
                 // Valid
@@ -473,9 +474,9 @@ namespace primitives
         }
         else if (entity_type == dbtype::ENTITYTYPE_player)
         {
-            // Finding a particular player/puppet, not nessecarily in the room
+            // Finding a particular player, not nessecarily in the room
             //
-            match_character(
+            match_player(
                 context,
                 search_string_lower,
                 exact_match,
@@ -483,6 +484,18 @@ namespace primitives
                 found_entity,
                 ambiguous,
                 throw_on_violation);
+        }
+        else if (entity_type == dbtype::ENTITYTYPE_puppet)
+        {
+            match_in_environment(
+                context,
+                search_string_lower,
+                exact_match,
+                CONTENTS_PUPPETS_ONLY,
+                true,
+                result,
+                found_entity,
+                ambiguous);
         }
         else
         {
@@ -497,9 +510,183 @@ namespace primitives
                 search_string_lower,
                 exact_match,
                 types,
+                false,
                 result,
                 found_entity,
                 ambiguous);
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    Result DatabasePrims::match_online_name_to_id(
+        security::Context &context,
+        const std::string &search_string,
+        const bool exact_match,
+        const dbtype::EntityType entity_type,
+        dbtype::Id &found_entity,
+        bool &ambiguous,
+        const bool throw_on_violation)
+    {
+        Result result;
+        bool security_success = false;
+        dbinterface::DatabaseAccess * const db_access =
+            dbinterface::DatabaseAccess::instance();
+        NameRegistry * const name_registry = NameRegistry::instance();
+
+        found_entity = dbtype::Id();
+        ambiguous = false;
+        result.set_status(Result::STATUS_BAD_ARGUMENTS);
+
+        // Sanity checks
+        //
+        if (search_string.empty() or
+            (db_access->get_entity_type(context.get_requester()) ==
+             dbtype::ENTITYTYPE_entity))
+        {
+            return result;
+        }
+
+        switch (entity_type)
+        {
+            case dbtype::ENTITYTYPE_entity:
+            case dbtype::ENTITYTYPE_player:
+            case dbtype::ENTITYTYPE_puppet:
+            {
+                // Valid
+                break;
+            }
+
+            default:
+            {
+                // All other types invalid.
+                return result;
+                break;
+            }
+        }
+
+        // Inputs look valid, check security
+        //
+        security_success = security::SecurityAccess::instance()->security_check(
+            security::OPERATION_CHARACTER_ONLINE,
+            context,
+            throw_on_violation) and
+            security::SecurityAccess::instance()->security_check(
+            security::OPERATION_FIND_CHARACTER_BY_NAME,
+            context,
+            throw_on_violation);
+
+        if (not security_success)
+        {
+            result.set_status(Result::STATUS_SECURITY_VIOLATION);
+            return result;
+        }
+
+        // Security is good, do the lookup
+        //
+        result.set_status(Result::STATUS_OK);
+
+        if (exact_match)
+        {
+            const NameRegistry::ResultVector search_result =
+                name_registry->search_by_exact(
+                    context.get_requester().get_site_id(),
+                    search_string,
+                    entity_type);
+            const size_t result_size = search_result.size();
+
+            if (result_size == 1)
+            {
+                // Found exactly one, we've got a good match.
+                found_entity = search_result.front().id;
+            }
+            else if (result_size > 1)
+            {
+                // This is an exact match, but got more than one.  We don't
+                // know which one is correct.
+                ambiguous = true;
+            }
+        }
+        else
+        {
+            // This is a prefix-based match.  If we get more than one
+            // result, see if exactly one is an exact match. If so, then use
+            // that, else ambigious.  If we only get one result then it's
+            // always good.
+            // If there are multiple exact matches and only one is a player,
+            // then the player takes priority.
+            //
+            const NameRegistry::ResultVector search_result =
+                name_registry->search_by_prefix(
+                    context.get_requester().get_site_id(),
+                    search_string,
+                    entity_type);
+            const size_t result_size = search_result.size();
+
+            if (result_size == 1)
+            {
+                found_entity = search_result.front().id;
+            }
+            else if (result_size > 1)
+            {
+                bool multiple_exact = false;
+
+                // See if exactly one is an exact match
+                //
+                for (NameRegistry::ResultVector::const_iterator result_iter =
+                        search_result.begin();
+                    result_iter != search_result.end();
+                    ++result_iter)
+                {
+                    if (result_iter->exact_match)
+                    {
+                        if (not found_entity.is_default())
+                        {
+                            // Found more than one exact match.  Determine
+                            // what to do.
+                            //
+                            if (result_iter->type == dbtype::ENTITYTYPE_player)
+                            {
+                                // Exact match a player takes priority.
+                                // We're done.
+                                found_entity = result_iter->id;
+                                multiple_exact = false;
+                                break;
+                            }
+                            else
+                            {
+                                multiple_exact = true;
+                            }
+                        }
+                        else
+                        {
+                            // First match
+                            found_entity = result_iter->id;
+
+                            if (result_iter->type ==
+                                dbtype::ENTITYTYPE_player)
+                            {
+                                // Exact match a player takes priority.
+                                // We're done.
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (multiple_exact)
+                {
+                    found_entity = dbtype::Id();
+                }
+
+                if (found_entity.is_default())
+                {
+                    // We have more than one match but nothing was
+                    // selected, so that means we don't know what to pick.
+                    ambiguous = true;
+                }
+            }
         }
 
         return result;
@@ -1899,8 +2086,7 @@ namespace primitives
     }
 
     // ----------------------------------------------------------------------
-    // TODO This does not support puppets yet.
-    void DatabasePrims::match_character(
+    void DatabasePrims::match_player(
         security::Context &context,
         const std::string &search_string_lower,
         const bool exact_match,
@@ -1924,9 +2110,10 @@ namespace primitives
         else if (exact_match)
         {
             const dbtype::Entity::IdVector search_results =
-                dbinterface::DatabaseAccess::instance()->find(
+                db_access->find(
                     context.get_requester().get_site_id(),
                     dbtype::ENTITYTYPE_player,
+                    0,
                     search_string_lower,
                     true);
 
@@ -1936,6 +2123,15 @@ namespace primitives
                 found_entity = search_results.front();
             }
         }
+        // If not exact, then checking online players too so must have
+        // permission
+        else if (not security::SecurityAccess::instance()->security_check(
+            security::OPERATION_CHARACTER_ONLINE,
+            context,
+            throw_on_violation))
+        {
+            result.set_status(Result::STATUS_SECURITY_VIOLATION);
+        }
         else
         {
             // Not exact match, so check online players first, and if no
@@ -1943,89 +2139,54 @@ namespace primitives
             // match and return only if a single result or exact (prefer over
             // partial online check)
             //
-            const dbtype::Entity::IdVector online_ids =
-                comm::CommAccess::instance()->get_online_ids(
-                    context.get_requester().get_site_id());
-            dbtype::Id matched_online_id;
-            bool matched_id_exact  = false;
-            bool online_ambiguous = false;
+            NameRegistry * const registry = NameRegistry::instance();
             dbinterface::EntityRef entity_ref;
 
-            for (dbtype::Entity::IdVector::const_iterator online_iter =
-                online_ids.begin();
-                 online_iter != online_ids.end();
-                 ++online_iter)
-            {
-                bool found_online_exact = false;
-                entity_ref = db_access->get_entity(*online_iter);
-
-                if (entity_ref.valid())
-                {
-                    if (match_name(
-                        entity_ref->get_entity_name(),
-                        search_string_lower,
-                        false,
-                        found_online_exact))
-                    {
-                        // Matched.  See if a better match or ambiguous
-                        //
-                        if (matched_online_id.is_default())
-                        {
-                            // First match.
-                            // If exact, we can stop immediately since there
-                            // cannot be duplicates.
-                            //
-                            matched_online_id = entity_ref.id();
-                            matched_id_exact = found_online_exact;
-                        }
-                        else
-                        {
-                            // Found another match.
-                            // Players cannot have duplicate names, making
-                            // this easier.  Either it is a better match
-                            // (more exact) than what we have, or it is no
-                            // better.  A match that is no better is therefore
-                            // ambiguous.
-                            //
-                            if (found_online_exact)
-                            {
-                                // Found exact.  We can stop here.
-                                //
-                                matched_online_id = entity_ref.id();
-                                matched_id_exact = true;
-                            }
-                            else
-                            {
-                                // Found another partial.  We can stop here
-                                // since it is ambiguous.
-                                online_ambiguous = true;
-                                matched_online_id = dbtype::Id();
-                            }
-                        }
-
-                        if (matched_id_exact or online_ambiguous)
-                        {
-                            // Either we found exactly what we wanted, or we
-                            // found too many.  Either way, we're done.
-                            break;
-                        }
-                    }
-                }
-            }
+            const NameRegistry::ResultVector search_result =
+                registry->search_by_prefix(
+                    context.get_requester().get_site_id(),
+                    search_string_lower,
+                    dbtype::ENTITYTYPE_player);
+            const size_t result_size = search_result.size();
 
             entity_ref.clear();
 
-            // Examine result and determine if we need to try exact database
-            // match.
-            //
-            if (online_ambiguous or matched_online_id.is_default())
+            if (result_size == 1)
             {
-                // Ambiguous or couldn't find. Try exact.
+                // Only one entry, this is our result.  Return.
+                found_entity = search_result.front().id;
+                return;
+            }
+
+            if (result_size > 1)
+            {
+                // If one is exact use it, otherwise ambigous since there is
+                // more than one.
+                //
+                for (NameRegistry::ResultVector::const_iterator result_iter =
+                    search_result.begin();
+                     result_iter != search_result.end();
+                     ++result_iter)
+                {
+                    if (result_iter->exact_match)
+                    {
+                        found_entity = result_iter->id;
+                        return;
+                    }
+                }
+
+                ambiguous = true;
+            }
+
+            if (found_entity.is_default())
+            {
+                // Ambiguous or couldn't find online. Try exact.
                 //
                 const dbtype::Entity::IdVector search_results =
-                    dbinterface::DatabaseAccess::instance()->find(
+                    db_access->find(
                         context.get_requester().get_site_id(),
                         dbtype::ENTITYTYPE_player,
+                        0,
                         search_string_lower,
                         true);
 
@@ -2033,18 +2194,9 @@ namespace primitives
                 {
                     // Found exact match
                     found_entity = search_results.front();
+                    ambiguous = false;
                 }
             }
-            else
-            {
-                // Matched good enough online, so use that result.
-                found_entity = matched_online_id;
-            }
-        }
-
-        if (result.is_success() and found_entity.is_default())
-        {
-            result.set_status(Result::STATUS_BAD_ARGUMENTS);
         }
     }
 
@@ -2054,6 +2206,7 @@ namespace primitives
         const std::string &search_string_lower,
         const bool exact_match,
         const DatabasePrims::ContentsEntityTypes entity_types,
+        const bool stop_at_room,
         Result &result,
         dbtype::Id &found_entity,
         bool &ambiguous)
@@ -2079,7 +2232,8 @@ namespace primitives
         current_result = get_contents(
             context,
             context.get_requester(),
-            CONTENTS_ALL,
+            entity_types == CONTENTS_PUPPETS_ONLY ?
+                CONTENTS_NON_ACTIONS_ONLY :CONTENTS_ALL,
             current_contents,
             false);
 
@@ -2147,7 +2301,8 @@ namespace primitives
                 current_result = get_contents(
                     context,
                     cpe_ptr->get_entity_id(),
-                    CONTENTS_ALL,
+                    entity_types == CONTENTS_PUPPETS_ONLY ?
+                        CONTENTS_NON_ACTIONS_ONLY :CONTENTS_ALL,
                     current_contents,
                     false);
 
@@ -2196,11 +2351,15 @@ namespace primitives
             }
         }
 
-        current_contents.clear();
-        current_effective_contents.clear();
-
-        if ((not current_exact_match) and (entity_ref.valid() and cpe_ptr))
+        if ((not stop_at_room) and
+            ((entity_types == CONTENTS_ALL) or
+                (entity_types == CONTENTS_ACTIONS_ONLY)) and
+            (not current_exact_match) and
+            (entity_ref.valid() and cpe_ptr))
         {
+            current_contents.clear();
+            current_effective_contents.clear();
+
             // Still no match.  Starting at the Region above the Room,
             // check for any actions that match.  Keep going to the root until
             // a match is found or no more Regions left.
@@ -2291,11 +2450,6 @@ namespace primitives
         {
             found_entity = dbtype::Id();
         }
-
-        if (found_entity.is_default())
-        {
-            result.set_status(Result::STATUS_BAD_ARGUMENTS);
-        }
     }
 
     // ----------------------------------------------------------------------
@@ -2311,6 +2465,7 @@ namespace primitives
             (entity_types == CONTENTS_ALL);
         const bool want_non_actions = (entity_types == CONTENTS_NON_ACTIONS_ONLY) or
             (entity_types == CONTENTS_ALL);
+        const bool want_puppets_only = (entity_types == CONTENTS_PUPPETS_ONLY);
         dbinterface::EntityRef entity_ref;
 
         effective_contents.reserve(contents.size());
@@ -2333,11 +2488,18 @@ namespace primitives
                 else if (dynamic_cast<dbtype::ContainerPropertyEntity *>(
                     entity_ref.get()))
                 {
-                    // Found a container.  Add container itself if not
-                    // actions only, then add all actions contained in it
-                    // if pass security.
+                    // Found a container.  Add container itself depending on
+                    // search type, then add all actions contained in it
+                    // as desired, if pass security.
                     //
-                    if (want_non_actions)
+                    if (want_puppets_only)
+                    {
+                        if (entity_ref.type() == dbtype::ENTITYTYPE_puppet)
+                        {
+                            effective_contents.push_back(*id_iter);
+                        }
+                    }
+                    else if (want_non_actions)
                     {
                         effective_contents.push_back(*id_iter);
                     }

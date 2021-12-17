@@ -395,37 +395,56 @@ namespace socket
         const bool out = channel_status.get_channel_out();
         const comm::ChannelId channel_id = channel_status.get_channel_id();
         ChannelStack &stack = out ? channel_output_stack : channel_input_stack;
+        const bool is_puppet =
+            channel_status.get_channel_name().find("Puppet ") == 0;
+
+        // TODO To make it in time for a gamedev demo, puppet channel
+        //      support is not fully complete.  Input channels are ignored
+        //      and channels remain open forever unless the server side
+        //      closes them, meaning puppets won't deactivate on their own.
+        //      Block/unblock is ignored for puppets
 
         switch (channel_status.get_channel_status())
         {
             case message::ChannelStatus::CHANNEL_STATUS_open:
             {
-                bool need_add = true;
-
-                // Do to reconnect, we may get channel twice.  Check for
-                // existance before adding.
-                for (ChannelStack::iterator stack_iter = stack.begin();
-                     stack_iter != stack.end();
-                     ++stack_iter)
+                if (is_puppet)
                 {
-                    if (stack_iter->first == channel_id)
+                    if (out)
                     {
-                        // Found it. Skip the add.
-                        need_add = false;
-                        break;
+                        puppet_channel_info[channel_status.get_channel_id()] =
+                            channel_status.get_channel_subtype();
                     }
                 }
-
-                if (need_add)
+                else
                 {
-                    stack.push_back(std::make_pair(channel_id, false));
+                    bool need_add = true;
 
-                    // See if channel is our 'main input' and update if so.
-                    //
-                    if (channel_status.get_channel_name() ==
-                        SESSION_AGENT_CHANNEL_NAME)
+                    // Do to reconnect, we may get channel twice.  Check for
+                    // existance before adding.
+                    for (ChannelStack::iterator stack_iter = stack.begin();
+                         stack_iter != stack.end();
+                         ++stack_iter)
                     {
-                        channel_main_input_id = channel_id;
+                        if (stack_iter->first == channel_id)
+                        {
+                            // Found it. Skip the add.
+                            need_add = false;
+                            break;
+                        }
+                    }
+
+                    if (need_add)
+                    {
+                        stack.push_back(std::make_pair(channel_id, false));
+
+                        // See if channel is our 'main input' and update if so.
+                        //
+                        if (channel_status.get_channel_name() ==
+                            SESSION_AGENT_CHANNEL_NAME)
+                        {
+                            channel_main_input_id = channel_id;
+                        }
                     }
                 }
 
@@ -434,24 +453,35 @@ namespace socket
 
             case message::ChannelStatus::CHANNEL_STATUS_close:
             {
-                // Channel has been removed.
-                //
-                for (ChannelStack::iterator stack_iter = stack.begin();
-                     stack_iter != stack.end();
-                     ++stack_iter)
+                if (is_puppet)
                 {
-                    if (stack_iter->first == channel_id)
+                    if (out)
                     {
-                        // Found it. Delete.
-                        //
-
-                        if (channel_id == channel_main_input_id)
+                        puppet_channel_info.erase(
+                            channel_status.get_channel_id());
+                    }
+                }
+                else
+                {
+                    // Channel has been removed.
+                    //
+                    for (ChannelStack::iterator stack_iter = stack.begin();
+                         stack_iter != stack.end();
+                         ++stack_iter)
+                    {
+                        if (stack_iter->first == channel_id)
                         {
-                            channel_main_input_id = 0;
-                        }
+                            // Found it. Delete.
+                            //
 
-                        stack.erase(stack_iter);
-                        break;
+                            if (channel_id == channel_main_input_id)
+                            {
+                                channel_main_input_id = 0;
+                            }
+
+                            stack.erase(stack_iter);
+                            break;
+                        }
                     }
                 }
 
@@ -529,12 +559,21 @@ namespace socket
         }
         else
         {
+            std::map<comm::ChannelId, std::string>::const_iterator puppet_iter =
+                puppet_channel_info.find(channel_id);
+
             // Not known to be disconnected or blocked, so try queue up to
             // send.  This involves coding it for sockets, which means
             // converting to extended ASCII and ANSI color.
             //
+            std::string formatted_output;
 
-            std::string formatted_output = (config_ansi_enabled ?
+            if (puppet_iter != puppet_channel_info.end())
+            {
+                formatted_output = puppet_iter->second + "> ";
+            }
+
+            formatted_output += (config_ansi_enabled ?
                 text::to_ansi(text_line) :
                 text::ExternalText::to_string(text_line));
 

@@ -142,8 +142,7 @@ namespace dbinterface
             }
             else
             {
-                success = site_iter->second.find(id.get_entity_id()) !=
-                    site_iter->second.end();
+                success = site_iter->second.count(id.get_entity_id());
             }
         }
 

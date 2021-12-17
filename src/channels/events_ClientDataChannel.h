@@ -8,6 +8,7 @@
 #include <string>
 
 #include "channels/events_Channel.h"
+#include "dbtypes/dbtype_Id.h"
 #include "clientmessages/message_ClientMessage.h"
 
 namespace mutgos
@@ -34,10 +35,13 @@ namespace events
          * context of whatever it is being used for.
          * @param subtype[in] An optional subtype of the ClientDataChannel.
          * The meaning is specific to how it's being used.
+         * @param entity_id[in] An optional ID for an Entity associated with
+         * the channel.
          */
         ClientDataChannel(
             const std::string &name,
-            const std::string &subtype = "");
+            const std::string &subtype = "",
+            const dbtype::Id &entity_id = dbtype::Id());
 
         /**
          * Destructor.

@@ -6,11 +6,13 @@
  * @param {string} channelStatus The channel status.
  * @param {string} channelName The channel name.
  * @param {string} channelType The channel type.
- * @param {string} channelSubtype The channel subtype.
+ * @param {string} channelSubtype The channel subtype (may be empty string).
+ * @param {EntityId} channelEntityId The entity ID for the channel
+ * (may be set to all zeros).
  * @param {TextgameProtocolClient} clientRef Reference to the client.
  */
 function Channel(channelId, channelStatus, channelName, channelType,
-                 channelSubtype, clientRef) {
+                 channelSubtype, channelEntityId, clientRef) {
 
     /** Public attributes and methods **/
 
@@ -32,9 +34,13 @@ function Channel(channelId, channelStatus, channelName, channelType,
     //
     this.type = this.convertChannelType(channelType);
 
-    // The subtype of the channel.
+    // The subtype of the channel.  May be empty string if not set.
     //
     this.subtype = channelSubtype;
+
+    // The Entity ID associated with the channel.  May be set to all zeros.
+    //
+    this.entityId = channelEntityId;
 
     // A reference back to to TextgameProtocolClient.
     //
@@ -157,14 +163,16 @@ Channel.prototype.callStatusChange = function() {
  * @param {string} channelStatus The channel status.
  * @param {string} channelName The channel name.
  * @param {string} channelType The channel type.
- * @param {string} channelSubtype The channel subtype.
+ * @param {string} channelSubtype The channel subtype (may be empty string).
+ * @param {EntityId} channelEntityId The entity ID for the channel
+ * (may be set to all zeros).
  * @param {TextgameProtocolClient} clientRef Reference to the client.
  */
 function SendChannel(channelId, channelStatus, channelName, channelType,
-    channelSubtype, clientRef) {
+    channelSubtype, channelEntityId, clientRef) {
     // Used to initialize parent
     Channel.call(this, channelId, channelStatus, channelName, channelType,
-        channelSubtype, clientRef);
+        channelSubtype, channelEntityId, clientRef);
 
     /** Public attributes and methods **/
     // See below
@@ -172,11 +180,23 @@ function SendChannel(channelId, channelStatus, channelName, channelType,
 
 
 // --------------------------------------------------------------------------
+/**
+ * Creates a Channel for receiving data from the server.
+ * Inherits from Channel.
+ * @param {number} channelId The ID number of the channel.
+ * @param {string} channelStatus The channel status.
+ * @param {string} channelName The channel name.
+ * @param {string} channelType The channel type.
+ * @param {string} channelSubtype The channel subtype (may be empty string).
+ * @param {EntityId} channelEntityId The entity ID for the channel
+ * (may be set to all zeros).
+ * @param {TextgameProtocolClient} clientRef Reference to the client.
+ */
 function ReceiveChannel(channelId, channelStatus, channelName, channelType,
-                        channelSubtype, clientRef) {
+                        channelSubtype, channelEntityId, clientRef) {
     // Used to initialize parent
     Channel.call(this, channelId, channelStatus, channelName, channelType,
-        channelSubtype, clientRef);
+        channelSubtype, channelEntityId, clientRef);
 
     // Called when non-text data has been received on the Channel.
     // The ID and the data will be provided:  onReceiveData(ID, data);
@@ -481,13 +501,26 @@ function TextgameProtocolClient() {
             //
             var newChannel;
 
+            var subType = "";
+            var entity = new EntityId(0,0);
+
+            if (status.hasOwnProperty("channelSubtype")) {
+                subType = status.channelSubtype;
+            }
+
+            if (status.hasOwnProperty("channelEntityId")) {
+                entity.siteId = status.channelEntityId.siteId;
+                entity.entityId = status.channelEntityId.entityId;
+            }
+
             if (status.channelOut) {
                 newChannel = new ReceiveChannel(
                     status.channelId,
                     status.channelStatus,
                     status.channelName,
                     status.channelType,
-                    status.channelSubtype,
+                    subType,
+                    entity,
                     myInstance);
             } else {
                 newChannel = new SendChannel(
@@ -495,7 +528,8 @@ function TextgameProtocolClient() {
                     status.channelStatus,
                     status.channelName,
                     status.channelType,
-                    status.channelSubtype,
+                    subType,
+                    entity,
                     myInstance);
             }
 

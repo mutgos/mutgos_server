@@ -100,7 +100,7 @@ end entity
 
 
 
-#### !ps
+#### /ps
 mkentity program {ps_prog}
   name ps.prog
   owner {global_admin_player}
@@ -118,12 +118,12 @@ modentity {global_cap_admin}
   end fields
 end entity
 mkentity command {ps_command}
-  name !ps
+  name /ps
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={ps_prog}
-    action_commands=!ps
+    action_commands=/ps
   end fields
 end entity
 ####
@@ -242,6 +242,29 @@ mkentity command {pose_command}
 end entity
 ####
 
+#### spoof
+mkentity program {spoof_prog}
+  name spoof.prog
+  owner {global_admin_player}
+  security
+    flag other R
+    flag other B
+  end security
+  fields
+@@INCLUDE programs/spoof_prog.dump
+  end fields
+end entity
+mkentity command {spoof_command}
+  name spoof
+  owner {global_admin_player}
+  fields
+    action_contained_by={global_root_region}
+    action_targets={spoof_prog}
+    action_commands=spoof
+  end fields
+end entity
+####
+
 
 #### Look
 mkentity program {look_prog}
@@ -274,7 +297,7 @@ end entity
 
 
 
-#### !desc
+#### /desc
 mkentity program {desc_prog}
   name desc.prog
   owner {global_admin_player}
@@ -287,15 +310,15 @@ mkentity program {desc_prog}
   end fields
 end entity
 mkentity command {desc_command}
-  name !description
+  name /description
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={desc_prog}
-    action_commands=!description
-    action_commands=!desc
-    action_commands=!setdesc
-    action_commands=!setdescription
+    action_commands=/description
+    action_commands=/desc
+    action_commands=/setdesc
+    action_commands=/setdescription
   end fields
 end entity
 ####
@@ -329,7 +352,7 @@ end entity
 
 
 
-#### !create
+#### /create
 mkentity program {create_prog}
   name create.prog
   owner {global_admin_player}
@@ -342,12 +365,12 @@ mkentity program {create_prog}
   end fields
 end entity
 mkentity command {create_command}
-  name !create
+  name /create
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={create_prog}
-    action_commands=!create
+    action_commands=/create
   end fields
 end entity
 ####
@@ -355,7 +378,7 @@ end entity
 
 
 
-#### !delete
+#### /delete
 mkentity program {delete_prog}
   name delete.prog
   owner {global_admin_player}
@@ -368,14 +391,14 @@ mkentity program {delete_prog}
   end fields
 end entity
 mkentity command {delete_command}
-  name !delete
+  name /delete
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={delete_prog}
-    action_commands=!delete
-    action_commands=!recycle
-    action_commands=!rec
+    action_commands=/delete
+    action_commands=/recycle
+    action_commands=/rec
   end fields
 end entity
 ####
@@ -474,7 +497,7 @@ end entity
 
 
 
-#### !security
+#### /security
 mkentity program {security_prog}
   name security.prog
   owner {global_admin_player}
@@ -492,19 +515,19 @@ modentity {global_cap_find_by_name}
   end fields
 end entity
 mkentity command {security_command}
-  name !security
+  name /security
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={security_prog}
-    action_commands=!security
+    action_commands=/security
   end fields
 end entity
 ####
 
 
 
-#### !looksecurity
+#### /looksecurity
 mkentity program {looksecurity_prog}
   name looksecurity.prog
   owner {global_admin_player}
@@ -522,12 +545,12 @@ modentity {global_cap_find_by_name}
   end fields
 end entity
 mkentity command {looksecurity_command}
-  name !looksecurity
+  name /looksecurity
   owner {global_admin_player}
   fields
     action_contained_by={global_root_region}
     action_targets={looksecurity_prog}
-    action_commands=!looksecurity
+    action_commands=/looksecurity
   end fields
 end entity
 ####
@@ -788,9 +811,30 @@ mkentity player {normal_player}
   end properties
 end entity
 
-modentity {cap_builder}
+# Player's puppet
+mkentity puppet {player_puppet}
+  owner {normal_player}
+  name Player_Puppet
   fields
-    group_ids={normal_player}
+    thing_home={normal_player}
+    contained_by={desktop_room}
+  end fields
+  properties
+    security look {player_puppet}
+      flag other R
+    end security
+    string /look/shortdesc=A puppet for testing purposes
+  end properties
+end entity
+
+# Action to control puppet
+mkentity command {player_puppet_command}
+  name pup (Control Puppet)
+  owner {normal_player}
+  fields
+    action_contained_by={normal_player}
+    action_targets={player_puppet}
+    action_commands=pup
   end fields
 end entity
 
@@ -834,10 +878,44 @@ mkentity player {bad_player}
   end properties
 end entity
 
+# set permissions
+modentity {cap_builder}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
+modentity {cap_send_text_room}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
+modentity {cap_send_text_entity}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
+modentity {cap_find_by_name}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
+modentity {cap_id_to_name}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
+modentity {cap_connection_check}
+  fields
+    group_ids={normal_player}
+  end fields
+end entity
+
 end site
-
-
-
 
 
 MUTGOS DUMP END

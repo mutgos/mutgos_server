@@ -896,6 +896,7 @@ namespace comm
         const dbtype::Entity::IdVector result_ids = database_ptr->find(
             site_id,
             dbtype::ENTITYTYPE_player,
+            0,
             name,
             true);
 

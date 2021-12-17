@@ -245,6 +245,19 @@ namespace dbinterface
     }
 
     // ----------------------------------------------------------------------
+    EntityMetadata DatabaseAccess::get_entity_metadata(const dbtype::Id &id)
+    {
+        return db_backend_ptr->get_entity_metadata(id);
+    }
+
+    // ----------------------------------------------------------------------
+    MetadataVector
+    DatabaseAccess::get_entity_metadata(const dbtype::Entity::IdVector &ids)
+    {
+        return db_backend_ptr->get_entity_metadata(ids);
+    }
+
+    // ----------------------------------------------------------------------
     DbResultCode DatabaseAccess::new_entity(
         const dbtype::EntityType type,
         const dbtype::Id::SiteIdType site_id,
@@ -368,6 +381,7 @@ namespace dbinterface
                             rc = DBRESULTCODE_BAD_NAME;
                             delete entity_ptr;
                             entity_ptr = 0;
+                            entity_ref.clear();
                         }
                     }
 
@@ -498,11 +512,17 @@ namespace dbinterface
     dbtype::Entity::IdVector DatabaseAccess::find(
         const dbtype::Id::SiteIdType site_id,
         const dbtype::EntityType type,
+        const dbtype::Id::EntityIdType owner_id,
         const std::string &name,
         const bool exact)
     {
-        dbtype::Entity::IdVector result =
-            db_backend_ptr->find_in_db(site_id, type, name, exact);
+        dbtype::Entity::IdVector result = db_backend_ptr->find_in_db(
+            site_id,
+            (type == dbtype::EntityType::ENTITYTYPE_entity ?
+                dbtype::EntityType::ENTITYTYPE_invalid : type),
+            owner_id,
+            name,
+            exact);
 
         // Check for renamed players if we're looking for players,
         // AND if we're not searching exact, OR searching exact
@@ -557,7 +577,12 @@ namespace dbinterface
         const std::string &name)
     {
         dbtype::Entity::IdVector result =
-            db_backend_ptr->find_in_db(site_id, name);
+            db_backend_ptr->find_in_db(
+                site_id,
+                dbtype::ENTITYTYPE_invalid,
+                0,
+                name,
+                false);
         dbtype::Entity::IdVector player_result;
 
         UpdateManager::instance()->
@@ -975,7 +1000,7 @@ namespace dbinterface
         else
         {
             dbtype::Entity::IdVector result = db_backend_ptr->
-                find_in_db(site_id, dbtype::ENTITYTYPE_player, name, true);
+                find_in_db(site_id, dbtype::ENTITYTYPE_player, 0, name, true);
 
             if (result.empty())
             {

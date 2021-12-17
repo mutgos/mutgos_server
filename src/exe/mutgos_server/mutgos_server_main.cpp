@@ -22,10 +22,12 @@
 #include "comminterface/comm_CommAccess.h"
 #include "security/security_SecurityAccess.h"
 #include "primitives/primitives_PrimitivesAccess.h"
+#include "primitives/primitives_NameRegistry.h"
 #include "softcode/softcode_SoftcodeAccess.h"
 #include "angelscriptinterface/angelscript_AngelScriptAccess.h"
 
 #include "useragent/useragent_ConnectionLifecycleManager.h"
+#include "useragent/useragent_EntityNameManager.h"
 
 #include "dbtypes/dbtype_TimeStamp.h"
 
@@ -211,6 +213,13 @@ int main(int argc, char* argv[])
     }
 
     if (good_init and
+        not mutgos::primitives::NameRegistry::make_singleton())
+    {
+        std::cout << "Failed to init name registry" << std::endl;
+        good_init = false;
+    }
+
+    if (good_init and
         not mutgos::primitives::PrimitivesAccess::make_singleton()->startup())
     {
         std::cout << "Failed to init primitives" << std::endl;
@@ -235,10 +244,15 @@ int main(int argc, char* argv[])
     {
         mutgos::useragent::ConnectionLifecycleManager * const manager_ptr =
             new mutgos::useragent::ConnectionLifecycleManager();
+        mutgos::useragent::EntityNameManager * const name_manager_ptr =
+            new mutgos::useragent::EntityNameManager();
 
         const mutgos::executor::PID manager_pid =
             mutgos::executor::ExecutorAccess::instance()->add_process(
                 manager_ptr);
+        const mutgos::executor::PID name_manager_pid =
+            mutgos::executor::ExecutorAccess::instance()->add_process(
+                name_manager_ptr);
 
         if (not manager_pid)
         {
@@ -247,53 +261,68 @@ int main(int argc, char* argv[])
         }
         else
         {
-            if (not mutgos::executor::ExecutorAccess::instance()->start_process(
-                manager_pid))
+            if (not mutgos::executor::ExecutorAccess::instance()
+                ->start_process(manager_pid))
             {
                 std::cout << "Failed to start lifecycle manager" << std::endl;
                 good_init = false;
             }
+        }
 
-            if (good_init)
+        if (not name_manager_pid)
+        {
+            std::cout << "Failed to add name manager" << std::endl;
+            good_init = false;
+        }
+        else
+        {
+            if (not mutgos::executor::ExecutorAccess::instance()
+                ->start_process(name_manager_pid))
             {
-                mutgos::osinterface::Signals::register_quit();
+                std::cout << "Failed to start name manager" << std::endl;
+                good_init = false;
+            }
+        }
 
-                // Stay here so the program doesn't exit.  The other threads
-                // are what actually do all the MUTGOS work.
-                //
-                // During the loop, detect any large jumps in time.  This is
-                // mostly to make sure database commits continue to happen
-                // in the background.  It's a very basic detection for now
-                // and is not designed to detect frequently occuring jumps.
-                //
-                mutgos::dbtype::TimeStamp prev_time;
-                mutgos::dbtype::TimeStamp current_time = prev_time;
+        if (good_init)
+        {
+            mutgos::osinterface::Signals::register_quit();
 
-                while (not mutgos::osinterface::Signals::got_quit_signal())
+            // Stay here so the program doesn't exit.  The other threads
+            // are what actually do all the MUTGOS work.
+            //
+            // During the loop, detect any large jumps in time.  This is
+            // mostly to make sure database commits continue to happen
+            // in the background.  It's a very basic detection for now
+            // and is not designed to detect frequently occuring jumps.
+            //
+            mutgos::dbtype::TimeStamp prev_time;
+            mutgos::dbtype::TimeStamp current_time = prev_time;
+
+            while (not mutgos::osinterface::Signals::got_quit_signal())
+            {
+                sleep(10);
+
+                prev_time = current_time;
+                current_time = mutgos::dbtype::TimeStamp();
+
+                bool negative = false;
+                const MG_LongUnsignedInt relative_diff =
+                    prev_time.get_relative_seconds(
+                        current_time,
+                        negative);
+
+                if (relative_diff > 30)
                 {
-                    sleep(10);
+                    std::cout << "** Time jump detected! **" << std::endl;
 
-                    prev_time = current_time;
-                    current_time = mutgos::dbtype::TimeStamp();
+                    // For now, don't have a whole listener infrastructure;
+                    // just call the two we know that care about time jumps.
 
-                    bool negative = false;
-                    const MG_LongUnsignedInt relative_diff =
-                        prev_time.get_relative_seconds(
-                            current_time,
-                            negative);
-
-                    if (relative_diff > 30)
-                    {
-                        std::cout << "** Time jump detected! **" << std::endl;
-
-                        // For now, don't have a whole listener infrastructure;
-                        // just call the two we know that care about time jumps.
-
-                        mutgos::dbinterface::DatabaseAccess::instance()->
-                            os_time_has_jumped(negative);
-                        mutgos::executor::ExecutorAccess::instance()->
-                            os_time_has_jumped(negative);
-                    }
+                    mutgos::dbinterface::DatabaseAccess::instance()->
+                        os_time_has_jumped(negative);
+                    mutgos::executor::ExecutorAccess::instance()->
+                        os_time_has_jumped(negative);
                 }
             }
         }
@@ -317,6 +346,7 @@ int main(int argc, char* argv[])
     mutgos::events::EventAccess::destroy_singleton();
     mutgos::executor::ExecutorAccess::destroy_singleton();
     mutgos::dbinterface::DatabaseAccess::destroy_singleton();
+    mutgos::primitives::NameRegistry::destroy_singleton();
 
     mutgos::memory::ThreadVirtualHeapManager::delete_thread();
 

@@ -135,6 +135,24 @@ namespace dbinterface
         bool entity_exists(const dbtype::Id &id);
 
         /**
+         * Gets the metadata for a single Entity.
+         * @param id[in] The ID of the entity to get metadata for.
+         * @return The Metadata for the Entity, or invalid if not found.
+         */
+        EntityMetadata get_entity_metadata(const dbtype::Id &id);
+
+        /**
+         * Gets the metadata for a group of Entities.  This will generally
+         * be more efficient than getting one at a time.
+         * @param ids[in] The IDs of the entities to get metadata for.
+         * @return The Metadata for the Entities, or empty if not found.
+         * If only a few Entities cannot be found, there will simply not be
+         * an entry for them.
+         */
+         MetadataVector get_entity_metadata(
+            const dbtype::Entity::IdVector &ids);
+
+        /**
          * Creates a new Entity of the given type (version 0).
          * @param type[in] The type of Entity to create.
          * @param site_id[in] The valid Site ID the Entity is associated with.
@@ -185,9 +203,12 @@ namespace dbinterface
          * contain the given string somewhere in their name, or an exact
          * if specified.
          * @param site_id[in] The site to search within.
-         * @param type[in] The type of entity to search for.
-         * @param name[in] The partial match of the name to look for.  Must not
-         * be empty.
+         * @param type[in] The type of entity to search for.  Can be 'Entity'
+         * to search for all types.
+         * @param owner_id[in] The ID of the owner, if any.  Can be default (0)
+         * to search for all owners.
+         * @param name[in] The partial match of the name to look for.  Can be
+         * empty in most cases for 'all'.
          * @param exact[in] Optional (default false).  If true, match name
          * exactly.  Note you may still get multiple matches depending on the
          * type.
@@ -196,6 +217,7 @@ namespace dbinterface
         dbtype::Entity::IdVector find(
             const dbtype::Id::SiteIdType site_id,
             const dbtype::EntityType type,
+            const dbtype::Id::EntityIdType owner_id,
             const std::string &name,
             const bool exact = false);
 

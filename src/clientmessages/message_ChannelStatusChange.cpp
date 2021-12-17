@@ -19,6 +19,7 @@ namespace
     const static std::string CHANNEL_NAME_KEY = "channelName";
     const static std::string CHANNEL_TYPE_KEY = "channelType";
     const static std::string CHANNEL_SUBTYPE_KEY = "channelSubtype";
+    const static std::string CHANNEL_ENTITY_ID_KEY = "channelEntityId";
 
     const static std::string CHANNEL_TYPE_TEXT = "text";
     const static std::string CHANNEL_TYPE_DATA = "data";
@@ -35,14 +36,16 @@ namespace message
         const comm::ChannelId id,
         const std::string &name,
         const events::Channel::ChannelType type,
-        const std::string &subtype)
+        const std::string &subtype,
+        const dbtype::Id &entity_id)
         : ClientMessage(CLIENTMESSAGE_CHANNEL_STATUS_CHANGE),
           channel_status(status),
           channel_out(out),
           channel_id(id),
           channel_name(name),
           channel_type(type),
-          channel_subtype(subtype)
+          channel_subtype(subtype),
+          channel_entity_id(entity_id)
     {
     }
 
@@ -130,11 +133,29 @@ namespace message
             }
         }
 
-        success = json::add_static_key_value(
-            CHANNEL_SUBTYPE_KEY,
-            channel_subtype,
-            node,
-            root) and success;
+        if (not channel_subtype.empty())
+        {
+            success = json::add_static_key_value(
+                CHANNEL_SUBTYPE_KEY,
+                channel_subtype,
+                node,
+                root) and success;
+        }
+
+        if (not channel_entity_id.is_default())
+        {
+            JSON_MAKE_MAP_NODE(id_node);
+            success = channel_entity_id.save(root, id_node) and success;
+
+            if (success)
+            {
+                success = json::add_static_key_value(
+                    CHANNEL_ENTITY_ID_KEY,
+                    id_node,
+                    node,
+                    root) and success;
+            }
+        }
 
         return success;
     }

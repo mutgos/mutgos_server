@@ -23,8 +23,9 @@ namespace events
     // ----------------------------------------------------------------------
     TextChannel::TextChannel(
         const std::string &name,
-        const std::string &subtype)
-      : Channel(name, Channel::CHANNEL_TYPE_TEXT, subtype),
+        const std::string &subtype,
+        const dbtype::Id &entity_id)
+      : Channel(name, Channel::CHANNEL_TYPE_TEXT, subtype, entity_id),
         recv_callback_ptr(0)
     {
     }

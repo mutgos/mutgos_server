@@ -10,6 +10,7 @@
 #include <map>
 #include <boost/thread/recursive_mutex.hpp>
 
+#include "dbtypes/dbtype_Id.h"
 #include "osinterface/osinterface_OsTypes.h"
 #include "concurrency/concurrency_LockableObject.h"
 #include "executor/executor_ProcessResource.h"
@@ -161,10 +162,16 @@ namespace events
           { return channel_type; }
 
         /**
-         * @return The channel subtype.
+         * @return The channel subtype (optional).
          */
         const std::string &get_channel_subtype(void) const
           { return channel_subtype; }
+
+        /**
+         * @return The channel entity ID (optional).
+         */
+        const dbtype::Id &get_channel_entity_id(void) const
+          { return channel_entity_id; }
 
         /**
          * @return True if channel is temporarily blocked.
@@ -293,11 +300,14 @@ namespace events
          * @param type[in] The type of the subclass.
          * @param subtype[in] The user-defined subtype of the channel
          * (optional).
+         * @param entity_id[in] The ID of the Entity associated with the
+         * channel (optional).
          */
         Channel(
             const std::string &name,
             const ChannelType type,
-            const std::string &subtype = "");
+            const std::string &subtype = "",
+            const dbtype::Id &entity_id = dbtype::Id());
 
         /**
          * Required virtual destructor.
@@ -372,6 +382,7 @@ namespace events
         const std::string channel_name;
         const std::string channel_subtype;
         const ChannelType channel_type;
+        const dbtype::Id channel_entity_id;
 
         bool channel_callback_in_progress; ///< True if callback in progress that should delay channel deletion
 

@@ -92,7 +92,10 @@ namespace events
         bool internal_remove_subscription(
             const SubscriptionId subscription_id);
 
+        // TODO This is likely going to need serious performance enhancements (especially 'by attribute' subscriptions)
+
         SiteIdToEntitySubscriptions entity_subscriptions; ///< Watch for specific Entities to change
+        SiteIdToEntitySubscriptions owner_subscriptions; ///< Watch for entities owned by certain owners to change
         SiteIdToSubscriptionsList site_subscriptions; ///< Watch for specific sites
         SubscriptionList all_subscriptions; ///< Watch everything
     };

@@ -215,6 +215,8 @@
     var connectionUrl = "ws://" + window.location.hostname + ":7000/localhost/127.0.0.1";
     var descriptionChannelSubtype = "DESCRIPTION";
     var clientDataChannelSubtype = "ClientData";
+    var puppetChannelPrefix = "Puppet ";
+    var puppetClientDataChannelSubtype = puppetChannelPrefix + clientDataChannelSubtype;
 
     // Used with outputTextStore as the ID for a line of ExternalText.
     var nextOutputId = 1;
@@ -271,6 +273,9 @@
     var locationName = "";
     // Frontmost item (index 0) is where user input goes to.
     var inputStack = [];
+    // Maps puppet channel ID to puppet name.  Temp data structure for demo
+    var puppetChannelInfo = new Map();
+
     var protocol = new TextgameProtocolClient();
 
     // Put the two output streams in the store so FormattedTextComponent
@@ -344,6 +349,17 @@
      */
     var addIncomingText = function(id, formattedText) {
         var newId = getNextId();
+
+        // Prepends puppet name if from a puppet channel
+        // Temporary demo code
+        //
+        if (puppetChannelInfo.has(id)) {
+            var puppetName = puppetChannelInfo.get(id);
+            var formattedPuppetName = new ExternalFormattedText(puppetName + "> ");
+            formattedPuppetName.color = formattedPuppetName.ColorEnum.CYAN;
+            formattedPuppetName.italic = true;
+            formattedText.textLine.unshift(formattedPuppetName);
+        }
 
         // Add new line
         //
@@ -433,7 +449,7 @@
             // We have both channels and they are open.  Send the request for
             // the 'look' command if we haven't already.
             //
-            var findLook = protocol.makeClientMessage("MatchNameRequest");
+            var findLook = protocol.makeClientMessage("FindEntityRequest");
             findLook.searchString = "look";
             findLook.exactMatch = true;
             findLook.entityType = "action";
@@ -450,22 +466,22 @@
      * @param {Object} data The client data.
      */
     var receiveClientData = function(id, data) {
-        // We only support match result and location changes right now
+        // We only support find result and location changes right now
         //
-        if (data.messageType === "MatchNameResult") {
+        if (data.messageType === "FindEntityResult") {
             if (data.securityViolation) {
                 addAlert("Unable to get look command info due to security violation.");
             } else if (data.ambiguous) {
                 addAlert("Unable to get look command info due ambiguous lookup.");
-            } else if (data.matchingIds) {
-                if (data.matchingIds.length <= 0) {
+            } else if (data.result) {
+                if (data.result.length <= 0) {
                     addAlert("Did not return any matching IDs for look");
                 } else {
-                    if (data.matchingIds.length > 1) {
+                    if (data.result.length > 1) {
                         addAlert("More than one action ID returned for look.");
                     }
 
-                    entityDescription.lookId = data.matchingIds[0];
+                    entityDescription.lookId = data.result[0].id;
                 }
             } else {
                 addAlert("Did not return result for look");
@@ -591,7 +607,10 @@
             // Send channels just get added to the stack, except the client
             // data channel.
             //
-            if (channel.name === clientDataChannelSubtype) {
+            if (channel.name.startsWith(puppetChannelPrefix)) {
+                // Ignore puppet data channels towards server for now
+            }
+            else if (channel.name === clientDataChannelSubtype) {
                 controlChannel.send = channel;
                 channel.onStatusChange = processClientDataChannelStatus;
             } else {
@@ -638,7 +657,10 @@
             // screen.  Unless it's a description channel, then it gets routed
             // to the description popup.  ... Or a client data channel.
             //
-            if (channel.name === clientDataChannelSubtype) {
+            if (channel.name === puppetClientDataChannelSubtype) {
+                // Ignore puppet client data channels for demo.
+            }
+            else if (channel.name === clientDataChannelSubtype) {
                 controlChannel.receive = channel;
                 channel.onStatusChange = processClientDataChannelStatus;
                 channel.onReceiveData = receiveClientData;
@@ -662,6 +684,21 @@
                         channel.onReceiveTextData = addIncomingDescText;
                     }
                 } else {
+                    if (channel.name.startsWith(puppetChannelPrefix)) {
+                        // Grab the puppet name for later lookup
+                        puppetChannelInfo.set(channel.id, channel.subtype);
+
+                        var statusListener = function(id, status) {
+                            if (status === channel.ChannelStatusEnum.CLOSE) {
+                                // Channel has closed.  Remove from puppet
+                                // lookup map
+                                puppetChannelInfo.delete(id);
+                            }
+                        };
+
+                        channel.onStatusChange = statusListener;
+                    }
+
                     channel.onReceiveTextData = addIncomingText;
                 }
             }

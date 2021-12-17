@@ -48,6 +48,24 @@ namespace angelscript
          * Using generic interface to get needed engine pointer.
          *
          * Actual method signature:
+         * AEntity *match_online_name_to_entity(
+         *    const AString &search_string,
+         *    const bool exact_match,
+         *    const dbtype::EntityType entity_type,
+         *    bool &ambiguous);
+         * @param gen_ptr[in] Generic interface to get and set arguments and
+         * return value.
+         * @return The found Entity, or an invalid Entity if ambiguous or not
+         * found.
+         * @see primitives::DatabasePrims::match_online_name_to_id() for
+         * documentation.
+         */
+        static void match_online_name_to_entity(asIScriptGeneric *gen_ptr);
+
+        /**
+         * Using generic interface to get needed engine pointer.
+         *
+         * Actual method signature:
          * AEntity *convert_string_to_entity(const AString &id_as_string);
          * @param gen_ptr[in] Generic interface to get and set arguments and
          * return value.

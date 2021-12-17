@@ -336,11 +336,13 @@ namespace events
     Channel::Channel(
         const std::string &name,
         const ChannelType type,
-        const std::string &subtype)
+        const std::string &subtype,
+        const dbtype::Id &entity_id)
         : executor::ProcessResource(),
           channel_name(name),
           channel_subtype(subtype),
           channel_type(type),
+          channel_entity_id(entity_id),
           channel_callback_in_progress(false),
           channel_recv_pid(0),
           channel_recv_rid(0),

@@ -298,11 +298,11 @@ namespace socket
                 //
                 const std::string help_str =
                     "\nTemporary help (case and space sensitive for now):\n"
-                    "  !!<text>     Send text to the agent.  Useful if you're "
+                    "  ##<text>     Send text to the agent.  Useful if you're "
                     "currently in a program and want to use another command.\n"
-                    "  !help        This text.\n"
-                    "  !color on    Turns ANSI color on.\n"
-                    "  !color off   Turns ANSI color off.\n\n";
+                    "  #help        This text.\n"
+                    "  #color on    Turns ANSI color on.\n"
+                    "  #color off   Turns ANSI color off.\n\n";
 
                 client_connection_ptr->send_control_text_raw(help_str);
                 text::ExternalText::clear_text_line(*line_ptr);

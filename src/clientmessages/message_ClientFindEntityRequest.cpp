@@ -1,5 +1,5 @@
 /*
- * message_ClientMatchNameRequest.cpp
+ * message_ClientFindEntityRequest.cpp
  */
 
 #include <string>
@@ -7,7 +7,7 @@
 #include "dbtypes/dbtype_EntityType.h"
 
 #include "clientmessages/message_ClientMessage.h"
-#include "message_ClientMatchNameRequest.h"
+#include "clientmessages/message_ClientFindEntityRequest.h"
 #include "clientmessages/message_MessageFactory.h"
 
 #include "utilities/json_JsonUtilities.h"
@@ -17,8 +17,8 @@ namespace
     // Static registration
     const bool CLIENT_MATCH_NAME_REQUEST_FACTORY_REG =
         mutgos::message::MessageFactory::register_message(
-            mutgos::message::CLIENTMESSAGE_MATCH_NAME_REQUEST,
-            mutgos::message::ClientMatchNameRequest::make_instance);
+            mutgos::message::CLIENTMESSAGE_FIND_ENTITY_REQUEST,
+            mutgos::message::ClientFindEntityRequest::make_instance);
 
     const static std::string SEARCH_STRING_KEY = "searchString";
     const static std::string EXACT_MATCH_KEY = "exactMatch";
@@ -30,22 +30,22 @@ namespace mutgos
 namespace message
 {
     // ----------------------------------------------------------------------
-    ClientMessage *ClientMatchNameRequest::make_instance(void)
+    ClientMessage *ClientFindEntityRequest::make_instance(void)
     {
-        return new ClientMatchNameRequest();
+        return new ClientFindEntityRequest();
     }
 
     // ----------------------------------------------------------------------
-    ClientMatchNameRequest::ClientMatchNameRequest(void)
-      : ClientMessage(CLIENTMESSAGE_MATCH_NAME_REQUEST),
+    ClientFindEntityRequest::ClientFindEntityRequest(void)
+      : ClientMessage(CLIENTMESSAGE_FIND_ENTITY_REQUEST),
         exact_match(true),
         entity_type(dbtype::ENTITYTYPE_entity)
     {
     }
 
     // ----------------------------------------------------------------------
-    ClientMatchNameRequest::ClientMatchNameRequest(
-        const ClientMatchNameRequest &rhs)
+    ClientFindEntityRequest::ClientFindEntityRequest(
+        const ClientFindEntityRequest &rhs)
         : ClientMessage(rhs),
           search_string(rhs.search_string),
           exact_match(rhs.exact_match),
@@ -54,40 +54,43 @@ namespace message
     }
 
     // ----------------------------------------------------------------------
-    ClientMatchNameRequest::~ClientMatchNameRequest()
+    ClientFindEntityRequest::~ClientFindEntityRequest()
     {
     }
 
     // ----------------------------------------------------------------------
-    ClientMessage* ClientMatchNameRequest::clone(void) const
+    ClientMessage* ClientFindEntityRequest::clone(void) const
     {
-        return new ClientMatchNameRequest(*this);
+        return new ClientFindEntityRequest(*this);
     }
 
     // ----------------------------------------------------------------------
-    bool ClientMatchNameRequest::save(
+    bool ClientFindEntityRequest::save(
         mutgos::json::JSONRoot &root,
         mutgos::json::JSONNode &node) const
     {
         bool success = ClientMessage::save(root, node);
 
-        // Save search string (required)
-        //
-        success = json::add_static_key_value(
-            SEARCH_STRING_KEY,
-            search_string,
-            node,
-            root) and success;
+        if (not search_string.empty())
+        {
+            // Save search string
+            //
+            success = json::add_static_key_value(
+                SEARCH_STRING_KEY,
+                search_string,
+                node,
+                root) and success;
 
-        // Save exact match (required)
-        //
-        success = json::add_static_key_value(
-            EXACT_MATCH_KEY,
-            exact_match,
-            node,
-            root) and success;
+            // Save exact match
+            //
+            success = json::add_static_key_value(
+                EXACT_MATCH_KEY,
+                exact_match,
+                node,
+                root) and success;
+        }
 
-        // Save Entity type (required)
+        // Save Entity type
         //
         const std::string &type_to_string =
             dbtype::entity_type_to_string(entity_type);
@@ -102,25 +105,28 @@ namespace message
     }
 
     // ----------------------------------------------------------------------
-    bool ClientMatchNameRequest::restore(const mutgos::json::JSONNode &node)
+    bool ClientFindEntityRequest::restore(const mutgos::json::JSONNode &node)
     {
         bool success = ClientMessage::restore(node);
 
-        // Restore search string (required)
+        // Restore search string
         //
-        success = json::get_key_value(
+        json::get_key_value(
             SEARCH_STRING_KEY,
             node,
-            search_string) and success;
+            search_string);
 
-        // Restore exact match (required)
-        //
-        success = json::get_key_value(
-            EXACT_MATCH_KEY,
-            node,
-            exact_match) and success;
+        if (not search_string.empty())
+        {
+            // Restore exact match (required with search string)
+            //
+            success = json::get_key_value(
+                EXACT_MATCH_KEY,
+                node,
+                exact_match) and success;
+        }
 
-        // Restore Entity type (required)
+        // Restore Entity type
         //
         std::string type_to_string;
 

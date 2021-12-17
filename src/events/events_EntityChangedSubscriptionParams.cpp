@@ -26,6 +26,7 @@ namespace events
     // ----------------------------------------------------------------------
     EntityChangedSubscriptionParams::EntityChangedSubscriptionParams(void)
       : SubscriptionParams(SubscriptionParams::SUBSCRIPTION_ENTITY_CHANGED),
+        entity_ids_owners(false),
         entity_site_id(0)
     {
     }
@@ -34,6 +35,7 @@ namespace events
     EntityChangedSubscriptionParams::EntityChangedSubscriptionParams(
         const EntityChangedSubscriptionParams::EntityActions &actions,
         const dbtype::Entity::IdVector &entities,
+        const bool entities_are_owners,
         const dbtype::Id::SiteIdType site,
         const EntityChangedSubscriptionParams::EntityTypes &types,
         const dbtype::Entity::EntityFieldSet &fields,
@@ -44,6 +46,7 @@ namespace events
       : SubscriptionParams(SubscriptionParams::SUBSCRIPTION_ENTITY_CHANGED),
         entity_actions(actions),
         entity_ids(entities),
+        entity_ids_owners(entities_are_owners),
         entity_site_id(site),
         entity_types(types),
         entity_fields(fields),
@@ -72,6 +75,7 @@ namespace events
       : SubscriptionParams(rhs),
         entity_actions(rhs.entity_actions),
         entity_ids(rhs.entity_ids),
+        entity_ids_owners(rhs.entity_ids_owners),
         entity_site_id(rhs.entity_site_id),
         entity_types(rhs.entity_types),
         entity_fields(rhs.entity_fields),
@@ -95,6 +99,7 @@ namespace events
 
         entity_actions = rhs.entity_actions;
         entity_ids = rhs.entity_ids;
+        entity_ids_owners = rhs.entity_ids_owners;
         entity_site_id = rhs.entity_site_id;
         entity_types = rhs.entity_types;
         entity_fields = rhs.entity_fields;
@@ -116,6 +121,7 @@ namespace events
         {
             equals = (entity_actions == rhs.entity_actions) and
                 (entity_ids == rhs.entity_ids) and
+                (entity_ids_owners == rhs.entity_ids_owners) and
                 (entity_site_id == rhs.entity_site_id) and
                 (entity_types == rhs.entity_types) and
                 (entity_fields == rhs.entity_fields) and
@@ -209,6 +215,9 @@ namespace events
         }
 
         strstream << std::endl
+                  << "entity IDs are owners: " << entity_ids_owners;
+
+        strstream << std::endl
                   << "site ID:          " << entity_site_id
                   << std::endl
                   << "entity types:     ";
@@ -286,7 +295,18 @@ namespace events
         {
             if (not entity_ids.empty())
             {
-                match = has_entity_id(event_ptr->get_entity_id(), entity_ids);
+                if (entity_ids_owners)
+                {
+                    match = has_entity_id(
+                        event_ptr->get_entity_owner(),
+                        entity_ids);
+                }
+                else
+                {
+                    match = has_entity_id(
+                        event_ptr->get_entity_id(),
+                        entity_ids);
+                }
             }
             else if (entity_site_id)
             {

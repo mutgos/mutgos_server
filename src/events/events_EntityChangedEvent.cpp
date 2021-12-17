@@ -21,7 +21,8 @@ namespace events
                   << "Entity ID:   " << entity_id.to_string(true) << std::endl
                   << "Entity type: "
                   << dbtype::entity_type_to_string(entity_type) << std::endl
-                  << "Entity action: " << entity_action
+                  << "Entity owner: " << entity_owner.to_string(true) << std::endl
+                  << "Entity action: " << entity_action << std::endl
                   << "Fields changed size: " << entity_fields_changed.size()
                   << std::endl
                   << "Entity flags changed size: "

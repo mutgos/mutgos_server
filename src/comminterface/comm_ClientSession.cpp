@@ -496,6 +496,7 @@ namespace comm
                     channel_ptr->get_channel_name(),
                     channel_ptr->get_channel_type(),
                     channel_ptr->get_channel_subtype(),
+                    channel_ptr->get_channel_entity_id(),
                     channel_iter->out,
                     channel_iter->blocked));
             }
@@ -1305,7 +1306,8 @@ namespace comm
             channel_info.id,
             channel_info.channel_ptr->get_channel_name(),
             channel_info.channel_ptr->get_channel_type(),
-            channel_info.channel_ptr->get_channel_subtype());
+            channel_info.channel_ptr->get_channel_subtype(),
+            channel_info.channel_ptr->get_channel_entity_id());
     }
 
     // ----------------------------------------------------------------------

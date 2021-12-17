@@ -45,6 +45,8 @@ namespace primitives
             CONTENTS_ACTIONS_ONLY,
             /** Only get non-actions (and subclasses), such as Things */
             CONTENTS_NON_ACTIONS_ONLY,
+            /** Only get puppets */
+            CONTENTS_PUPPETS_ONLY,
             /** Get both actions and entities */
             CONTENTS_ALL
         };
@@ -168,7 +170,9 @@ namespace primitives
          * @param container[in] The container to get the contents from.
          * @param types[in] Used to filter what type of entities should be
          * returned.  For instance, if only actions are desired, this can
-         * filter out all non-actions.
+         * filter out all non-actions.  The puppet type is not valid to use
+         * here; filter_enhance_contents() can be used to extract only
+         * puppets.
          * @param contents[out] The contents of the container, with the filter
          * applied (types argument).  IDs will only ever be appended; nothing
          * will ever be erased.  Duplicate checks will not be performed.
@@ -211,7 +215,8 @@ namespace primitives
          * are always an exact match (flag ignored).  This is case insensitive.
          * @param entity_type[in] Valid enum values are 'entity' (for all
          * types from current requester location), 'player' (for players and
-         * guests only, no matter where they are located), 'action' (for exits
+         * guests only, no matter where they are located), 'puppets' (for
+         * puppets in the current room), 'action' (for exits
          * and commands starting from current requester location).
          * @param found_entity[out] If match is found, the ID will be set
          * here.  If no match found, the match is ambigious (multiple results),
@@ -227,6 +232,40 @@ namespace primitives
          * (see throw_on_violation).
          */
         Result match_name_to_id(
+            security::Context &context,
+            const std::string &search_string,
+            const bool exact_match,
+            const dbtype::EntityType entity_type,
+            dbtype::Id &found_entity,
+            bool &ambiguous,
+            const bool throw_on_violation = true);
+
+        /**
+         * Tries to find an online player or puppet that matches the given
+         * search string, no matter where they are located.  Offline players
+         * or puppets will not be matched.
+         * @param context[in] The execution context.
+         * @param search_string[in] The name of the player/puppet to search for.
+         * @param exact_match[in] True if search_string is to be an exact
+         * match for the name, false if a partial match (prefix) is acceptable.
+         * This is case insensitive.
+         * @param entity_type[in] Valid enum values are 'entity' (for players,
+         * guests, and puppets), 'player' (for players and guests only),
+         * 'puppets' (for puppets only).
+         * @param found_entity[out] If match is found, the ID will be set
+         * here.  If no match found, then the match is ambigious (multiple
+         * results), or the security does not allow it to be found, an invalid
+         * ID will be set.
+         * @param ambiguous[out] If found_entity is default, this may be set
+         * to true to indicate the search determined there were multiple
+         * results and it could not decide which to pick.
+         * @param throw_on_violation[in] If true (default), throw a
+         * SecurityException if a security violation occurred.
+         * @return If the primitive succeeded or not.
+         * @throws SecurityException If conditions are met
+         * (see throw_on_violation).
+         */
+        Result match_online_name_to_id(
             security::Context &context,
             const std::string &search_string,
             const bool exact_match,
@@ -678,7 +717,7 @@ namespace primitives
         typedef std::vector<IdNamePair> IdNamesVector;
 
         /**
-         * Finds a matching player.
+         * Finds a matching player
          * @param context[in] The security context.
          * @param search_string_lower[in] The name of the character to search
          * for.  Must be all lowercase.
@@ -696,7 +735,7 @@ namespace primitives
          * @throws SecurityException If conditions are met
          * (see throw_on_violation).
          */
-        void match_character(
+        void match_player(
             security::Context &context,
             const std::string &search_string_lower,
             const bool exact_match,
@@ -706,7 +745,7 @@ namespace primitives
             const bool throw_on_violation);
 
         /**
-         * Tries to find an Entity whose name of command aliases match
+         * Tries to find an Entity whose name or command aliases match
          * the given search string, starting from the requester.
          * This will check the requester's contents, then the room, then
          * all regions above.
@@ -718,6 +757,9 @@ namespace primitives
          * false, a partial match on a name is considered a match.
          * @param entity_types[in] Indicates what types of entities are
          * to be considered for matching.
+         * @param stop_at_room[in] True to search inventory and room only,
+         * and not go all the way up environment.  False to search all the
+         * way up environment.
          * @param result[out] If this call succeeded or not.  It may succeed
          * yet not find any matching player.
          * @param found_entity[out] If found, this will be populated with the
@@ -730,6 +772,7 @@ namespace primitives
             const std::string &search_string_lower,
             const bool exact_match,
             const ContentsEntityTypes entity_types,
+            const bool stop_at_room,
             Result &result,
             dbtype::Id &found_entity,
             bool &ambiguous);

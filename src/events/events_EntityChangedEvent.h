@@ -41,6 +41,7 @@ namespace events
          * updated.
          * @param id[in] The ID of the Entity which changed.
          * @param type[in] The type of the Entity which changed.
+         * @param owner[in] The owner of id.
          * @param fields_changed[in] The fields of the Entity which have
          * changed.  This should not be empty for this constructor unless
          * only flags have changed.
@@ -53,12 +54,14 @@ namespace events
         EntityChangedEvent(
             const dbtype::Id &id,
             const dbtype::EntityType type,
+            const dbtype::Id owner,
             const dbtype::Entity::EntityFieldSet &fields_changed,
             const dbtype::Entity::FlagsRemovedAdded &flags_changed,
             const dbtype::Entity::ChangedIdFieldsMap &id_fields_changed)
             :  Event(Event::EVENT_ENTITY_CHANGED),
                entity_id(id),
                entity_type(type),
+               entity_owner(owner),
                entity_action(EntityChangedEvent::ENTITY_UPDATED),
                entity_fields_changed(fields_changed),
                entity_flags_changed(flags_changed),
@@ -70,16 +73,19 @@ namespace events
          * or deleted.
          * @param id[in] The ID of the Entity which has been created or deleted.
          * @param type[in] The type of the Entity which was created or deleted.
+         * @param owner[in] The owner of id.
          * @param action[in] The action which occurred to the Entity (create,
          * delete, etc).
          */
         EntityChangedEvent(
             const dbtype::Id &id,
             const dbtype::EntityType type,
+            const dbtype::Id owner,
             const EntityAction action)
             :  Event(Event::EVENT_ENTITY_CHANGED),
                entity_id(id),
                entity_type(type),
+               entity_owner(owner),
                entity_action(action)
         { }
 
@@ -91,6 +97,7 @@ namespace events
             : Event(rhs),
               entity_id(rhs.entity_id),
               entity_type(rhs.entity_type),
+              entity_owner(rhs.entity_owner),
               entity_action(rhs.entity_action),
               entity_fields_changed(rhs.entity_fields_changed),
               entity_flags_changed(rhs.entity_flags_changed),
@@ -119,6 +126,12 @@ namespace events
          */
         const dbtype::EntityType get_entity_type(void) const
           { return entity_type; }
+
+        /**
+         * @return The entity's owner.
+         */
+        dbtype::Id get_entity_owner(void) const
+          { return entity_owner; }
 
         /**
          * @return The action occuring to the Entity that this event is about.
@@ -154,6 +167,7 @@ namespace events
     private:
         const dbtype::Id entity_id; ///< ID of Entity this event is about
         const dbtype::EntityType entity_type; ///< Type of Entity this event is about
+        const dbtype::Id entity_owner; ///< Owner of entity_id
         const EntityAction entity_action; ///< What happened to Entity
         const dbtype::Entity::EntityFieldSet entity_fields_changed; ///< Fields changed on Entity
         const dbtype::Entity::FlagsRemovedAdded entity_flags_changed; ///< Flags changed on Entity

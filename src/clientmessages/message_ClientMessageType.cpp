@@ -22,8 +22,8 @@ namespace
         "ChannelData",
         "TextData",
         "ExecuteEntity",
-        "MatchNameRequest",
-        "MatchNameResult",
+        "FindEntityRequest",
+        "FindEntityResult",
         "LocationInfoChange",
         "INVALID"
     };
