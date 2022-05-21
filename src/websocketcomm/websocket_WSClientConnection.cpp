@@ -27,6 +27,7 @@
 #include "clientmessages/message_ClientTextData.h"
 #include "clientmessages/message_ClientSiteList.h"
 #include "clientmessages/message_ClientAuthenticationResult.h"
+#include "clientmessages/message_ClientChannelRequestClose.h"
 #include "clientmessages/message_ClientDataAcknowledge.h"
 #include "clientmessages/message_ClientDataAcknowledgeReconnect.h"
 #include "clientmessages/message_ClientDisconnect.h"
@@ -705,6 +706,31 @@ namespace websocket
                     break;
                 }
 
+                case message::CLIENTMESSAGE_CLOSE_CHANNEL_REQUEST:
+                {
+                    if (client_session_ptr)
+                    {
+                        const message::ClientChannelRequestClose &close_message =
+                            *static_cast<message::ClientChannelRequestClose *>(
+                                message_ptr);
+                        const message::ClientChannelRequestClose::ChannelIds
+                            &channels = close_message.get_channels_to_close();
+
+
+                        for (message::ClientChannelRequestClose::
+                                ChannelIds::const_iterator id_iter =
+                                    channels.begin();
+                            id_iter != channels.end();
+                            ++id_iter)
+                        {
+                            client_session_ptr->client_request_channel_close(
+                                *id_iter);
+                        }
+                    }
+
+                    break;
+                }
+
                 case message::CLIENTMESSAGE_CHANNEL_DATA:
                 {
                     if (not client_session_ptr)
@@ -781,8 +807,6 @@ namespace websocket
     void WSClientConnection::process_authentication_request(
         message::AuthenticationRequest &request)
     {
-        // TODO Need to limit how big the window size can be, to avoid malicious windows
-
         message::ClientAuthenticationResult result_message;
 
         result_message.set_negotiation_result(true);

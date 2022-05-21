@@ -202,7 +202,7 @@ namespace socket
             }
             else
             {
-                // Indicates failure to negotiate websocket connection.
+                // Indicates failure to negotiate connection.
                 // Disconnect since something is wrong.
                 //
                 LOG(warning, "socket", "on_timer", "Failed to properly "

@@ -171,6 +171,29 @@ namespace useragent
             force_look();
 
             first_execute = false;
+
+            // Send initial location update to update UI
+            //
+            if (data_output_channel_ptr)
+            {
+                dbinterface::EntityRef entity =
+                    dbinterface::DatabaseAccess::instance()
+                        ->get_entity(entity_id);
+                dbtype::ContainerPropertyEntity *cpe =
+                    dynamic_cast<dbtype::ContainerPropertyEntity *>(entity
+                        .get());
+
+                if (entity.valid() and cpe)
+                {
+                    send_location_update(cpe->get_contained_by());
+                }
+                else
+                {
+                    LOG(error, "useragent", "process_execute()",
+                        "Could not get location of entity " +
+                        entity_id.to_string(true));
+                }
+            }
         }
 
         return PROCESS_STATUS_WAIT_MESSAGE;
@@ -468,8 +491,7 @@ namespace useragent
                     }
                     else
                     {
-                        LOG(error, "useragent", "process_execute(rid)",
-                            "Unknown message type from data input channel.");
+                        process_data_channel_message(message);
                     }
                 }
             }
@@ -541,6 +563,14 @@ namespace useragent
         }
 
         return end_program;
+    }
+
+    // ----------------------------------------------------------------------
+    void Agent::process_data_channel_message(
+        const message::ClientMessage &message)
+    {
+        LOG(error, "useragent", "process_data_channel_message()",
+            "Unknown message type from data input channel.");
     }
 
     // ----------------------------------------------------------------------

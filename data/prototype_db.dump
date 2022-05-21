@@ -212,6 +212,7 @@ mkentity command {say_command}
     action_targets={say_prog}
     action_commands=say
     action_commands="
+    action_commands=/say
   end fields
 end entity
 ####
@@ -238,6 +239,7 @@ mkentity command {pose_command}
     action_targets={pose_prog}
     action_commands=pose
     action_commands=:
+    action_commands=/me
   end fields
 end entity
 ####

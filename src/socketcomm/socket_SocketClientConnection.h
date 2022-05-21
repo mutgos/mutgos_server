@@ -19,6 +19,7 @@
 #include "utilities/json_JsonUtilities.h"
 
 #include "dbtypes/dbtype_Id.h"
+#include "dbtypes/dbtype_TimeStamp.h"
 
 #include "clientmessages/message_ClientMessage.h"
 #include "clientmessages/message_ChannelData.h"
@@ -192,6 +193,7 @@ namespace socket
 
         /**
          * Sets the client session on this connection.
+         * Once set to a valid pointer, it cannot be changed.
          * @param session_ptr[in] The pointer to the session.
          */
         void client_set_session(comm::ClientSession *session_ptr);
@@ -409,6 +411,8 @@ namespace socket
         typedef std::pair<comm::MessageSerialId, MG_UnsignedInt> SerialIdSize;
         typedef std::deque<SerialIdSize> PendingSerialIds;
 
+        typedef std::pair<std::string, dbtype::TimeStamp> PuppetNameTimestamp;
+
         MG_UnsignedInt client_window_size; ///< Send/recv window size, counted in messages
         MG_UnsignedInt max_pending_data_size; ///< Targeted (soft limit) size (bytes) of pending outgoing data
         comm::ClientConnection::ClientType client_type; ///< Type/mode of client connected
@@ -436,7 +440,8 @@ namespace socket
         comm::ChannelId channel_main_input_id; ///< Represents the 'main input' channel, to the command processor
         ChannelStack channel_input_stack; ///< Stack of open input (from client) channels, with latest having a higher index
         ChannelStack channel_output_stack; ///< Stack of open output (to client) channels, with latest having a higher index
-        std::map<comm::ChannelId, std::string> puppet_channel_info; ///< Maps puppet channel to puppet name.  Temporary for demo
+        std::map<comm::ChannelId, PuppetNameTimestamp> puppet_channel_info; ///< Maps puppet output channel to info.
+        dbtype::TimeStamp last_puppet_check_time; ///< Last time we cleaned out old puppet channels.
 
         comm::ClientSession *client_session_ptr; ///< Pointer to client session, when authenticated.
         SocketDriver * const driver_ptr; ///< Pointer to driver.

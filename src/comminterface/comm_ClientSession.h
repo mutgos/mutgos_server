@@ -231,6 +231,13 @@ namespace comm
             message::ClientMessage *client_message_ptr);
 
         /**
+         * Called when client is requesting for a Channel to be closed.
+         * Must be guaranteed not to be called when in process_pending().
+         * @param channel_id[in] The ID of the Channel to close.
+         */
+        void client_request_channel_close(const ChannelId channel_id);
+
+        /**
          * Adds a new channel to this client session.
          * Assumes the channel has not been added before.
          * @param channel_ptr[in] Pointer to the channel.  This class will

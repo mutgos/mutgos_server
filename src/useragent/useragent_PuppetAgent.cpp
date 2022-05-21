@@ -255,7 +255,8 @@ namespace useragent
     {
         return new events::TextChannel(
             FOREGROUND_PROG_CHAN_NAME,
-            subtype);
+            subtype,
+            entity_id);
     }
 
     // ----------------------------------------------------------------------
@@ -393,7 +394,10 @@ namespace useragent
                 // Input from client
                 //
                 data_input_channel_ptr =
-                    new events::ClientDataChannel(CLIENT_DATA_CHANNEL_NAME);
+                    new events::ClientDataChannel(
+                        CLIENT_DATA_CHANNEL_NAME,
+                        puppet_name,
+                        entity_id);
 
                 data_input_channel_ptr->next_resource_add_is_receiver(my_pid);
 
@@ -423,7 +427,10 @@ namespace useragent
                 // Output to client
                 //
                 data_output_channel_ptr =
-                    new events::ClientDataChannel(CLIENT_DATA_CHANNEL_NAME);
+                    new events::ClientDataChannel(
+                        CLIENT_DATA_CHANNEL_NAME,
+                        puppet_name,
+                        entity_id);
 
                 if (not services.add_blocking_resource(
                     data_output_channel_ptr,

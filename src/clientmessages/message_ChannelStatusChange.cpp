@@ -57,7 +57,8 @@ namespace message
         channel_id(rhs.channel_id),
         channel_name(rhs.channel_name),
         channel_type(rhs.channel_type),
-        channel_subtype(rhs.channel_subtype)
+        channel_subtype(rhs.channel_subtype),
+        channel_entity_id(rhs.channel_entity_id)
     {
     }
 

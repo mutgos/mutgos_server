@@ -433,6 +433,28 @@ function TextgameProtocolClient() {
 
     /**
      * @public
+     * Requests the provided channel IDs be closed from the server side.
+     * If successful, later on the Channel's status will change to closed.
+     * @param {Array} channelIds An array of channel IDs to request to
+     * close.
+     */
+    this.requestChannelClose = function (channelIds) {
+        var message = this.makeClientMessage('ChannelRequestClose');
+        message.channelsToClose = [];
+
+        channelIds.forEach(function(channel) {
+            if (! isNaN(channel)) {
+                message.channelsToClose.push(channel);
+            }
+        });
+
+        if (message.channelsToClose.length > 0) {
+            rawClient.sendControlData(message);
+        }
+    };
+
+    /**
+     * @public
      * Sends a request to get the current site list information, typically
      * used for login screens to select a site to login to.  This can
      * only be sent when connected.

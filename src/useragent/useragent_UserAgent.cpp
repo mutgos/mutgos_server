@@ -21,6 +21,8 @@
 #include "comminterface/comm_CommAccess.h"
 #include "comminterface/comm_SessionStats.h"
 
+#include "clientmessages/message_ClientConnectPuppetRequest.h"
+
 #include "dbinterface/dbinterface_EntityRef.h"
 #include "dbinterface/dbinterface_DatabaseAccess.h"
 
@@ -283,13 +285,47 @@ namespace useragent
     }
 
     // ----------------------------------------------------------------------
+    void UserAgent::process_data_channel_message(
+        const mutgos::message::ClientMessage &message)
+    {
+        if (message.get_message_type() ==
+            message::ClientMessageType::CLIENTMESSAGE_CONNECT_PUPPET_REQUEST)
+        {
+            const message::ClientConnectPuppetRequest *connect_puppet =
+                static_cast<const message::ClientConnectPuppetRequest *>(
+                    &message);
+
+            if (connect_puppet)
+            {
+                PuppetCommandMessage * const message_ptr =
+                    new PuppetCommandMessage(
+                        connect_puppet->get_puppet_entity_id());
+
+                if (not executor::ExecutorAccess::instance()->send_message(
+                    puppet_manager_pid,
+                    message_ptr))
+                {
+                    LOG(error, "useragent", "process_data_channel_message()",
+                        "Unable to send message to puppet " +
+                        connect_puppet->get_puppet_entity_id().to_string(true) +
+                        ", PID " + text::to_string(puppet_manager_pid));
+
+                    send_plain_text("Unable to send command to puppet.", true);
+                }
+            }
+            else
+            {
+                send_plain_text("Could not process puppet message.", true);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
     void UserAgent::process_action(
         const dbtype::Id &action_id,
         const std::string &channel_subtype,
         std::string &arguments)
     {
-        // Get EntityRef
-        //
         dbinterface::EntityRef action_ref =
             dbinterface::DatabaseAccess::instance()->get_entity(action_id);
 
@@ -300,8 +336,6 @@ namespace useragent
         }
 
         // TODO For puppets:
-        // TODO Update socket comms
-        // TODO update Web UI
         // TODO Rename UserAgent to something better, per Sin
 
         dbtype::Command * const command_entity =

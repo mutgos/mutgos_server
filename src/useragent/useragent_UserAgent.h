@@ -91,6 +91,14 @@ namespace useragent
             executor::ProcessServices &services);
 
         /**
+         * Called when parent class doesn't have a way to handle a message
+         * coming in on the data channel from the client.
+         * @param message[in] The message to process.
+         */
+        virtual void process_data_channel_message(
+            const message::ClientMessage &message);
+
+        /**
          * Overrides processing an action to handle puppet control.
          * @param action_id[in] The ID of the action to execute.
          * @param channel_subtype[in] The output and input channels subtype,

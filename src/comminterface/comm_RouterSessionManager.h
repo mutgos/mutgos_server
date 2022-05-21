@@ -446,6 +446,7 @@ namespace comm
         SiteSessionsMap site_to_sessions; ///< Maps site ID to sessions for that site
 
         SessionQueue pending_actions; ///< Sessions that have pending actions, needing a callback
+        SessionVector pending_deletes; ///< Sessions that are to be deleted
 
         boost::thread *thread_ptr; ///< Non-null when thread is running.
 

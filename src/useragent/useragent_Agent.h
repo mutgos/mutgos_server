@@ -17,6 +17,7 @@
 
 #include "events/events_EventAccess.h"
 
+#include "clientmessages/message_ClientMessage.h"
 #include "clientmessages/message_ClientExecuteEntity.h"
 #include "clientmessages/message_ClientFindEntityRequest.h"
 
@@ -225,6 +226,15 @@ namespace useragent
         virtual bool process_channel_flow(
             executor::ProcessServices &services,
             events::ChannelFlowMessage * const flow_event_ptr);
+
+        /**
+         * Called when this class doesn't have a way to handle a message coming
+         * in on the data channel from the client.  Overriding this method will
+         * allow a subclass to process the message.
+         * @param message[in] The message to process.
+         */
+        virtual void process_data_channel_message(
+            const message::ClientMessage &message);
 
         /**
          * Called when we get a MovementEvent.  This will process the message

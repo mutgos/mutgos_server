@@ -5,6 +5,7 @@
 #include <string>
 #include <string.h>
 #include <stddef.h>
+#include <vector>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -45,6 +46,8 @@ namespace
     // TODO Update if name changes
     const std::string SESSION_AGENT_CHANNEL_NAME = "Session Agent";
     const std::string TELNET_CR(1, '\r');
+
+    const unsigned int MAX_INACTIVE_PUPPET_TIME = 600;
 }
 
 namespace mutgos
@@ -106,6 +109,8 @@ namespace socket
         client_window_size = raw_connection->get_socket_send_buffer_size();
         max_pending_data_size = client_window_size;
 
+        last_puppet_check_time.set_to_now();
+
         if (not client_window_size)
         {
             LOG(fatal, "socket", "SocketClientConnection",
@@ -155,6 +160,35 @@ namespace socket
                 //
                 ack_outgoing_data(true);
                 ack_lines_received_from_client = 0;
+
+                // Every 15 minutes, close any puppet channels that haven't
+                // had any recent activity.
+                //
+                if (last_puppet_check_time.get_relative_seconds() > MAX_INACTIVE_PUPPET_TIME)
+                {
+                    std::vector<comm::ChannelId> channels_to_close;
+
+                    for (std::map<comm::ChannelId, PuppetNameTimestamp>::iterator
+                            puppet_iter = puppet_channel_info.begin();
+                        puppet_iter != puppet_channel_info.end();
+                        ++puppet_iter)
+                    {
+                        if (puppet_iter->second.second.get_relative_seconds() >
+                            MAX_INACTIVE_PUPPET_TIME)
+                        {
+                            channels_to_close.push_back(puppet_iter->first);
+                        }
+                    }
+
+                    while (not channels_to_close.empty())
+                    {
+                        client_session_ptr->client_request_channel_close(
+                            channels_to_close.back());
+                        channels_to_close.pop_back();
+                    }
+
+                    last_puppet_check_time.set_to_now();
+                }
             }
             else if (not client_blocked)
             {
@@ -284,10 +318,12 @@ namespace socket
     void SocketClientConnection::client_set_session(
         comm::ClientSession *session_ptr)
     {
-        client_session_ptr = session_ptr;
-
-        raw_connection->cancel_timer();
-        driver_ptr->add_reference(this);
+        if (session_ptr and (not client_session_ptr))
+        {
+            client_session_ptr = session_ptr;
+            driver_ptr->add_reference(this);
+            raw_connection->cancel_timer();
+        }
     }
 
     // ----------------------------------------------------------------------
@@ -413,7 +449,9 @@ namespace socket
                     if (out)
                     {
                         puppet_channel_info[channel_status.get_channel_id()] =
-                            channel_status.get_channel_subtype();
+                            PuppetNameTimestamp(
+                                channel_status.get_channel_subtype(),
+                                dbtype::TimeStamp());
                     }
                 }
                 else
@@ -559,7 +597,7 @@ namespace socket
         }
         else
         {
-            std::map<comm::ChannelId, std::string>::const_iterator puppet_iter =
+            std::map<comm::ChannelId, PuppetNameTimestamp>::iterator puppet_iter =
                 puppet_channel_info.find(channel_id);
 
             // Not known to be disconnected or blocked, so try queue up to
@@ -570,7 +608,9 @@ namespace socket
 
             if (puppet_iter != puppet_channel_info.end())
             {
-                formatted_output = puppet_iter->second + "> ";
+                formatted_output = puppet_iter->second.first + "> ";
+                // Update timestamp to show recent use.
+                puppet_iter->second.second.set_to_now();
             }
 
             formatted_output += (config_ansi_enabled ?

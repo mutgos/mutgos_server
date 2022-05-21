@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="overflow-y: scroll; margin-bottom: 0">
 <head>
     <meta charset="UTF-8">
     <title>MUTGOS Demo Web Client</title>
@@ -9,52 +9,90 @@
 
 <style type="text/css">
 
-    #output-area {
-        overflow: auto;
-        font-family: "Lucida Console", Monaco, monospace;
-        font-size: medium;
-        background-color: black;
-        color: white;
-    }
+html, body, .flex_container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
 
-    #input-line {
-        width: 100%;
-        background-color: DarkSlateBlue;
-        border-top: 5px solid black;
-        /*  position: fixed; */
-        position: sticky;
-        bottom: 0;
-        left: 0;
-        right: 0;
-    /*    z-index: 1000; */
-    }
+.flex_container {
+    display:flex;
+    flex-flow: column nowrap;
+}
 
-    #input-field {
-        background: transparent;
-        color: White;
-        border-style: none;
-        width: 84%;
-        font-family: "Lucida Console", Monaco, monospace;
-        font-size: medium;
-    }
+.flex_fixed_child {
+    flex:none;
+}
 
-    #submit-button {
-        width: 9%;
-        min-width: 2%;
-    }
+.flex_expand_child {
+    flex:auto;
+}
 
-    #prev-button {
-        width: 5%;
-        min-width: 1%;
-        padding: 0 0 0 0;
-    }
+.no-underline-link {
+    text-decoration: none;
+}
 
-    .mutgosRecvText {
-        word-wrap: break-word;
-        white-space: pre-wrap;       /* css-3 */
-    }
+.output-area {
+    overflow: auto;
+    font-family: "Lucida Console", Monaco, monospace;
+    font-size: medium;
+    background-color: black;
+    color: white;
+}
 
+.input-line {
+    width: 100%;
+    background-color: DarkSlateBlue;
+    border-top: 5px solid black;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
 
+.input-field {
+    background: transparent;
+    color: White;
+    border-style: none;
+    width: 84%;
+    font-family: "Lucida Console", Monaco, monospace;
+    font-size: medium;
+}
+
+.submit-button {
+    width: 9%;
+    min-width: 2%;
+    vertical-align: top;
+}
+
+.prev-button {
+    width: 5%;
+    min-width: 1%;
+    vertical-align: top;
+}
+
+.mutgosRecvText {
+    word-wrap: break-word;
+    white-space: pre-wrap;       /* css-3 */
+}
+
+.output-input-pair-inactive {
+/**    position: fixed; */
+    left: 0;
+    top: 0;
+    width: 100%;
+    z-index: 1;
+    display: none;
+}
+
+.output-input-pair-active {
+    /**    position: fixed; */
+    left: 0;
+    top: 0;
+    width: 100%;
+    z-index: 2;
+    display: inherit;
+}
 
 /** Modal stuff adapted from https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_modal */
 
@@ -62,7 +100,7 @@
 .modal {
     display: block;
     position: fixed; /* Stay in place */
-    z-index: 1; /* Sit on top */
+    z-index: 100; /* Sit on top */
     padding-top: 100px; /* Location of the box */
     left: 0;
     top: 0;
@@ -92,6 +130,34 @@
     width: 80%;
 }
 
+/* Puppet chooser modal */
+.puppet-chooser-modal {
+    background-color: #000000;
+    color: white;
+    link: white;
+    vlink: white;
+    alink: white;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #FFFFFF;
+    width: 50%;
+    height: 70%;
+}
+
+/* Entity tab coloring for active tab */
+.active-entity-tab {
+    background-color: #777777;
+    color: white;
+    link: white;
+}
+
+/* Entity tab coloring for inactive tab */
+.inactive-entity-tab {
+    background-color: black;
+    color: lightgray;
+    link: lightgray;
+}
+
 /* The Close Button */
 .close {
     color: #cccccc;
@@ -117,13 +183,13 @@
 
     <script type="text/javascript" src="FormattedTextComponent.js"></script>
 </head>
-<body style="background-color: black;" link="#eeee00" vlink="#eeee00" alink="#ffff00">
-<div id="app">
-
+<body alink="#ffff00"
+      link="#eeee00" style="background-color: black; margin-bottom: 0" vlink="#eeee00">
+<div class="flex_container" id="app">
     <!-- The login modal dialog -->
     <div v-if="! connectionState.authenticated" id="loginDialog" class="modal">
         <!-- Modal content -->
-        <div class="modal-content">
+        <div class="modal-content" style="width: 50%;">
             <select id = "siteList" v-model="connectionState.site">
                 <option value="-1">Select a site</option>
                 <option v-for="site in siteList" v-bind:value="site.id">
@@ -144,7 +210,7 @@
             <p/>
             <button v-on:click="submitAuthentication"
                     v-bind:disabled="connectionState.authenticationInProgress">
-                Login
+                ✔️ Login
             </button>
         </div>
     </div>
@@ -165,32 +231,109 @@
         </div>
     </div>
 
-    <div id="output-area" style="background-color: black;">
-        <formatted-text-line
-                v-for="outputId in outputIds"
-                v-bind:external-text-id="outputId"
-                external-text-topic="mainOutput"
-                class="mutgosRecvText">
-        </formatted-text-line>
+    <!-- The puppet select dialog -->
+    <div class="modal"
+         id="addPuppetTabDialog"
+         v-if="puppetQueryInfo.puppetsReceived">
+        <!-- Modal content -->
+        <div class="puppet-chooser-modal">
+            <span class="close" v-on:click="closeAddPuppet">&times;</span>
+            <div v-for="puppetInfo in puppetQueryInfo.puppetList">
+                <!-- Note that puppetID is the entity ID portion only, not the site -->
+                <a :puppetId="puppetInfo.id.entityId" :puppetName="puppetInfo.name"
+                   href="javascript:void(0);" v-on:click="addPuppetFromDialog">
+                    {{puppetInfo.name}}
+                </a>
+                <br/>
+            </div>
+        </div>
     </div>
-    <div>
-    </div>
-    <div id="input-line">
-        <textarea id="input-field"
-                  v-model="inputLine"
-                  v-bind:disabled="(! connectionState.established) || connectionState.blocked"
-                  @keydown="submitEnter"
-                  placeholder="Input Line"
-                  rows="1"
-                  style="resize: none;"></textarea>
-        <button id="prev-button"
-                v-bind:disabled="(! connectionState.established) || connectionState.blocked"
-                title="See last text sent to server, only when input line is empty"
-                v-on:click="goPreviousInput">Prev</button>
-        <button id="submit-button"
-                v-bind:disabled="(! connectionState.established) || connectionState.blocked"
-                v-on:click="submitText"
-                title="Sends text to server">{{displayState.sendButtonName}}</button>
+
+    <div class="flex_expand_child"></div>
+
+    <!-- The input/output/puppet selection for each tab -->
+    <div class="flex_fixed_child" v-for="(topicInfo, topicName) in entityTabInfo">
+        <div v-bind:class=
+                 "topicName === activeTopic.name ? 'output-input-pair-active' : 'output-input-pair-inactive'">
+            <div class="output-area" style="background-color: black;">
+                <formatted-text-line
+                        :external-text-topic="topicName"
+                        class="mutgosRecvText"
+                        v-bind:external-text-id="outputId"
+                        v-for="outputId in outputIds[topicName]">
+                </formatted-text-line>
+            </div>
+            <div class="input-line">
+                <textarea :id="topicName + '-input-field'"
+                          @keydown="submitEnter"
+                          class="input-field"
+                          placeholder="Input Line"
+                          rows="1"
+                          style="resize: none;"
+                          v-bind:disabled=
+                                  "(! connectionState.established) || connectionState.blocked"
+                          v-model="inputLineData[topicName].inputLine"></textarea>
+                <button class="submit-button"
+                        title=
+                                "Sends text to server"
+                        v-bind:disabled=
+                                "(! connectionState.established) || connectionState.blocked"
+                        v-on:click="submitText">
+                    {{ displayState.sendButtonName }}
+                </button>
+                <button class="prev-button"
+                        title=
+                                "See last text sent to server, only when input line is empty"
+                        v-bind:disabled=
+                                "(! connectionState.established) || connectionState.blocked"
+                        v-on:click="goPreviousInput">
+                    🔙 Prev
+                </button>
+
+                <!-- Add the tab bar on the bottom to select puppet/player -->
+                <div style="color: white; background: black">
+                    <!-- Activity indicator for player -->
+                    <span v-bind:style="entityTabInfo.PLAYER.activity ? 'color: chartreuse;' : 'color: black;'">
+                        ✷
+                    </span>
+                    <!-- Tab name -->
+                    <a href="javascript:void(0);" style="text-decoration: none;"
+                       topicName="PLAYER"
+                       v-bind:class= "('PLAYER' === activeTopic.name ? 'active-entity-tab' : 'inactive-entity-tab')"
+                       v-on:click="switchToEntityTab">{{ entityTabInfo.PLAYER.name }}</a>
+                    <!-- Separator -->
+                    ┃
+
+                    <span v-for="(topicInfo, topicName) in entityTabInfo">
+                        <!-- Activity indicator for puppet -->
+                        <span v-bind:style="topicInfo.activity ? 'color: chartreuse;' : 'color: black;'"
+                             v-if="topicName !== 'PLAYER'">
+                            ✷
+                        </span>
+                        <a :topicName="topicName" href="javascript:void(0);"
+                           style="text-decoration: none;"
+                           v-bind:class= "topicName === activeTopic.name ? 'active-entity-tab' : 'inactive-entity-tab'"
+                           v-if="topicName !== 'PLAYER'"
+                           v-on:click="switchToEntityTab">{{ topicInfo.name }}</a>
+                        <!-- Can't close the player tab -->
+                        <a :topicName="topicName"
+                           href="javascript:void(0);"
+                           style="link: red; vlink: red; alink: red; text-decoration: none;" v-if="topicName !== 'PLAYER'"
+                           v-on:click="closeEntityTab"> Ⓧ </a>
+                        <!-- Separator -->
+                        <span v-if="topicName !== 'PLAYER'">┃</span>
+                    </span>
+
+                    <!-- Add puppet button -->
+                    <a href="javascript:void(0);"
+                       style="text-decoration: none;"
+                       v-on:click="submitPuppetListQuery">
+                        [+]
+                    </a>
+                </div>
+
+            </div>
+        </div>
     </div>
 </div>
 
@@ -201,87 +344,125 @@
 
 <script>
 
+    // Constant for the player output topic, which also serves as the console
+    var PLAYER_TOPIC = 'PLAYER';
+
+    // Global used to identify which tab is selected.  This would correspond to
+    // the topics in outputTextStore.
+    activeTopic = {};
+    activeTopic.name = PLAYER_TOPIC;
     // This global is used by FormattedTextComponent to access
     // ExternalText for lines output from the server.  At the top level, it is
-    // separated by topic, such as the main screen, description popup,
-    // etc.  From there, it's a map (discontinuous array) of numeric ID to an
-    // array of external text that represents a line.
+    // separated by topic, such as the main player tab, description popup,
+    // puppets, etc.  From there, it's a map (discontinuous array) of numeric
+    // ID to an array of external text that represents a line.
     outputTextStore = {};
 
     //
     // Shared variables between Vue application and the protocol interface
     //
 
+    var DESCRIPTION_SUBTYPE = "DESCRIPTION";
+    var CLIENT_DATA_SUBTYPE = "ClientData";
+    var PUPPET_CHANNEL_PREFIX = "Puppet ";
+    var PUPPET_CLIENT_DATA_SUBTYPE = PUPPET_CHANNEL_PREFIX + CLIENT_DATA_SUBTYPE;
+    var PUPPET_AGENT_TYPE = PUPPET_CHANNEL_PREFIX + "Agent";
+
     var connectionUrl = "ws://" + window.location.hostname + ":7000/localhost/127.0.0.1";
-    var descriptionChannelSubtype = "DESCRIPTION";
-    var clientDataChannelSubtype = "ClientData";
-    var puppetChannelPrefix = "Puppet ";
-    var puppetClientDataChannelSubtype = puppetChannelPrefix + clientDataChannelSubtype;
 
     // Used with outputTextStore as the ID for a line of ExternalText.
     var nextOutputId = 1;
+    // Used when making requests, this is the next request serial number
+    var nextRequestId = 1;
 
-    // Index 0 is top of the screen.  This is composed of IDs (that link into
-    // outputTextStore) that can be pushed on and removed to trigger Vue to
-    // update the screen.  The order the IDs appear here will determine the
+    // Maps topic name to array of text line IDs.
+    // Array Index 0 is top of the screen.  This is composed of IDs (that link
+    // into outputTextStore) that can be pushed on and removed to trigger Vue
+    // to update the screen.  The order the IDs appear here will determine the
     // order they appear on the screen.
-    // See outputTextStore.mainOutput for the actual text.
-    var outputIds = [];
-    // Number of actual entries in outputIds.
-    var outputLines = 0;
+    // See outputTextStore for the actual text.
+    var outputIds = {};
     var siteList = [];
-    var connectionState =
-        {
-            established : false,
-            authenticated : false,
-            blocked : true,
-            authenticationInProgress : false,
-            authenticationMessage : '',
-            username : '',
-            password : '',
-            site : -1,
-            siteName : ''
-        };
-    var entityDescription =
-        {
-            descriptionChannel : null,
-            descriptionReceived : false,
-            // Like outputIds, this has just the IDs, to indicate the order
-            // ExternalText should appear.
-            // See outputTextStore.descOutput for the actual text.
-            descriptionIds : [],
-            // ID of the look program
-            lookId : null
-        };
-    var displayState =
-        {
-            hasFocus : false,
-            textAdded : false,
-            sendButtonName: "Send"
-        };
-    var controlChannel =
-        {
-            /** {SendChannel} */
-            send : null,
-            /** {ReceiveChannel} */
-            receive : null
-        };
+    var connectionState = {
+        established : false,
+        authenticated : false,
+        authenticationInProgress : false,
+        authenticationMessage : '',
+        username : '',
+        password : '',
+        site : -1,
+        siteName : ''
+    };
+    var entityDescription = {
+        descriptionChannel : null,
+        descriptionReceived : false,
+        // Like outputIds, this has just the IDs, to indicate the order
+        // ExternalText should appear.
+        // See outputTextStore.descOutput for the actual text.
+        descriptionIds : [],
+        // Request ID for finding the look program
+        requestId : 0,
+        // ID of the look program
+        lookId : null
+    };
+    var displayState = {
+        hasFocus : true,
+        textAdded : false,
+        sendButtonName: "✔️ Send"
+    };
+
+    // Maps channel ID (number) to topic name (string)
+    var channelIdToTopic = new Map();
+
+    // Maps topic name to info about an open tab, such as
+    // open channels, name, etc.
+    // Each entry has this contents:
+    // // True if blocked
+    // blocked : true,
+    //
+    // // Maps topic to its control channels.
+    // // The value has this  contents:
+    // // {
+    // //  /** {SendChannel} */
+    // //  send : null,
+    // //  /** {ReceiveChannel} */
+    // //  receive : null
+    // // };
+    // controlChannels : {},
+    //
+    // // Array of active input channels basically as a stack.
+    // // Frontmost item (index 0) is where user input goes to.
+    // inputStack = {};
+    //
+    // // Name of the player/puppet on the tab.
+    // name : ""
+    //
+    var entityTabInfo = {};
+
+    // Key is topic, value is object:
+    //  inputLine: String that is current input in input field
+    //  prevInputLines: Array of strings for previous input
+    //  prevLineIndex: Number indicating which prevInputLine is selected
+    var inputLineData  = {};
+
     // The initial title of this HTML Document
     var origTitle = document.title;
     var siteName = "";
     var playerName = "";
+    // Current location of player
     var locationName = "";
-    // Frontmost item (index 0) is where user input goes to.
-    var inputStack = [];
-    // Maps puppet channel ID to puppet name.  Temp data structure for demo
-    var puppetChannelInfo = new Map();
+
+    var puppetQueryInfo = {
+        puppetsReceived : false,
+        // The request ID
+        requestId : 0,
+        // List of puppets returned from query request.
+        // Each entry has two attributes: 'id' and 'name'
+        puppetList : []
+    };
 
     var protocol = new TextgameProtocolClient();
 
-    // Put the two output streams in the store so FormattedTextComponent
-    // can access them.
-    outputTextStore.mainOutput = [];
-    outputTextStore.descOutput = [];
 
     /**
      * Sets the title for the document, whether or not it's in focus.
@@ -300,7 +481,7 @@
 
     /**
      * Sets the player name on the title.
-     * @param {string} newPlayerName The new name of the player
+     * @param {string} newPlayerName The new name of the player or puppet
      */
     var setTitlePlayerName = function(newPlayerName) {
         playerName = newPlayerName;
@@ -337,42 +518,70 @@
         return nextOutputId++;
     };
 
+    /**
+     * Identifiers do eventually wrap.
+     * @return {number} The next identifier for a request
+     */
+    var getNextRequestId = function() {
+        if (nextRequestId >= 4294967290) {
+            nextRequestId = 1;
+        }
+
+        return nextRequestId++;
+    };
+
+    /**
+     * Gets the topic name from a channel ID
+     * @param {number} id The ID of the channel.
+     * @return {string} The topic name
+     */
+    var getTopicNameFromId = function (id) {
+        if (id === -1) {
+            // -1 means 'console', or the player output
+            return PLAYER_TOPIC;
+        }
+        else {
+            return channelIdToTopic.get(id);
+        }
+    };
 
     //
     // Protocol interface methods and initial setup.
     //
 
     /**
-     * Adds text from an incoming channel to the main output.
-     * @param {number} id The ID of the channel sending the text
+     * Adds text from an incoming channel to a tab
+     * @param {number} id The ID of the channel sending the text, or -1
+     * for 'console' / player output.
      * @param {ExternalText} formattedText The line of formatted to add.
      */
     var addIncomingText = function(id, formattedText) {
         var newId = getNextId();
+        var topicName = getTopicNameFromId(id);
 
-        // Prepends puppet name if from a puppet channel
-        // Temporary demo code
-        //
-        if (puppetChannelInfo.has(id)) {
-            var puppetName = puppetChannelInfo.get(id);
-            var formattedPuppetName = new ExternalFormattedText(puppetName + "> ");
-            formattedPuppetName.color = formattedPuppetName.ColorEnum.CYAN;
-            formattedPuppetName.italic = true;
-            formattedText.textLine.unshift(formattedPuppetName);
+        if (topicName === undefined) {
+            // Maybe this came in after cleanup due to timing?
+            // Ignore.
+            return;
         }
+
+        var outputIdForTopic = outputIds[topicName];
+        var outputStoreForTopic = outputTextStore[topicName];
 
         // Add new line
         //
-        outputIds.push(newId);
-        outputTextStore.mainOutput[newId] = formattedText;
-        ++outputLines;
+        outputStoreForTopic[newId] = formattedText;
+        outputIdForTopic.push(newId);
 
         // Remove an old line if we've hit our limit.
         //
-        if (outputLines > 3000) {
-            var removedId = outputIds.shift();
-            delete outputTextStore.mainOutput[removedId];
-            --outputLines;
+        if (outputIdForTopic.length > 3000) {
+            var removedId = outputIdForTopic.shift();
+            Vue.delete(outputStoreForTopic.playerOutput, removedId);
+        }
+
+        if (activeTopic.name !== topicName) {
+            entityTabInfo[topicName].activity = true;
         }
 
         if ((! displayState.hasFocus) && (! displayState.textAdded)) {
@@ -382,7 +591,7 @@
 
         setTimeout(function() {
             window.scrollBy(0,10000);
-        }, 25);
+        }, 15);
     };
 
     /**
@@ -424,23 +633,35 @@
     };
 
     /**
-     * Called when either client data channel status changes; this lets us
-     * know when it is safe to send a request.
+     * Called when either client data channel status changes for players; this
+     * lets us know when it is safe to send a request.  This is used to send
+     * the 'look' command upon login.
      * @param {number} id The ID of the channel.
      * @param {string} status The new Channel status.
      */
     var processClientDataChannelStatus = function(id, status) {
         var bothChannelsGood = true;
+        var topicName = getTopicNameFromId(id);
 
-        if ((controlChannel.receive === null) || (controlChannel.send === null)) {
+        if (topicName === undefined) {
+            // Maybe this came in after cleanup due to timing?
+            // Ignore.
+            return;
+        }
+
+        var info = entityTabInfo[topicName];
+        var controlChannelForTopic = info.controlChannels;
+
+        if ((controlChannelForTopic.receive === null) ||
+            (controlChannelForTopic.send === null)) {
             bothChannelsGood = false;
         }
 
         if (bothChannelsGood) {
-            if (! (controlChannel.receive.isOpen() &&
-               (! controlChannel.receive.isBlocked()) &&
-               controlChannel.send.isOpen() &&
-               (! controlChannel.send.isBlocked()))) {
+            if (! (controlChannelForTopic.receive.isOpen() &&
+               (! controlChannelForTopic.receive.isBlocked()) &&
+                controlChannelForTopic.send.isOpen() &&
+               (! controlChannelForTopic.send.isBlocked()))) {
                 bothChannelsGood = false;
             }
         }
@@ -450,11 +671,16 @@
             // the 'look' command if we haven't already.
             //
             var findLook = protocol.makeClientMessage("FindEntityRequest");
+
+            findLook.requestMessageId = getNextRequestId();
+            findLook.isMessageResponse = false;
             findLook.searchString = "look";
             findLook.exactMatch = true;
             findLook.entityType = "action";
 
-            controlChannel.send.sendData(findLook);
+            entityDescription.requestId = findLook.requestMessageId;
+
+            controlChannelForTopic.send.sendData(findLook);
         }
     };
 
@@ -466,27 +692,74 @@
      * @param {Object} data The client data.
      */
     var receiveClientData = function(id, data) {
-        // We only support find result and location changes right now
+        var topicName = getTopicNameFromId(id);
+
+        if (topicName === undefined) {
+            // Maybe this came in after cleanup due to timing?
+            // Ignore.
+            return;
+        }
+
+        // We only support find result, location changes, and list of puppets
+        // right now
         //
         if (data.messageType === "FindEntityResult") {
-            if (data.securityViolation) {
-                addAlert("Unable to get look command info due to security violation.");
-            } else if (data.ambiguous) {
-                addAlert("Unable to get look command info due ambiguous lookup.");
-            } else if (data.result) {
-                if (data.result.length <= 0) {
-                    addAlert("Did not return any matching IDs for look");
-                } else {
-                    if (data.result.length > 1) {
-                        addAlert("More than one action ID returned for look.");
-                    }
+            if (data.requestMessageId === entityDescription.requestId) {
+                if (data.securityViolation) {
+                    addAlert("Unable to get look command info due to security violation.");
+                } else if (data.ambiguous) {
+                    addAlert("Unable to get look command info due to ambiguous lookup.");
+                } else if (data.result) {
+                    if (data.result.length <= 0) {
+                        addAlert("Did not return any matching IDs for look");
+                    } else {
+                        if (data.result.length > 1) {
+                            addAlert("More than one action ID returned for look.");
+                        }
 
-                    entityDescription.lookId = data.result[0].id;
+                        entityDescription.lookId = data.result[0].id;
+                    }
+                } else {
+                    addAlert("Did not return result for look");
                 }
-            } else {
-                addAlert("Did not return result for look");
+            } else if (data.requestMessageId === puppetQueryInfo.requestId) {
+                puppetQueryInfo.puppetList = [];
+
+                if (data.securityViolation) {
+                    addAlert("Unable to get puppet list due to security violation.");
+                } else if (data.ambiguous) {
+                    addAlert("Unable to get puppet list due to ambiguous lookup.");
+                } else if (data.result) {
+                    if (data.result.length <= 0) {
+                        addAlert("Did not return any puppets.  Create some puppets first.");
+                    } else {
+                        for (index = 0; index < data.result.length; ++index) {
+                            var foundPuppet = data.result[index];
+
+                            if (entityTabInfo.hasOwnProperty(
+                                "" + foundPuppet.id.entityId)) {
+                                // Puppet already in tabs, skip
+                                continue;
+                            }
+
+                            var puppetEntry =
+                                {id: foundPuppet.id, name: foundPuppet.name };
+                            puppetQueryInfo.puppetList.push(puppetEntry);
+                        }
+
+                        puppetQueryInfo.puppetsReceived = true;
+                    }
+                } else {
+                    addAlert("Did not return result for puppet list query");
+                }
             }
         } else if (data.messageType === "LocationInfoChange") {
+            if (topicName !== PLAYER_TOPIC) {
+                // Right now only setting the title for players; puppets
+                // won't show location changes on the titlebar.
+                return;
+            }
+
             if (data.newRoomId) {
                 // We changed rooms.  Accept the room name even if empty.
                 //
@@ -508,7 +781,7 @@
      * the site list and authenticate, as needed.
      */
     var connectionGood = function(){
-        displayState.sendButtonName = "Send";
+        displayState.sendButtonName = "✔️ Send";
         connectionState.established = true;
 
         // Prompt if they are sure they want to leave
@@ -536,12 +809,12 @@
     protocol.onReconnected = connectionGood;
 
     protocol.onLostConnection = function() {
-        displayState.sendButtonName = "RECONNECTING";
+        displayState.sendButtonName = "🕒 RECONNECTING";
         connectionState.established = false;
     };
 
     protocol.onDisconnection = function() {
-        displayState.sendButtonName = "Disconnected";
+        displayState.sendButtonName = "⛔️ Disconnected";
         connectionState.established = false;
 
         if (connectionState.authenticated) {
@@ -566,9 +839,9 @@
 
         setTitleSiteName(connectionState.siteName);
         setTitlePlayerName(connectionState.username);
+        entityTabInfo.PLAYER.name = connectionState.username;
 
-        connectionState.username = "";
-        connectionState.password = "";
+        connectionState.password = undefined;
     };
 
     protocol.onAuthenticationFail = function() {
@@ -603,53 +876,120 @@
      * @param {Channel} channel The channel being opened.
      */
     protocol.onChannelOpen = function(channel) {
-        if (channel instanceof SendChannel) {
-            // Send channels just get added to the stack, except the client
-            // data channel.
+        // Gets/Creates a mapping for channelID to topic name
+        //
+        var topicName;
+
+        if (channel.entityId && (channel.entityId.entityId > 0)) {
+            // Puppet channel.  Topic may not exist; create as needed
             //
-            if (channel.name.startsWith(puppetChannelPrefix)) {
-                // Ignore puppet data channels towards server for now
+            topicName = "" + channel.entityId.entityId;
+
+            if (! outputTextStore.hasOwnProperty(topicName)) {
+                // New topic; need to add data structures.
+                Vue.set(outputTextStore, topicName, []);
+                Vue.set(outputIds, topicName, []);
+                Vue.set(entityTabInfo, topicName, {
+                    blocked : true,
+                    activity: false,
+                    controlChannels : {
+                        /** {SendChannel} */
+                        send : null,
+                        /** {ReceiveChannel} */
+                        receive : null
+                    },
+                    inputStack : [],
+                    name : channel.subtype
+                });
+                Vue.set(inputLineData, topicName, {
+                    inputLine: "",
+                    prevInputLines: [],
+                    prevLineIndex: []
+                });
+
+                // Make sure we re-focus on text box after tabs update
+                //
+                if (document.activeElement && document.activeElement.id) {
+                    var activeId = document.activeElement.id;
+
+                    if (activeId) {
+                        setTimeout(function() {
+                            var activeElement = document.getElementById(
+                                activeId);
+                            activeElement.focus();
+                        }, 1);
+                    }
+                }
             }
-            else if (channel.name === clientDataChannelSubtype) {
-                controlChannel.send = channel;
+        } else {
+            // Player channel.  Topic already created so just add mapping
+            topicName = PLAYER_TOPIC;
+        }
+
+        channelIdToTopic.set(channel.id, topicName);
+        var info = entityTabInfo[topicName];
+
+        if (channel instanceof SendChannel) {
+            // Send channels just get added to the stack for the given topic's
+            // channels, except the client data channel.
+            //
+            if (channel.name === PUPPET_CLIENT_DATA_SUBTYPE) {
+                info.controlChannels.send = channel;
+            }
+            else if (channel.name === CLIENT_DATA_SUBTYPE) {
+                info.controlChannels.send = channel;
+                // Need status change so we can retrieve additional information
+                // from server
                 channel.onStatusChange = processClientDataChannelStatus;
             } else {
                 // This will listen and interpret Channel status, changing
                 // blocked status or removing it from the inputStack as needed.
                 //
-                var statusListener = function(id, status) {
+                info.inputStack.splice(0, 0, channel);
+
+                channel.onStatusChange = function(id, status) {
+                    var topicName = getTopicNameFromId(id);
+
+                    if (topicName === undefined) {
+                        // Maybe this came in after cleanup due to timing?
+                        // Ignore.
+                        return;
+                    }
+
+                    var inputStackForTopic = info.inputStack;
+
                     if ((status === channel.ChannelStatusEnum.BLOCK) &&
-                      (inputStack.length > 0) && (inputStack[0] === channel)) {
+                        (inputStackForTopic.length > 0) &&
+                        (inputStackForTopic[0] === channel)) {
                         // We're blocked and the top channel.  Disable input
-                        connectionState.blocked = true;
+                        info.blocked = true;
                     } else if ((status === channel.ChannelStatusEnum.UNBLOCK) &&
-                      (inputStack.length > 0) && (inputStack[0] === channel)) {
+                        (inputStackForTopic.length > 0) &&
+                        (inputStackForTopic[0] === channel)) {
                         // We're not blocked and the top channel.  Enable input
-                        connectionState.blocked = false;
+                        info.blocked = false;
                     } else if (status === channel.ChannelStatusEnum.CLOSE) {
                         // Channel has closed.  Remove from stack and update
                         // blocked status as needed.
                         //
-                        var foundIndex = inputStack.indexOf(channel);
+                        var foundIndex = inputStackForTopic.indexOf(channel);
 
                         if (foundIndex >= 0) {
-                            inputStack.splice(foundIndex, 1);
+                            inputStackForTopic.splice(foundIndex, 1);
                         }
 
-                        if (inputStack.length > 0) {
-                            connectionState.blocked = inputStack[0].isBlocked();
+                        if (inputStackForTopic.length > 0) {
+                            info.blocked = inputStackForTopic[0].isBlocked();
                         } else {
                             // No channels left, for the moment.  Block.
-                            connectionState.blocked = true;
+                            info.blocked = true;
                         }
                     }
                 };
 
-                inputStack.splice(0, 0, channel);
-                channel.onStatusChange = statusListener;
 
                 if (channel.isBlocked()) {
-                    connectionState.blocked = true;
+                    info.blocked = true;
                 }
             }
         } else {
@@ -657,16 +997,19 @@
             // screen.  Unless it's a description channel, then it gets routed
             // to the description popup.  ... Or a client data channel.
             //
-            if (channel.name === puppetClientDataChannelSubtype) {
-                // Ignore puppet client data channels for demo.
+            if (channel.name === PUPPET_CLIENT_DATA_SUBTYPE) {
+                // Currently we don't use this. Just store for now.
+                info.controlChannels.receive = channel;
             }
-            else if (channel.name === clientDataChannelSubtype) {
-                controlChannel.receive = channel;
+            else if (channel.name === CLIENT_DATA_SUBTYPE) {
+                info.controlChannels.receive = channel;
+                // Need status change so we can retrieve additional information
+                // from server
                 channel.onStatusChange = processClientDataChannelStatus;
                 channel.onReceiveData = receiveClientData;
             } else {
                 // Check subtype.  If desc, link up to desc stuff
-                if (channel.subtype === descriptionChannelSubtype) {
+                if (channel.subtype === DESCRIPTION_SUBTYPE) {
                     // Only add and prepare for display if a description is not
                     // already in progress, otherwise ignore.
                     if (entityDescription.descriptionChannel === null) {
@@ -684,30 +1027,19 @@
                         channel.onReceiveTextData = addIncomingDescText;
                     }
                 } else {
-                    if (channel.name.startsWith(puppetChannelPrefix)) {
-                        // Grab the puppet name for later lookup
-                        puppetChannelInfo.set(channel.id, channel.subtype);
-
-                        var statusListener = function(id, status) {
-                            if (status === channel.ChannelStatusEnum.CLOSE) {
-                                // Channel has closed.  Remove from puppet
-                                // lookup map
-                                puppetChannelInfo.delete(id);
-                            }
-                        };
-
-                        channel.onStatusChange = statusListener;
-                    }
-
+                    // Standard receive (incoming text) channel.
                     channel.onReceiveTextData = addIncomingText;
+                    // Add cleanup for when it closes
+                    channel.onStatusChange = function(id, status) {
+                        if (status === channel.ChannelStatusEnum.CLOSE) {
+                            // Channel has been closed. Remove from lookup
+                            channelIdToTopic.delete(id);
+                        }
+                    };
                 }
             }
         }
     };
-
-
-
-
 
 
 
@@ -723,14 +1055,19 @@
     var mutgosClient = new Vue({
         el: "#app",
         data: {
-            // Input and output lines
-            //
+            // Constants
+            PLAYER_TOPIC : PLAYER_TOPIC,
+
+            // Which tab is active
+            activeTopic : activeTopic,
+            // Lines to appear in each tab, organized by topic name
             outputIds : outputIds,
-            inputLine : "",
-            prevInputLines : [],
-            prevLineIndex : -1,
+            // Where all the output text is kept
+            outputTextStore : outputTextStore,
+            inputLineData : inputLineData,
             displayState : displayState,
-            inputStack : inputStack,
+            entityTabInfo : entityTabInfo,
+            puppetQueryInfo : puppetQueryInfo,
 
             // Authentication flags and related data
             //
@@ -741,6 +1078,26 @@
             descriptionData : entityDescription
         },
         methods: {
+            // Adds an entry to the inputLineData field given the key,
+            // if it doesn't already exist and returns the value,
+            // otherwise returns existing value.
+            //
+            getInputLineData: function(key) {
+                var value = this.inputLineData[key];
+
+                if (value === undefined) {
+                    value = {
+                        inputLine: "",
+                        prevInputLines: [],
+                        prevLineIndex: []
+                    };
+
+                    this.$set(this.inputLineData, key, value);
+                }
+
+                return value;
+            },
+
             submitAuthentication: function() {
                 if ((! this.connectionState.authenticated) &&
                   (! this.connectionState.authenticationInProgress)) {
@@ -768,22 +1125,26 @@
             // It can go back several lines.
             //
             goPreviousInput: function() {
-                if (this.inputLine.length && this.prevLineIndex <= 0) {
+                var inputInfo = this.getInputLineData(this.activeTopic.name);
+
+                if (inputInfo.inputLine.length && inputInfo.prevLineIndex <= 0) {
                     // Don't allow going back (probably accidentally) if user
                     // is in the middle of typing.
                     return;
                 }
 
-                if (this.prevLineIndex >= 0) {
-                    if (this.prevLineIndex >= this.prevInputLines.length) {
-                        this.prevLineIndex = 0;
+                if (inputInfo.prevLineIndex >= 0) {
+                    if (inputInfo.prevLineIndex >= inputInfo.prevInputLines.length) {
+                        inputInfo.prevLineIndex = 0;
                     }
 
-                    this.inputLine = this.prevInputLines[this.prevLineIndex];
-                    ++this.prevLineIndex;
+                    inputInfo.inputLine =
+                        inputInfo.prevInputLines[inputInfo.prevLineIndex];
+                    ++inputInfo.prevLineIndex;
                 }
 
-                var inputText = document.getElementById("input-field");
+                var inputText = document.getElementById(
+                    this.activeTopic.name + "-input-field");
                 inputText.focus();
             },
 
@@ -803,31 +1164,44 @@
                 document.title = origTitle;
             },
 
+            focusOnInputLine: function() {
+                var inputText = document.getElementById(
+                    this.activeTopic.name + "-input-field");
+
+                setTimeout(function() {
+                    inputText.focus();
+                }, 1);
+            },
+
             // Called to send the input text to the server, put the text in
             // the previous sent lines, and clear the input line for the next
             // input.
             //
             submitText: function() {
-                if (this.inputStack.length > 0) {
+                var inputStack =
+                    this.entityTabInfo[this.activeTopic.name].inputStack;
+
+                if (inputStack.length > 0) {
+                    var inputInfo = this.getInputLineData(this.activeTopic.name);
+
                     // TODO Support color input
                     var textAsExternal =
-                        [new ExternalPlainText(this.inputLine)];
-                    this.inputStack[0].sendText(textAsExternal);
+                        [new ExternalPlainText(inputInfo.inputLine)];
+                    inputStack[0].sendText(textAsExternal);
 
-                    if (this.inputLine !== "") {
-                        this.prevLineIndex = 0;
-                        this.prevInputLines.splice(0, 0, this.inputLine);
+                    if (inputInfo.inputLine !== "") {
+                        inputInfo.prevLineIndex = 0;
+                        inputInfo.prevInputLines.splice(0, 0, inputInfo.inputLine);
 
-                        if (this.prevInputLines.length > 10) {
-                            this.prevInputLines.pop();
+                        if (inputInfo.prevInputLines.length > 10) {
+                            inputInfo.prevInputLines.pop();
                         }
                     }
 
-                    this.inputLine = "";
+                    inputInfo.inputLine = "";
                 }
 
-                var inputText = document.getElementById("input-field");
-                inputText.focus();
+                this.focusOnInputLine();
             },
 
             // Called when a key is pressed, this will submit the text if
@@ -853,6 +1227,102 @@
                     e.preventDefault();
                     this.goPreviousInput();
                     return true;
+                } else if (e.altKey && keycode === 37) {
+                    // Alt-left arrow pushed.
+                    e.preventDefault();
+                    var keys = Object.keys(this.entityTabInfo);
+
+                    if (keys.length === 1) {
+                        // Only one entry, nothing to do.
+                        return;
+                    }
+
+                    if (this.activeTopic.name === PLAYER_TOPIC) {
+                        // At first puppet tab, just go to last
+                        this.activeTopic.name = keys[keys.length - 1];
+
+                        // Make sure we just didn't just go back to player
+                        if (this.activeTopic.name === PLAYER_TOPIC) {
+                            this.activeTopic.name = keys[keys.length - 2];
+                        }
+                    } else if (keys[0] === this.activeTopic.name) {
+                        // At first puppet tab, just head back to player
+                        this.activeTopic.name = PLAYER_TOPIC;
+                    } else {
+                        // Somewhere in the middle; just go back and skip over
+                        // player as needed.
+                        var index = keys.findIndex(function(value)
+                            {return value === this.activeTopic.name});
+                        --index;
+
+                        if (keys[index] === PLAYER_TOPIC) {
+                            --index;
+                        }
+
+                        if (index < 0) {
+                            // At the beginning, just loop back to player
+                            this.activeTopic.name = PLAYER_TOPIC;
+                        } else {
+                            this.activeTopic.name = keys[index];
+                        }
+                    }
+
+                    this.entityTabInfo[this.activeTopic.name].activity = false;
+
+                    this.focusOnInputLine();
+                    setTimeout(function() {
+                        window.scrollBy(0,10000);
+                    }, 1);
+                } else if (e.altKey && keycode === 39) {
+                    // Alt-right arrow pushed.
+                    e.preventDefault();
+
+                    e.preventDefault();
+                    var keys = Object.keys(entityTabInfo);
+
+                    if (keys.length === 1) {
+                        // Only one entry, nothing to do.
+                        return;
+                    }
+
+                    if (this.activeTopic.name === PLAYER_TOPIC) {
+                        // At first puppet tab, just go to next
+                        this.activeTopic.name = keys[0];
+
+                        // Make sure we just didn't just go back to player
+                        if (this.activeTopic.name === PLAYER_TOPIC) {
+                            this.activeTopic.name = keys[1];
+                        }
+                    } else if (keys[keys.length - 1] === this.activeTopic.name) {
+                        // At last puppet tab, just head back to player
+                        this.activeTopic.name = PLAYER_TOPIC;
+                    } else {
+                        // Somewhere in the middle; just advance and skip over
+                        // player as needed.
+                        var index = keys.findIndex(function (value) {
+                            return value === this.activeTopic.name;
+                        });
+
+                        ++index;
+
+                        if (keys[index] === PLAYER_TOPIC) {
+                            ++index;
+                        }
+
+                        if (index >= keys.length) {
+                            // At the end, just loop back to player
+                            this.activeTopic.name = PLAYER_TOPIC;
+                        } else {
+                            this.activeTopic.name = keys[index];
+                        }
+                    }
+
+                    this.entityTabInfo[this.activeTopic.name].activity = false;
+
+                    this.focusOnInputLine();
+                    setTimeout(function() {
+                        window.scrollBy(0,10000);
+                    }, 1);
                 }
                 else {
                     return true;
@@ -863,6 +1333,7 @@
             // This submits the request to the server, to get the description.
             //
             submitLookRequest : function(event) {
+                // TODO Only allow one look sent out at a time
                 if (this.descriptionData.lookId) {
                     var lookRequest = protocol.makeClientMessage("ExecuteEntity");
                     lookRequest.entityId = this.descriptionData.lookId;
@@ -872,7 +1343,10 @@
                           + "-"
                           + event.target.attributes["entityid"].nodeValue
                       ];
-                    lookRequest.channelSubtype = descriptionChannelSubtype;
+                    lookRequest.channelSubtype = DESCRIPTION_SUBTYPE;
+
+                    var controlChannel =
+                        this.entityTabInfo[activeTopic.name].controlChannels;
 
                     if (controlChannel.send) {
                         controlChannel.send.sendData(lookRequest);
@@ -887,6 +1361,135 @@
                 this.descriptionData.descriptionReceived = false;
             },
 
+            // Called to submit a query for what puppets the player currently
+            // owns.  Used to build the puppet selection modal dialog.
+            //
+            submitPuppetListQuery : function() {
+                var queryRequest =
+                    protocol.makeClientMessage("FindEntityRequest");
+
+                queryRequest.requestMessageId = getNextRequestId();
+                queryRequest.isMessageResponse = false;
+                queryRequest.searchString = "";
+                queryRequest.entityType = "puppet";
+
+                this.puppetQueryInfo.requestId = queryRequest.requestMessageId;
+
+                var controlChannel = this.entityTabInfo.PLAYER.controlChannels;
+
+                if (controlChannel.send) {
+                    controlChannel.send.sendData(queryRequest);
+                }
+            },
+
+            // Called to close the puppet dialog without adding anything
+            //
+            closeAddPuppet : function() {
+                this.puppetQueryInfo.puppetsReceived = false;
+                this.puppetQueryInfo.requestId = 0;
+                this.puppetQueryInfo.puppetList = [];
+            },
+
+            // Called when Puppet is selected to add from dialog
+            //
+            addPuppetFromDialog : function(event) {
+                var puppetId = event.target.attributes["puppetId"].nodeValue;
+                var puppetName = event.target.attributes["puppetName"].nodeValue;
+
+                var addedPuppet = {
+                    blocked : true,
+                    activity: false,
+                    controlChannels : {
+                        /** {SendChannel} */
+                        send : null,
+                        /** {ReceiveChannel} */
+                        receive : null
+                    },
+                    inputStack : [],
+                    name : puppetName
+                };
+
+                this.$set(this.entityTabInfo, puppetId, addedPuppet);
+                this.$set(this.outputTextStore, puppetId, []);
+                this.$set(this.outputIds, puppetId, []);
+                // Populate input line defaults so HTML can render
+                this.getInputLineData(puppetId);
+
+                puppetQueryInfo.puppetsReceived = false;
+                puppetQueryInfo.requestId = 0;
+                puppetQueryInfo.puppetList = [];
+
+                // Make sure we re-focus on text box after tabs update
+                //
+                setTimeout(function() {
+                    var elementName = activeTopic.name + '-input-field';
+                    var activeElement = document.getElementById(
+                        elementName);
+                    activeElement.focus();
+                }, 20);
+
+                // Send the 'ping' to open puppet channels
+                //
+                var puppetPing =
+                    protocol.makeClientMessage("ConnectPuppetRequest");
+                puppetPing.puppetEntityId =
+                    new EntityId(connectionState.site, parseInt(puppetId));
+                entityTabInfo[PLAYER_TOPIC].controlChannels.send.sendData(
+                    puppetPing);
+            },
+
+            // Called when a tab is clicked; this will change the
+            // text to that tab.
+            //
+            switchToEntityTab : function(event) {
+                var topicName = event.target.attributes["topicName"].nodeValue;
+                this.activeTopic.name = topicName;
+                this.entityTabInfo[topicName].activity = false;
+
+                this.focusOnInputLine();
+                setTimeout(function() {
+                    window.scrollBy(0,10000);
+                }, 1);
+            },
+
+            // Called when a tab is closed; this will select another
+            // tab and activate it.
+            //
+            closeEntityTab : function(event) {
+                var topicName = event.target.attributes["topicName"].nodeValue;
+                var puppetInfo = this.entityTabInfo[topicName];
+
+                // Request the channels close
+                //
+                var channelsToClose =
+                    [puppetInfo.controlChannels.send.id,
+                     puppetInfo.controlChannels.receive.id];
+
+                for (index = 0; index < puppetInfo.inputStack.length; ++index) {
+                    channelsToClose.push(puppetInfo.inputStack[index].id);
+                }
+
+                protocol.requestChannelClose(channelsToClose);
+
+                // Switch to player tab since that is guaranteed to be
+                // there.
+                //
+                this.activeTopic.name = PLAYER_TOPIC;
+                this.entityTabInfo[this.activeTopic.name].activity = false;
+
+                // Remove data structures since puppet is going away
+                //
+                Vue.delete(this.entityTabInfo, topicName);
+                Vue.delete(this.outputTextStore, topicName);
+                Vue.delete(this.outputIds, topicName);
+                Vue.delete(this.inputLineData, topicName);
+
+                this.focusOnInputLine();
+                setTimeout(function() {
+                    window.scrollBy(0,10000);
+                }, 1);
+            },
+
             // Called when an exit is clicked.
             // This submits the request to the server, to use the exit.
             //
@@ -896,10 +1499,44 @@
                     Number(event.target.attributes["entitysite"].nodeValue),
                     Number(event.target.attributes["entityid"].nodeValue));
 
+                var controlChannel =
+                    this.entityTabInfo[activeTopic.name].controlChannels;
+
                 if (controlChannel.send) {
                     controlChannel.send.sendData(useExitRequest);
                 }
             }
+        },
+        created: function() {
+            this.$set(this.inputLineData, PLAYER_TOPIC, {
+                inputLine: "",
+                prevInputLines: [],
+                prevLineIndex: -1
+            });
+
+            // Put the initial two output streams in the store so FormattedTextComponent
+            // can access them.
+            //
+            this.$set(this.outputTextStore, this.PLAYER_TOPIC, []);
+            this.$set(this.outputTextStore, "descOutput", []);
+            this.$set(this.outputIds, this.PLAYER_TOPIC, []);
+            this.$set(this.outputIds, "descOutput", []);
+
+            // Add player into data structures  both to serve as documentation
+            // and to ensure it's ready to go since it's guaranteed to be needed.
+            //
+            this.$set(this.entityTabInfo, this.PLAYER_TOPIC, {
+                blocked : true,
+                activity: false,
+                controlChannels : {
+                    /** {SendChannel} */
+                    send : null,
+                    /** {ReceiveChannel} */
+                    receive : null
+                },
+                inputStack : [],
+                name : ""
+            });
         },
         mounted: function() {
             window.onblur = this.lostFocus;

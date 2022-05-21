@@ -87,8 +87,9 @@ namespace comm
             blocked_channel_queues.clear();
         }
 
-        // Unregister as a listener to every channel, which will cause
-        // them to be removed during callbacks.
+        // Unregister as a listener to every channel; this may cause the
+        // channel pointer to be deleted on the spot if no other references
+        // to it.
         //
         for (Channels::iterator channel_iter = channels_to_remove.begin();
              channel_iter != channels_to_remove.end();
@@ -895,6 +896,40 @@ namespace comm
     }
 
     // ----------------------------------------------------------------------
+    void ClientSession::client_request_channel_close(const ChannelId channel_id)
+    {
+        // Try and find the Channel.
+        // Note that due to deadlock issues, the mutexes have to be used very
+        // carefully and in a specific order.
+        //
+        ChannelInfo *channel_info_ptr = 0;
+
+        // Scope for write_lock to avoid future deadlock
+        {
+            boost::lock_guard<boost::recursive_mutex> write_lock(client_lock);
+            // This can only be cleaned up in process_pending(), so we're safe.
+            channel_info_ptr = &get_channel_info(channel_id);
+        }
+
+        if (channel_info_ptr and channel_info_ptr->valid())
+        {
+            LOG(debug, "comm", "client_request_channel_close()",
+                "Requested to close ChannelId "
+                + text::to_string(channel_id) + ", Entity "
+                + get_entity_id().to_string(true));
+
+            channel_info_ptr->channel_ptr->close_channel();
+        }
+        else
+        {
+            LOG(debug, "comm", "client_request_channel_close()",
+                "Could not find requested ChannelId "
+                + text::to_string(channel_id) + " to close, Entity "
+                + get_entity_id().to_string(true));
+        }
+    }
+
+    // ----------------------------------------------------------------------
     ChannelId ClientSession::channel_added(
         events::Channel *const channel_ptr,
         const bool to_client)
@@ -1690,23 +1725,33 @@ namespace comm
         //
         if (found)
         {
-            BlockedChannelQueues::iterator erase_iter =
-                blocked_channel_queues.end();
-            --erase_iter;
+            size_t index = blocked_channel_queues.size() - 1;
 
-            while (erase_iter->second.empty())
+            for (;
+                index >= 0;
+                --index)
             {
-                --erase_iter;
+                if (not blocked_channel_queues[index].second.empty())
+                {
+                    // Found first non-empty blocked queue near the end; go back
+                    // to the one after it and stop.
+                    ++index;
+                    break;
+                }
+                else if (index == 0)
+                {
+                    // At beginning and it's also empty.  We can clear them
+                    // all.
+                    break;
+                }
             }
 
-            ++erase_iter;
-
-            if (erase_iter != blocked_channel_queues.end())
+            if (index < blocked_channel_queues.size())
             {
                 // Found a range of queues to remove.
                 //
                 blocked_channel_queues.erase(
-                    erase_iter,
+                    blocked_channel_queues.begin() + index,
                     blocked_channel_queues.end());
             }
         }
