@@ -1,9 +1,9 @@
 /*
- * message_ClientMatchNameRequest.h
+ * message_ClientFindEntityRequest.h
  */
 
-#ifndef MUTGOS_MESSAGE_CLIENTMATCHNAMEREQUEST_H
-#define MUTGOS_MESSAGE_CLIENTMATCHNAMEREQUEST_H
+#ifndef MUTGOS_MESSAGE_CLIENTFINDENTITYREQUEST_H
+#define MUTGOS_MESSAGE_CLIENTFINDENTITYREQUEST_H
 
 #include <string>
 
@@ -21,10 +21,12 @@ namespace message
      *
      * See primitives::DatabasePrims::match_name_to_id() to understand
      * how to use the arguments.
+     * When no name is specified, a direct lookup on the database by
+     * type is used.
      * @see primitives::DatabasePrims::match_name_to_id()
-     * @see ClientMatchNameResult
+     * @see ClientFindEntityResult
      */
-    class ClientMatchNameRequest : public ClientMessage
+    class ClientFindEntityRequest : public ClientMessage
     {
     public:
         /**
@@ -36,18 +38,18 @@ namespace message
         /**
          * Standard constructor.
          */
-        ClientMatchNameRequest(void);
+        ClientFindEntityRequest(void);
 
         /**
          * Copy constructor.
          * @param rhs[in] The source to copy from.
          */
-        ClientMatchNameRequest(const ClientMatchNameRequest &rhs);
+        ClientFindEntityRequest(const ClientFindEntityRequest &rhs);
 
         /**
          * Required virtual destructor.
          */
-        virtual ~ClientMatchNameRequest();
+        virtual ~ClientFindEntityRequest();
 
         /**
          * @return A pointer to a copy of this ClientMessage.  Caller
@@ -118,4 +120,4 @@ namespace message
 }
 }
 
-#endif //MUTGOS_MESSAGE_CLIENTMATCHNAMEREQUEST_H
+#endif //MUTGOS_MESSAGE_CLIENTFINDENTITYREQUEST_H

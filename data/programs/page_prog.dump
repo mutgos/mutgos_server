@@ -16,7 +16,7 @@ void main(const string &in args)
   string contentStr = args.substring(sepIndex + 1);
   bool ambiguous = false;
   
-  Entity @target = DatabaseOps::match_name_to_entity(
+  Entity @target = DatabaseOps::match_online_name_to_entity(
     targetStr,
     false,
     ENTITYTYPE_player,
@@ -30,7 +30,7 @@ void main(const string &in args)
     }
     else
     {
-      println("Cannot find player " + targetStr);
+      println("Cannot find player or puppet " + targetStr);
     }
     
     return;

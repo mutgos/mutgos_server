@@ -710,6 +710,31 @@ namespace json
     }
 
     /**
+     * Adds a value to an array.
+     * @param value[in] The value to add.
+     * @param array[out] The JSON Array to add the value to.
+     * @param root[in] The document root.
+     * @return True if success, or false if not an array.
+     */
+    static bool array_add_value(
+        const osinterface::OsTypes::UnsignedInt value,
+        JSONNode &array,
+        JSONRoot &root)
+    {
+        const bool success = array.IsArray();
+
+        if (success)
+        {
+            rapidjson::Value val;
+            val.SetUint(value);
+
+            array.PushBack(val, root.GetAllocator());
+        }
+
+        return success;
+    }
+
+    /**
      * Adds non-static string values to an array.
      * @tparam Container std::list of std::string, std::set, and the like.
      * @param values[in] The string values to add.
@@ -926,6 +951,41 @@ namespace json
                 value_ptr = new char[value_size + 1];
                 memcpy(value_ptr, element.GetString(), value_size);
                 value_ptr[value_size] = 0;
+            }
+            else
+            {
+                success = false;
+            }
+        }
+
+        return success;
+    }
+
+    /**
+     * Gets a value from a specific location in an array.  The value will
+     * be copied.
+     * @param array[in] The array to retrieve the string from.
+     * @param index[in] The index of the string in the array to retrieve.
+     * @param value[out] The value of the array element.  The value will be
+     * cleared before populating, success or fail.
+     * @return True if an array, the index is within range, the value is
+     * the proper type, and able to retrieve the value.  False otherwise.
+     */
+    static bool array_get_value(
+        const JSONNode &array,
+        const ssize_t index,
+        osinterface::OsTypes::UnsignedInt &value)
+    {
+        bool success = array.IsArray() and (array.Size() > index);
+        value = 0;
+
+        if (success)
+        {
+            const JSONNode &element = array[index];
+
+            if (element.IsUint())
+            {
+                value = element.GetUint();
             }
             else
             {

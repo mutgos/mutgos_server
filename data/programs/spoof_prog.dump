@@ -1,0 +1,9 @@
+    program_language=AngelScript
+    program_source_code=lines 30
+void main(const string &in args)
+{
+  Entity @myself = SystemOps::get_me();
+  
+  InputOutputOps::broadcast_to_room(myself.get_location(), "( " + args + " )", false);
+}
+.end

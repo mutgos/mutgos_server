@@ -33,6 +33,7 @@ namespace events
         SubscriptionIdSet subscription_ids;
 
         get_all_subscription_ids(entity_subscriptions, subscription_ids);
+        get_all_subscription_ids(owner_subscriptions, subscription_ids);
         get_all_subscription_ids(site_subscriptions, subscription_ids);
         get_all_subscription_ids(all_subscriptions, subscription_ids);
 
@@ -64,6 +65,23 @@ namespace events
             //
             SubscriptionList &entity_subs =
                 get_entity_subscriptions(entity_id, entity_subscriptions);
+
+            for (SubscriptionList::iterator sub_iter = entity_subs.begin();
+                 sub_iter != entity_subs.end();
+                 ++sub_iter)
+            {
+                subscription_callback_matched.insert(sub_iter->second);
+            }
+        }
+
+        // Temporary scope for the subscription references
+        {
+            // Get list of subscription IDs that reference the entity.
+            // By definition, all these subscriptions reference the ID,
+            // so they match.
+            //
+            SubscriptionList &entity_subs =
+                get_entity_subscriptions(entity_id, owner_subscriptions);
 
             for (SubscriptionList::iterator sub_iter = entity_subs.begin();
                  sub_iter != entity_subs.end();
@@ -117,6 +135,10 @@ namespace events
 
         get_all_site_callbacks(
             entity_subscriptions,
+            site_id,
+            subscription_callbacks_matched);
+        get_all_site_callbacks(
+            owner_subscriptions,
             site_id,
             subscription_callbacks_matched);
         get_all_site_callbacks(
@@ -180,6 +202,10 @@ namespace events
                     get_entity_subscriptions(
                         entity_ptr->get_entity_id(),
                         entity_subscriptions);
+                const SubscriptionList &owner_list =
+                    get_entity_subscriptions(
+                        entity_ptr->get_entity_owner(),
+                        owner_subscriptions);
                 const SubscriptionList &site_list =
                     get_site_subscriptions(
                         entity_ptr->get_entity_id().get_site_id(),
@@ -192,6 +218,7 @@ namespace events
                 SubscriptionsSatisfied<EntityChangedEvent> tracker;
 
                 evaluate_subscriptions(entity_ptr, entity_list, tracker);
+                evaluate_subscriptions(entity_ptr, owner_list, tracker);
                 evaluate_subscriptions(entity_ptr, site_list, tracker);
                 evaluate_subscriptions(entity_ptr, all_subscriptions, tracker);
 
@@ -259,17 +286,35 @@ namespace events
                 }
                 else if (not entity_ids.empty())
                 {
-                    // Subscribes to Entities
-                    //
-                    for (dbtype::Entity::IdVector::const_iterator entity_iter =
-                        entity_ids.begin();
-                         entity_iter != entity_ids.end();
-                         ++entity_iter)
+                    if (entity_params_ptr->get_entities_are_owners())
                     {
-                        add_subscription_to_entity(
-                            callback_info,
-                            *entity_iter,
-                            entity_subscriptions);
+                        // Subscribes to Owners of Entities
+                        //
+                        for (dbtype::Entity::IdVector::const_iterator entity_iter =
+                            entity_ids.begin();
+                             entity_iter != entity_ids.end();
+                             ++entity_iter)
+                        {
+                            add_subscription_to_entity(
+                                callback_info,
+                                *entity_iter,
+                                owner_subscriptions);
+                        }
+                    }
+                    else
+                    {
+                        // Subscribes to Entities
+                        //
+                        for (dbtype::Entity::IdVector::const_iterator entity_iter =
+                            entity_ids.begin();
+                             entity_iter != entity_ids.end();
+                             ++entity_iter)
+                        {
+                            add_subscription_to_entity(
+                                callback_info,
+                                *entity_iter,
+                                entity_subscriptions);
+                        }
                     }
                 }
                 else
@@ -349,17 +394,35 @@ namespace events
             }
             else if (not entity_ids.empty())
             {
-                // Remove from Entities
-                //
-                for (dbtype::Entity::IdVector::const_iterator entity_iter =
-                    entity_ids.begin();
-                     entity_iter != entity_ids.end();
-                     ++entity_iter)
+                if (params_ptr->get_entities_are_owners())
                 {
-                    remove_entity_subscription(
-                        *entity_iter,
-                        params_ptr,
-                        entity_subscriptions);
+                    // Remove from Owners
+                    //
+                    for (dbtype::Entity::IdVector::const_iterator entity_iter =
+                        entity_ids.begin();
+                         entity_iter != entity_ids.end();
+                         ++entity_iter)
+                    {
+                        remove_entity_subscription(
+                            *entity_iter,
+                            params_ptr,
+                            owner_subscriptions);
+                    }
+                }
+                else
+                {
+                    // Remove from Entities
+                    //
+                    for (dbtype::Entity::IdVector::const_iterator entity_iter =
+                        entity_ids.begin();
+                         entity_iter != entity_ids.end();
+                         ++entity_iter)
+                    {
+                        remove_entity_subscription(
+                            *entity_iter,
+                            params_ptr,
+                            entity_subscriptions);
+                    }
                 }
             }
             else

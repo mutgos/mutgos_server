@@ -18,12 +18,14 @@ namespace
         "SiteList",
         "AuthenticateRequest",
         "AuthenticateResult",
+        "ChannelRequestClose",
         "Disconnect",
         "ChannelData",
         "TextData",
+        "ConnectPuppetRequest",
         "ExecuteEntity",
-        "MatchNameRequest",
-        "MatchNameResult",
+        "FindEntityRequest",
+        "FindEntityResult",
         "LocationInfoChange",
         "INVALID"
     };

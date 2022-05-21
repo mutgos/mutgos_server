@@ -15,6 +15,7 @@
 
 #include "message_ChannelStatus.h"
 #include "clientmessages/message_ClientMessage.h"
+#include "dbtypes/dbtype_Id.h"
 
 namespace mutgos
 {
@@ -34,7 +35,9 @@ namespace message
          * false if in from the client.
          * @param id[in] The ID of the channel, as given by the comm subsystem.
          * @param name[in] The name of the channel.
-         * @param subtype[in] The subtype of the channel.
+         * @param subtype[in] The subtype of the channel (optional).
+         * @param entity_id[in] The entity associated with the
+         * channel (optional).
          */
         ChannelStatusChange(
             const ChannelStatus status,
@@ -42,7 +45,8 @@ namespace message
             const comm::ChannelId id,
             const std::string &name,
             const events::Channel::ChannelType type,
-            const std::string &subtype);
+            const std::string &subtype,
+            const dbtype::Id &entity_id);
 
         /**
          * Copy constructor
@@ -93,10 +97,16 @@ namespace message
           { return channel_type; }
 
         /**
-         * @return The subtype of the channel.
+         * @return The subtype of the channel, if any.
          */
         const std::string &get_channel_subtype(void) const
           { return channel_subtype; }
+
+        /**
+         * @return The entity ID associated with the channel, if any.
+         */
+        const dbtype::Id &get_channel_entity_id(void) const
+          { return channel_entity_id; }
 
         /**
          * Saves this channel status to the provided JSON node.
@@ -123,7 +133,8 @@ namespace message
         comm::ChannelId channel_id; ///< ID number associated with the channel
         std::string channel_name;  ///< The channel name
         events::Channel::ChannelType channel_type; ///< The channel type
-        std::string channel_subtype; ///< The channel subtype
+        std::string channel_subtype; ///< Optional channel subtype
+        dbtype::Id channel_entity_id; ///< Optional entity associated with the channel
     };
 }
 }

@@ -135,34 +135,26 @@ namespace sqliteinterface
         virtual dbtype::EntityType get_entity_type_db(const dbtype::Id &id);
 
         /**
-         * Searches for entities of the given type in the given site ID that
+         * Searches for entities using the parameters specified that
          * contain the given string somewhere in their name, or an exact
-         * if specified.
+         * name match if specified.
          * @param site_id[in] The site to search within.
-         * @param type[in] The type of entity to search for.
-         * @param name[in] The partial match of the name to look for.  Must not
-         * be empty.
+         * @param type[in] The type of entity to search for, or invalid
+         * for all types.
+         * @param owner_id[in] The ID of the owner, or default for all owners.
+         * @param name[in] The name of the Entity to look for.  Can be empty
+         * in some situations to search for all names.
          * @param exact[in] If true, match name exactly.  Note you may still
-         * get multiple matches depending on the type.
+         * get multiple matches depending on the type.  This is ignored
+         * when no name given.
          * @return The matching IDs, or empty if none.
          */
         virtual dbtype::Entity::IdVector find_in_db(
             const dbtype::Id::SiteIdType site_id,
             const dbtype::EntityType type,
+             const dbtype::Id::EntityIdType owner_id,
             const std::string &name,
             const bool exact);
-
-        /**
-         * Searches for entities of any type in the given site ID that
-         * contain the given string somewhere in their name.
-         * @param site_id[in] The site to search within.
-         * @param name[in] The partial match of the name to look for.  Must not
-         * be empty.
-         * @return The matching IDs, or empty if none.
-         */
-        virtual dbtype::Entity::IdVector find_in_db(
-            const dbtype::Id::SiteIdType site_id,
-            const std::string &name);
 
         /**
          * @param site_id[in] The site ID to get all IDs for.
@@ -198,6 +190,25 @@ namespace sqliteinterface
          * @return A list of all known site IDs in the database.
          */
         virtual dbtype::Id::SiteIdVector get_site_ids_in_db(void);
+
+        /**
+         * Gets the metadata for a single Entity.
+         * @param id[in] The ID of the entity to get metadata for.
+         * @return The Metadata for the Entity, or invalid if not found.
+         */
+        virtual dbinterface::EntityMetadata get_entity_metadata(
+            const dbtype::Id &id);
+
+        /**
+         * Gets the metadata for a group of Entities.  This is more efficient
+         * than getting one at a time.
+         * @param ids[in] The IDs of the entities to get metadata for.
+         * @return The Metadata for the Entities, or empty if not found.
+         * If only a few Entities cannot be found, there will simply not be
+         * an entry for them.
+         */
+        virtual dbinterface::MetadataVector get_entity_metadata(
+            const dbtype::Entity::IdVector &ids);
 
         /**
          * Creates a new site in the database.
@@ -273,6 +284,16 @@ namespace sqliteinterface
         bool sql_init(void);
 
         /**
+         * Gets the metadata for an Entity.  Assumes locking has already
+         * taken place.
+         * @param id[in] The ID of the Entity's metadata to get.
+         * @param metadata[out] The Entity's metadata, or invalid if not found.
+         */
+         void get_metadata_internal(
+             const dbtype::Id &id,
+             dbinterface::EntityMetadata &metadata);
+
+        /**
          * Delete all entities and display name lookups for a site.
          * @param site_id[in] The site ID to delete.
          * @return True if success.
@@ -344,9 +365,17 @@ namespace sqliteinterface
         sqlite3_stmt *list_sites_stmt; ///< Lists all valid site IDs
         sqlite3_stmt *list_deleted_sites_stmt; ///< Show all deleted sites
         sqlite3_stmt *list_all_entities_site_stmt; ///< Show all entities in site
-        sqlite3_stmt *find_name_in_db_stmt; ///< Find all with name LIKE
-        sqlite3_stmt *find_name_type_in_db_stmt; ///< Find all of type with name LIKE
-        sqlite3_stmt *find_exact_name_type_in_db_stmt; ///< Find all of type with name
+
+        sqlite3_stmt *find_site_type_owner_name_exact_stmt;  ///< Find site, type, owner, exact name
+        sqlite3_stmt *find_site_type_owner_name_stmt;  ///< Find site, type, owner, partial name
+        sqlite3_stmt *find_site_type_name_exact_stmt; ///< Find site, type, exact name
+        sqlite3_stmt *find_site_type_name_stmt; ///< Find site, type, partial name
+        sqlite3_stmt *find_site_owner_type_stmt;  ///< Find site, owner, type
+
+        sqlite3_stmt *find_site_owner_name_stmt;  ///< Find site, owner, partial name
+        sqlite3_stmt *find_site_owner_stmt;  ///< Find site, owner
+        sqlite3_stmt *find_site_name_stmt;  ///< Find site, partial name
+
         sqlite3_stmt *get_entity_type_stmt; ///< Gets the type for an Entity
         sqlite3_stmt *get_site_name_stmt; ///< Gets a site's name.
         sqlite3_stmt *get_site_description_stmt; ///< Gets a site's description.
@@ -371,6 +400,7 @@ namespace sqliteinterface
         //
         sqlite3_stmt *update_entity_stmt; ///< Updates Entity data, including blob
         sqlite3_stmt *get_entity_stmt; ///< Gets the blob data for an Entity
+        sqlite3_stmt *get_entity_metadata_stmt; ///< Gets the entity's metadata
 
         // New entity
         //

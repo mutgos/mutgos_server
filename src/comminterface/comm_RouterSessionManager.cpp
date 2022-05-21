@@ -387,10 +387,10 @@ namespace comm
                 remove_entity_session(
                     session_iter->second->client_get_entity_id());
 
-                // Found session.  Just destruct it to initiate cleanup.
-                delete session_ptr;
+                // Found session.  Mark it to be deleted after one last
+                // servicing.
+                pending_deletes.push_back(session_ptr);
 
-                connection_to_session.erase(session_iter->second);
                 session_to_connection.erase(session_iter);
             }
         }
@@ -649,7 +649,22 @@ namespace comm
 
         if (session_ptr)
         {
-            pending_actions.push_back(session_ptr);
+            if (pending_deletes.empty())
+            {
+                pending_actions.push_back(session_ptr);
+            }
+            else
+            {
+                // Make sure we're not about to be deleted so we don't get
+                // called back after free
+                if (std::find(
+                    pending_deletes.begin(),
+                    pending_deletes.end(),
+                    session_ptr) == pending_deletes.end())
+                {
+                    pending_actions.push_back(session_ptr);
+                }
+            }
         }
     }
 
@@ -861,6 +876,7 @@ namespace comm
     // ----------------------------------------------------------------------
     void RouterSessionManager::service_sessions(void)
     {
+        bool need_deletes = false;
         boost::lock_guard<boost::recursive_mutex> callback_mutex(callback_lock);
 
         SessionQueue sessions;
@@ -873,12 +889,34 @@ namespace comm
             // local so additional locks don't have to be held or constantly
             // reacquired.
             sessions.swap(pending_actions);
+            need_deletes = not pending_deletes.empty();
         }
 
         while (not sessions.empty())
         {
             sessions.front()->process_pending();
             sessions.pop_front();
+        }
+
+        if (need_deletes)
+        {
+            SessionVector deletes;
+
+            // Scope for lock
+            {
+                boost::lock_guard<boost::recursive_mutex> write_lock(
+                    router_lock);
+                deletes.swap(pending_deletes);
+            }
+
+            // Delete anything that's pending
+            //
+            for (SessionVector::iterator delete_iter = deletes.begin();
+                delete_iter != deletes.end();
+                ++delete_iter)
+            {
+                delete *delete_iter;
+            }
         }
     }
 
@@ -896,6 +934,7 @@ namespace comm
         const dbtype::Entity::IdVector result_ids = database_ptr->find(
             site_id,
             dbtype::ENTITYTYPE_player,
+            0,
             name,
             true);
 

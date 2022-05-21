@@ -47,6 +47,12 @@ namespace angelscript
         check_register_rc(rc, __LINE__, result);
 
         rc = engine.RegisterGlobalFunction(
+            "Entity@ match_online_name_to_entity(const string &in search_string, const bool exact_match, const EntityType entity_type, bool &out ambiguous)",
+            asFUNCTION(match_online_name_to_entity),
+            asCALL_GENERIC);
+        check_register_rc(rc, __LINE__, result);
+
+        rc = engine.RegisterGlobalFunction(
             "Entity@ convert_id_to_entity(const string &in id_as_string)",
             asFUNCTION(convert_id_to_entity),
             asCALL_GENERIC);
@@ -111,15 +117,85 @@ namespace angelscript
 
             if (not prim_result.is_success())
             {
-                /**  Assume whatever it is cannot be found.
                 throw AngelException(
-                    "",
+                    "Bad arguments",
                     prim_result,
                     AS_OBJECT_TYPE_NAME,
                     "match_name_to_entity(string, bool, EntityType, bool)");
-                */
+            }
+            else
+            {
+                result_ptr = new AEntity(engine_ptr, found_entity);
+            }
+        }
+        catch (std::exception &ex)
+        {
+            ScriptUtilities::set_exception_info(engine_ptr, ex);
+            throw;
+        }
+        catch (...)
+        {
+            ScriptUtilities::set_exception_info(engine_ptr);
+            throw;
+        }
 
-                result_ptr = new AEntity(engine_ptr);
+        // Return the result
+        *(AEntity **)gen_ptr->GetAddressOfReturnLocation() = result_ptr;
+    }
+
+    // ----------------------------------------------------------------------
+    void DatabaseOps::match_online_name_to_entity(asIScriptGeneric *gen_ptr)
+    {
+        if (not gen_ptr)
+        {
+            LOG(fatal, "angelscript", "match_online_name_to_entity", "gen_ptr is null");
+            return;
+        }
+
+        asIScriptEngine * const engine_ptr = gen_ptr->GetEngine();
+
+        // Arguments passed in via generic interface
+        //
+        AString * const search_string = reinterpret_cast<AString *>(
+            gen_ptr->GetArgObject(0));
+        const bool exact_match = *(bool*)gen_ptr->GetAddressOfArg(1);
+        const dbtype::EntityType entity_type =
+            (dbtype::EntityType) gen_ptr->GetArgDWord(2);
+        bool * const ambiguous = (bool*)gen_ptr->GetAddressOfArg(3);
+
+        // What will be our return value.
+        //
+        AEntity *result_ptr = 0;
+
+        try
+        {
+            if ((not search_string) or (not ambiguous))
+            {
+                throw AngelException(
+                    "AngelScript passed null pointers to us",
+                    AS_OBJECT_TYPE_NAME,
+                    "match_online_name_to_entity(string, bool, EntityType, bool)");
+            }
+
+            dbtype::Id found_entity;
+
+            const primitives::Result prim_result =
+                primitives::PrimitivesAccess::instance()->
+                    database_prims().match_online_name_to_id(
+                        *ScriptUtilities::get_my_security_context(engine_ptr),
+                        search_string->export_to_string(),
+                        exact_match,
+                        entity_type,
+                        found_entity,
+                        *ambiguous);
+
+            if (not prim_result.is_success())
+            {
+                throw AngelException(
+                    "Bad arguments",
+                    prim_result,
+                    AS_OBJECT_TYPE_NAME,
+                    "match_online_name_to_entity(string, bool, EntityType, bool)");
             }
             else
             {

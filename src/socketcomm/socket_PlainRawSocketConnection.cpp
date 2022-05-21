@@ -45,7 +45,7 @@ namespace socket
                 SOCKET_SEND_BUFFER_BYTES);
             socket.set_option(send_buffer);
         }
-        catch (boost::system::system_error ex)
+        catch (boost::system::system_error &ex)
         {
             LOG(error, "socket", "start",
                 "Failed to set socket send buffer size: "
@@ -63,7 +63,7 @@ namespace socket
                 SOCKET_RECV_BUFFER_BYTES);
             socket.set_option(recv_buffer);
         }
-        catch (boost::system::system_error ex)
+        catch (boost::system::system_error &ex)
         {
             LOG(error, "socket", "start",
                 "Failed to set socket receive buffer size: "

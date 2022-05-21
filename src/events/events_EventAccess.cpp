@@ -23,7 +23,6 @@
 #include "events/events_ProcessExecutionEventProcessor.h"
 #include "events/events_SiteEventProcessor.h"
 
-#include "dbinterface/dbinterface_DatabaseAccess.h"
 #include "dbtypes/dbtype_Entity.h"
 
 #include "logging/log_Logger.h"
@@ -225,6 +224,7 @@ namespace events
             publish_event(new EntityChangedEvent(
                 entity_ptr->get_entity_id(),
                 entity_ptr->get_entity_type(),
+                entity_ptr->get_entity_owner(),
                 EntityChangedEvent::ENTITY_CREATED));
         }
     }
@@ -237,6 +237,7 @@ namespace events
             publish_event(new EntityChangedEvent(
                 entity_ptr->get_entity_id(),
                 entity_ptr->get_entity_type(),
+                entity_ptr->get_entity_owner(),
                 EntityChangedEvent::ENTITY_DELETED));
         }
     }
@@ -265,6 +266,7 @@ namespace events
             publish_event(new EntityChangedEvent(
                 entity_ptr->get_entity_id(),
                 entity_ptr->get_entity_type(),
+                entity_ptr->get_entity_owner(),
                 fields,
                 flags_changed,
                 ids_changed));

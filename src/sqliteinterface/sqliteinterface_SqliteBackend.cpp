@@ -14,7 +14,8 @@
 #include "utilities/mutgos_config.h"
 #include "text/text_StringConversion.h"
 
-#include "sqliteinterface_SqliteBackend.h"
+#include "sqliteinterface/sqliteinterface_SqliteBackend.h"
+#include "dbinterface/dbinterface_DatabaseAccess.h"
 
 #include "concurrency/concurrency_ReaderLockToken.h"
 
@@ -39,9 +40,14 @@ namespace sqliteinterface
         list_sites_stmt(0),
         list_deleted_sites_stmt(0),
         list_all_entities_site_stmt(0),
-        find_name_in_db_stmt(0),
-        find_name_type_in_db_stmt(0),
-        find_exact_name_type_in_db_stmt(0),
+        find_site_type_owner_name_exact_stmt(0),
+        find_site_type_owner_name_stmt(0),
+        find_site_type_name_exact_stmt(0),
+        find_site_type_name_stmt(0),
+        find_site_owner_type_stmt(0),
+        find_site_owner_name_stmt(0),
+        find_site_owner_stmt(0),
+        find_site_name_stmt(0),
         get_entity_type_stmt(0),
         get_site_name_stmt(0),
         get_site_description_stmt(0),
@@ -60,6 +66,7 @@ namespace sqliteinterface
         set_site_description_stmt(0),
         update_entity_stmt(0),
         get_entity_stmt(0),
+        get_entity_metadata_stmt(0),
         get_next_deleted_entity_id_stmt(0),
         mark_deleted_id_used_stmt(0),
         get_next_entity_id_stmt(0),
@@ -163,14 +170,29 @@ namespace sqliteinterface
             sqlite3_finalize(list_all_entities_site_stmt);
             list_all_entities_site_stmt = 0;
 
-            sqlite3_finalize(find_name_in_db_stmt);
-            find_name_in_db_stmt = 0;
+            sqlite3_finalize(find_site_type_owner_name_exact_stmt);
+            find_site_type_owner_name_exact_stmt = 0;
 
-            sqlite3_finalize(find_name_type_in_db_stmt);
-            find_name_type_in_db_stmt = 0;
+            sqlite3_finalize(find_site_type_owner_name_stmt);
+            find_site_type_owner_name_stmt = 0;
 
-            sqlite3_finalize(find_exact_name_type_in_db_stmt);
-            find_exact_name_type_in_db_stmt = 0;
+            sqlite3_finalize(find_site_type_name_exact_stmt);
+            find_site_type_name_exact_stmt = 0;
+
+            sqlite3_finalize(find_site_type_name_stmt);
+            find_site_type_name_stmt = 0;
+
+            sqlite3_finalize(find_site_owner_type_stmt);
+            find_site_owner_type_stmt = 0;
+
+            sqlite3_finalize(find_site_owner_name_stmt);
+            find_site_owner_name_stmt = 0;
+
+            sqlite3_finalize(find_site_owner_stmt);
+            find_site_owner_stmt = 0;
+
+            sqlite3_finalize(find_site_name_stmt);
+            find_site_name_stmt = 0;
 
             sqlite3_finalize(get_entity_type_stmt);
             get_entity_type_stmt = 0;
@@ -225,6 +247,9 @@ namespace sqliteinterface
 
             sqlite3_finalize(get_entity_stmt);
             get_entity_stmt = 0;
+
+            sqlite3_finalize(get_entity_metadata_stmt);
+            get_entity_metadata_stmt = 0;
 
             sqlite3_finalize(get_next_deleted_entity_id_stmt);
             get_next_deleted_entity_id_stmt = 0;
@@ -849,17 +874,76 @@ namespace sqliteinterface
     dbtype::Entity::IdVector SqliteBackend::find_in_db(
         const dbtype::Id::SiteIdType site_id,
         const dbtype::EntityType type,
+        const dbtype::Id::EntityIdType owner_id,
         const std::string &name,
         const bool exact)
     {
         dbtype::Entity::IdVector result;
+
+        if (not site_id)
+        {
+            LOG(error, "sqliteinterface", "find_in_db()",
+                "Site was not specified; cannot search");
+            return result;
+        }
+
         boost::lock_guard<boost::mutex> guard(mutex);
 
-        sqlite3_stmt *stmt = find_name_type_in_db_stmt;
+        sqlite3_stmt *stmt = 0;
 
-        if (exact)
+        // Figure what type of search they want base don which parameters were
+        // filled in.
+        //
+        if (type == dbtype::ENTITYTYPE_invalid)
         {
-            stmt = find_exact_name_type_in_db_stmt;
+            if (owner_id and (not name.empty()))
+            {
+                stmt = find_site_owner_name_stmt;
+            }
+            else if (owner_id)
+            {
+                stmt = find_site_owner_stmt;
+            }
+            else if (not name.empty())
+            {
+                stmt = find_site_name_stmt;
+            }
+        }
+        else
+        {
+            if (owner_id and name.empty())
+            {
+                stmt = find_site_owner_type_stmt;
+            }
+            else if (owner_id)
+            {
+                if (exact)
+                {
+                    stmt = find_site_type_owner_name_exact_stmt;
+                }
+                else
+                {
+                    stmt = find_site_type_owner_name_stmt;
+                }
+            }
+            else
+            {
+                if (exact)
+                {
+                    stmt = find_site_type_name_exact_stmt;
+                }
+                else
+                {
+                    stmt = find_site_type_name_stmt;
+                }
+            }
+        }
+
+        if (not stmt)
+        {
+            LOG(error, "sqliteinterface", "find_in_db()",
+                "Bad combination of parameters given; cannot search");
+            return result;
         }
 
         if (sqlite3_bind_int(
@@ -867,28 +951,46 @@ namespace sqliteinterface
             sqlite3_bind_parameter_index(stmt, "$SITEID"),
             site_id) != SQLITE_OK)
         {
-            LOG(error, "sqliteinterface", "find_in_db(type, name)",
+            LOG(error, "sqliteinterface", "find_in_db()",
                 "For stmt, could not bind $SITEID");
         }
 
-        if (sqlite3_bind_int(
-            stmt,
-            sqlite3_bind_parameter_index(stmt, "$TYPE"),
-            type) != SQLITE_OK)
+        if (type != dbtype::ENTITYTYPE_invalid)
         {
-            LOG(error, "sqliteinterface", "find_in_db(type, name)",
-                "For stmt, could not bind $TYPE");
+            if (sqlite3_bind_int(
+                stmt,
+                sqlite3_bind_parameter_index(stmt, "$TYPE"),
+                type) != SQLITE_OK)
+            {
+                LOG(error, "sqliteinterface", "find_in_db()",
+                    "For stmt, could not bind $TYPE");
+            }
         }
 
-        if (sqlite3_bind_text(
-            stmt,
-            sqlite3_bind_parameter_index(stmt, "$NAME"),
-            name.c_str(),
-            name.size(),
-            SQLITE_TRANSIENT) != SQLITE_OK)
+        if (owner_id)
         {
-            LOG(error, "sqliteinterface", "find_in_db(type, name)",
-                "For stmt, could not bind $NAME");
+            if (sqlite3_bind_int(
+                stmt,
+                sqlite3_bind_parameter_index(stmt, "$OWNER"),
+                owner_id) != SQLITE_OK)
+            {
+                LOG(error, "sqliteinterface", "find_in_db()",
+                    "For stmt, could not bind $OWNER");
+            }
+        }
+
+        if (not name.empty())
+        {
+            if (sqlite3_bind_text(
+                stmt,
+                sqlite3_bind_parameter_index(stmt, "$NAME"),
+                name.c_str(),
+                name.size(),
+                SQLITE_TRANSIENT) != SQLITE_OK)
+            {
+                LOG(error, "sqliteinterface", "find_in_db()",
+                    "For stmt, could not bind $NAME");
+            }
         }
 
         add_entity_ids(stmt, site_id, result);
@@ -900,45 +1002,18 @@ namespace sqliteinterface
 
     // ----------------------------------------------------------------------
     dbtype::Entity::IdVector SqliteBackend::find_in_db(
-        const dbtype::Id::SiteIdType site_id,
-        const std::string &name)
-    {
-        boost::lock_guard<boost::mutex> guard(mutex);
-        dbtype::Entity::IdVector result;
-
-        if (sqlite3_bind_int(
-            find_name_in_db_stmt,
-            sqlite3_bind_parameter_index(find_name_in_db_stmt, "$SITEID"),
-            site_id) != SQLITE_OK)
-        {
-            LOG(error, "sqliteinterface", "find_in_db(name)",
-                "For find_name_in_db_stmt, could not bind $SITEID");
-        }
-
-        if (sqlite3_bind_text(
-            find_name_in_db_stmt,
-            sqlite3_bind_parameter_index(find_name_in_db_stmt, "$NAME"),
-            name.c_str(),
-            name.size(),
-            SQLITE_TRANSIENT) != SQLITE_OK)
-        {
-            LOG(error, "sqliteinterface", "find_in_db(name)",
-                "For find_name_in_db_stmt, could not bind $NAME");
-        }
-
-        add_entity_ids(find_name_in_db_stmt, site_id, result);
-
-        reset(find_name_in_db_stmt);
-
-        return result;
-    }
-
-    // ----------------------------------------------------------------------
-    dbtype::Entity::IdVector SqliteBackend::find_in_db(
         const dbtype::Id::SiteIdType site_id)
     {
-        boost::lock_guard<boost::mutex> guard(mutex);
         dbtype::Entity::IdVector result;
+
+        if (not site_id)
+        {
+            LOG(error, "sqliteinterface", "find_in_db(site)",
+                "Site was not specified; cannot search");
+            return result;
+        }
+
+        boost::lock_guard<boost::mutex> guard(mutex);
 
         if (sqlite3_bind_int(
             list_all_entities_site_stmt,
@@ -1086,6 +1161,115 @@ namespace sqliteinterface
         }
 
         reset(list_sites_stmt);
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    dbinterface::EntityMetadata
+    SqliteBackend::get_entity_metadata(const dbtype::Id &id)
+    {
+        dbinterface::EntityMetadata result;
+
+        // See if in memory;  If so, use that version instead
+        if (is_mem_owned(id))
+        {
+            dbinterface::EntityRef entity_ref =
+                dbinterface::DatabaseAccess::instance()->get_entity(id);
+
+            if (entity_ref.valid())
+            {
+                concurrency::ReaderLockToken token(*entity_ref.get());
+
+                result.set(
+                    id,
+                    entity_ref->get_entity_owner(token),
+                    entity_ref->get_entity_type(),
+                    entity_ref->get_entity_version(),
+                    entity_ref->get_entity_name(token));
+            }
+
+            return result;
+        }
+
+        // Not in memory, use database metadata.
+        //
+        boost::lock_guard<boost::mutex> guard(mutex);
+        get_metadata_internal(id, result);
+
+        return result;
+    }
+
+    // ----------------------------------------------------------------------
+    dbinterface::MetadataVector
+    SqliteBackend::get_entity_metadata(const dbtype::Entity::IdVector &ids)
+    {
+        dbinterface::MetadataVector result;
+        std::vector<const dbtype::Id *> not_in_mem;
+
+        not_in_mem.reserve(ids.size());
+
+        for (dbtype::Entity::IdVector::const_iterator id_iter = ids.begin();
+            id_iter != ids.end();
+            ++id_iter)
+        {
+            if (is_mem_owned(*id_iter))
+            {
+                // Can look entity up directly in memory
+                //
+                dbinterface::EntityRef entity_ref =
+                    dbinterface::DatabaseAccess::instance()->get_entity(
+                        *id_iter);
+
+                if (entity_ref.valid())
+                {
+                    result.push_back(dbinterface::EntityMetadata());
+                    concurrency::ReaderLockToken token(*entity_ref.get());
+
+                    result.back().set(
+                        *id_iter,
+                        entity_ref->get_entity_owner(token),
+                        entity_ref->get_entity_type(),
+                        entity_ref->get_entity_version(),
+                        entity_ref->get_entity_name(token));
+
+                    if (not result.back().valid())
+                    {
+                        result.pop_back();
+                    }
+                }
+            }
+            else
+            {
+                // Need to look it up in the database in a batch operation.
+                not_in_mem.push_back(&(*id_iter));
+            }
+        }
+
+        if (not not_in_mem.empty())
+        {
+            // Have some IDs to look up direct in the database.
+            // Do them all at once under the same lock for efficiency
+            // (hopefully).
+            //
+            boost::lock_guard<boost::mutex> guard(mutex);
+
+            for (std::vector<const dbtype::Id *>::const_iterator id_ptr_iter =
+                not_in_mem.begin();
+                 id_ptr_iter != not_in_mem.end();
+                 ++id_ptr_iter)
+            {
+                result.push_back(dbinterface::EntityMetadata());
+                get_metadata_internal(**id_ptr_iter, result.back());
+
+                if (not result.back().valid())
+                {
+                    result.pop_back();
+                }
+            }
+
+            not_in_mem.clear();
+        }
 
         return result;
     }
@@ -1719,9 +1903,87 @@ namespace sqliteinterface
         if (sqlite3_prepare_v2(
             dbhandle_ptr,
             "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
+            "type = $TYPE AND owner = $OWNER AND "
+            "name = $NAME;",
+            -1,
+            &find_site_type_owner_name_exact_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for listing entity by site, "
+                "type, owner, and exact name");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
+            "type = $TYPE AND owner = $OWNER AND "
+            "name LIKE '%' || $NAME || '%';",
+            -1,
+            &find_site_type_owner_name_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for listing entity by site, "
+                "type, owner, and name");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
+            "owner = $OWNER AND type = $TYPE;",
+            -1,
+            &find_site_owner_type_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for listing entity by site, "
+                "owner, and type");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
+            "owner = $OWNER AND "
+            "name LIKE '%' || $NAME || '%';",
+            -1,
+            &find_site_owner_name_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for listing entity by site, "
+                "owner, and name");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
+            "owner = $OWNER",
+            -1,
+            &find_site_owner_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for listing entity by site "
+                "and owner");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
+            "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
                 "name LIKE '%' || $NAME || '%';",
             -1,
-            &find_name_in_db_stmt,
+            &find_site_name_stmt,
             0) != SQLITE_OK)
         {
             success = false;
@@ -1735,7 +1997,7 @@ namespace sqliteinterface
             "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
                 "name LIKE '%' || $NAME || '%' AND type = $TYPE;",
             -1,
-            &find_name_type_in_db_stmt,
+            &find_site_type_name_stmt,
             0) != SQLITE_OK)
         {
             success = false;
@@ -1749,7 +2011,7 @@ namespace sqliteinterface
             "SELECT entity_id FROM entities WHERE site_id = $SITEID AND "
                 "name = $NAME AND type = $TYPE;",
             -1,
-            &find_exact_name_type_in_db_stmt,
+            &find_site_type_name_exact_stmt,
             0) != SQLITE_OK)
         {
             success = false;
@@ -2005,6 +2267,20 @@ namespace sqliteinterface
 
         if (sqlite3_prepare_v2(
             dbhandle_ptr,
+            "SELECT owner, type, version, name FROM entities WHERE "
+            "site_id = $SITEID and entity_id = $ENTITYID;",
+            -1,
+            &get_entity_metadata_stmt,
+            0) != SQLITE_OK)
+        {
+            success = false;
+
+            LOG(fatal, "sqliteinterface", "sql_init",
+                "Failed prepared statement for getting an Entity metadata.");
+        }
+
+        if (sqlite3_prepare_v2(
+            dbhandle_ptr,
             "SELECT deleted_entity_id FROM id_reuse WHERE site_id = $SITEID;",
             -1,
             &get_next_deleted_entity_id_stmt,
@@ -2166,6 +2442,75 @@ namespace sqliteinterface
         }
 
         return success;
+    }
+
+    void SqliteBackend::get_metadata_internal(
+        const dbtype::Id &id,
+        dbinterface::EntityMetadata &metadata)
+    {
+        // Look up the Entity
+        //
+        if (sqlite3_bind_int(
+            get_entity_metadata_stmt,
+            sqlite3_bind_parameter_index(get_entity_metadata_stmt, "$SITEID"),
+            id.get_site_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "get_metadata_internal",
+                "For get_metadata_internal, could not bind $SITEID");
+        }
+
+        if (sqlite3_bind_int64(
+            get_entity_metadata_stmt,
+            sqlite3_bind_parameter_index(get_entity_metadata_stmt, "$ENTITYID"),
+            id.get_entity_id()) != SQLITE_OK)
+        {
+            LOG(error, "sqliteinterface", "get_metadata_internal",
+                "For get_metadata_internal, could not bind $ENTITYID");
+        }
+
+        if (sqlite3_step(get_entity_metadata_stmt) != SQLITE_ROW)
+        {
+            metadata.reset();
+        }
+        else
+        {
+            // Found an entry.  Extract the info.
+            //
+
+            // Owner
+            const dbtype::Id::EntityIdType entity_owner_int =
+                sqlite3_column_int64(get_entity_metadata_stmt, 0);
+            // Type (as int)
+            const int entity_type_int =
+                sqlite3_column_int(get_entity_metadata_stmt, 1);
+            // version
+            const dbtype::Entity::VersionType version =
+                sqlite3_column_int(get_entity_metadata_stmt, 2);
+            // name (string)
+            const char *name_char_ptr = (const char *)
+                sqlite3_column_text(get_entity_metadata_stmt, 3);
+            const int name_char_size =
+                sqlite3_column_bytes(get_entity_metadata_stmt, 3);
+            std::string name;
+
+            if (name_char_size)
+            {
+                name.assign(name_char_ptr, name_char_size);
+            }
+
+            // Type as enum
+            const dbtype::EntityType entity_type =
+                (dbtype::EntityType) entity_type_int;
+
+            metadata.set(
+                id,
+                dbtype::Id(id.get_site_id(), entity_owner_int),
+                entity_type,
+                version,
+                name);
+        }
+
+        reset(get_entity_metadata_stmt);
     }
 
     // ----------------------------------------------------------------------

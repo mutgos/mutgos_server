@@ -289,6 +289,17 @@ function RawTextgameProtocolClient() {
         }
     };
 
+    /**
+     * @public
+     * Sends the given message as a control message (not part of any Channel).
+     * @param {Object} message The message to send.
+     */
+    this.sendControlData = function (message) {
+        // Send it out as a control message
+        outgoingControls.push(message);
+        this.timerSendPendingData();
+    };
+
     /** PRIVATE ATTRIBUTES **/
 
     // If not using the browser websocket, this is a reference to

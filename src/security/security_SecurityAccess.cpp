@@ -974,6 +974,7 @@ namespace security
         const dbtype::Entity::IdVector search_result = database_ptr->find(
             site_id,
             dbtype::ENTITYTYPE_capability,
+            0,
             capability_to_string(capability),
             true);
 

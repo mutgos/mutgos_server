@@ -28,7 +28,9 @@ namespace events
      * When an attribute of this subscription parameters is left blank,
      * it means 'any'.  When an attribute allows or has more than one
      * entry, it can be assumed all the entries are ORed together (example for
-     * entity type:  type ROOM, or type PLAYER, or type PROGRAM).
+     * entity type:  type ROOM, or type PLAYER, or type PROGRAM).  Parameters
+     * are ANDed with each other, though as mentioned prior, entries within
+     * parameters are ORed.
      *
      * Note this is not a general purpose container.  Attributes, once set,
      * cannot be unset.
@@ -52,6 +54,10 @@ namespace events
          * @param actions[in] The actions of interest (create, update, etc).
          * Duplicates are automatically removed.
          * @param entities[in] The entities of interest.  Exclusive of sites.
+         * @param entities_are_owners[in] True if 'entities' are owners
+         * of the entities to watch, false if 'entities' are the actual
+         * entities to watch.  When watching by owner, ALL entities owned
+         * by the owner are watched.
          * @param site[in] The site of interest.  Exclusive of Entities.
          * @param types[in] The types of Entities of interest.
          * Duplicates are automatically removed.
@@ -66,6 +72,7 @@ namespace events
         EntityChangedSubscriptionParams(
             const EntityActions &actions,
             const dbtype::Entity::IdVector &entities,
+            const bool entities_are_owners,
             const dbtype::Id::SiteIdType site,
             const EntityTypes &types,
             const dbtype::Entity::EntityFieldSet &fields,
@@ -127,6 +134,13 @@ namespace events
          */
         const dbtype::Entity::IdVector &get_entity_ids(void) const
           { return entity_ids; }
+
+        /**
+         * @return True if the entity IDs are actually the owners rather
+         * than the entities themselves.
+         */
+        const bool get_entities_are_owners(void) const
+          { return entity_ids_owners; }
 
         /**
          * Sets a site ID of interest.  If not set or set to default (0),
@@ -283,6 +297,7 @@ namespace events
     private:
         EntityActions entity_actions; ///< Actions of interest
         dbtype::Entity::IdVector entity_ids; ///< Entity IDs of interest
+        bool entity_ids_owners; ///< True if entity_ids are owners instead
         dbtype::Id::SiteIdType entity_site_id;  ///< Site ID of interest
         EntityTypes entity_types; ///< Entity types of interest
         dbtype::Entity::EntityFieldSet entity_fields; ///< Entity changed fields of interest

@@ -32,18 +32,22 @@ namespace message
         CLIENTMESSAGE_AUTHENTICATION_REQUEST,
         /** ClientAuthenticationResult class */
         CLIENTMESSAGE_AUTHENTICATION_RESULT,
+        /** ClientChannelRequestClose class */
+        CLIENTMESSAGE_CLOSE_CHANNEL_REQUEST,
         /** ClientDisconnect class */
         CLIENTMESSAGE_DISCONNECT,
         /** ChannelData class */
         CLIENTMESSAGE_CHANNEL_DATA,
         /** ClientTextData class */
         CLIENTMESSAGE_TEXT_DATA,
+        /** ClientConnectPuppet class */
+        CLIENTMESSAGE_CONNECT_PUPPET_REQUEST,
         /** ClientExecuteEntity class */
         CLIENTMESSAGE_EXECUTE_ENTITY,
         /** ClientMatchNameRequest class */
-        CLIENTMESSAGE_MATCH_NAME_REQUEST,
-        /** ClientMatchNameResult class */
-        CLIENTMESSAGE_MATCH_NAME_RESULT,
+        CLIENTMESSAGE_FIND_ENTITY_REQUEST,
+        /** ClientFindEntityResult class */
+        CLIENTMESSAGE_FIND_ENTITY_RESULT,
         /** LocationInfoChange class */
         CLIENTMESSAGE_LOCATION_INFO_CHANGE,
         /** Invalid type, do not directly use */

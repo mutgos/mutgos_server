@@ -4,6 +4,7 @@
 #include <string>
 
 #include "channels/events_Channel.h"
+#include "dbtypes/dbtype_Id.h"
 #include "text/text_ExternalText.h"
 
 namespace mutgos
@@ -34,8 +35,13 @@ namespace events
          * of whatever it is being used for.
          * @param subtype[in] An optional subtype of the TextChannel.  The
          * meaning is specific to how it's being used.
+         * @param entity_id[in] An optional ID for an Entity associated with
+         * the channel.
          */
-        TextChannel(const std::string &name, const std::string &subtype = "");
+        TextChannel(
+            const std::string &name,
+            const std::string &subtype = "",
+            const dbtype::Id &entity_id = dbtype::Id());
 
         /**
          * Destructor.
